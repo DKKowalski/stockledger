@@ -1,0 +1,69 @@
+enum StockMovementType {
+  @@type("pg/text@1")
+
+  purchase   = "purchase"
+  transfer   = "transfer"
+  return_in  = "return_in"
+  return_out = "return_out"
+  damage     = "damage"
+}
+
+enum UserRole {
+  @@type("pg/text@1")
+
+  administrator    = "administrator"
+  inventory_manager = "inventory_manager"
+}
+
+model User {
+  id           Uuid                       @id @default(uuid())
+  fullName     VarChar(120)               @map("full_name")
+  email        VarChar(255)               @unique
+  passwordHash VarChar(255)               @map("password_hash")
+  role         UserRole                   @default(inventory_manager)
+  createdAt    TimestamptzString          @default(now()) @map("created_at")
+  updatedAt    temporal.updatedAtString() @map("updated_at")
+
+  @@map("users")
+}
+
+model InventoryItem {
+  id             Uuid                       @id @default(uuid())
+  sku            VarChar(40)                @unique
+  name           VarChar(120)
+  category       VarChar(80)
+  unit           VarChar(20)
+  reorderLevel   Int                        @default(0) @map("reorder_level")
+  unitCostCents  Int                        @default(0) @map("unit_cost_cents")
+  openingStock   Int                        @default(0) @map("opening_stock")
+  createdAt      TimestamptzString          @default(now()) @map("created_at")
+  updatedAt      temporal.updatedAtString() @map("updated_at")
+
+  @@check(expression: "reorder_level >= 0", name: "inventory_item_reorder_level_nonnegative")
+  @@check(expression: "unit_cost_cents >= 0", name: "inventory_item_unit_cost_nonnegative")
+  @@check(expression: "opening_stock >= 0", name: "inventory_item_opening_stock_nonnegative")
+  @@map("inventory_items")
+}
+
+model StockMovement {
+  id           Uuid              @id @default(uuid())
+  itemId       Uuid              @map("item_id")
+  type         StockMovementType
+  quantity     Int
+  movementDate DateString        @map("movement_date")
+  reference    VarChar(80)?
+  note         VarChar(500)?
+  createdAt    TimestamptzString @default(now()) @map("created_at")
+
+  item InventoryItem @relation(
+    fields: [itemId],
+    references: [id],
+    onDelete: Cascade,
+    onUpdate: Cascade
+  )
+
+  @@check(expression: "quantity > 0", name: "stock_movement_quantity_positive")
+  @@index([itemId])
+  @@index([movementDate])
+  @@map("stock_movements")
+}

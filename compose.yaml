@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: stockledger
+      POSTGRES_PASSWORD: stockledger
+      POSTGRES_DB: stockledger
+    ports:
+      - "5434:5432"
+    volumes:
+      - stockledger_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stockledger -d stockledger"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  stockledger_postgres_data:
