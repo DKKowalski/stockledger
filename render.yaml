@@ -1,0 +1,46 @@
+services:
+  - type: web
+    name: stockledger-dkk-api
+    runtime: node
+    plan: free
+    region: frankfurt
+    buildCommand: npm ci --include=dev && npm run api:build && npm run api:migrate
+    startCommand: npm run start:prod --workspace=apps/api
+    initialDeployHook: npm run db:seed:prod --workspace=apps/api
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    buildFilter:
+      paths:
+        - apps/api/**
+        - package.json
+        - package-lock.json
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: WEB_ORIGIN
+        value: https://stockledger-dkk-web.onrender.com
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_ACCESS_TTL_SECONDS
+        value: 28800
+
+  - type: web
+    name: stockledger-dkk-web
+    runtime: static
+    buildCommand: npm ci --include=dev && npm run web:build
+    staticPublishPath: ./apps/web/dist
+    autoDeployTrigger: commit
+    buildFilter:
+      paths:
+        - apps/web/**
+        - package.json
+        - package-lock.json
+    envVars:
+      - key: VITE_API_URL
+        value: https://stockledger-dkk-api.onrender.com
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

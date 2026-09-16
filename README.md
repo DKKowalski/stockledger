@@ -49,3 +49,16 @@ closing = opening + purchases + returns in
 ```
 
 The API owns this calculation. The React client renders the resulting snapshot and never maintains a second stock total.
+
+## Deploy with Render and Supabase
+
+The repository includes a `render.yaml` Blueprint for:
+
+- `stockledger-dkk-api`, a free NestJS web service in Frankfurt
+- `stockledger-dkk-web`, a free React static site
+
+Create the Supabase project first. In **Connect**, copy the **Session pooler** URL on port `5432`. Use that value for the Blueprint's `DATABASE_URL` prompt. The Render build applies committed migrations, and the first successful deploy seeds the demo account and inventory data.
+
+For local migration work, copy Supabase's direct connection URL into `DIRECT_DATABASE_URL`. The API runtime continues to use `DATABASE_URL`.
+
+In Render, choose **New > Blueprint**, connect `DKKowalski/stockledger`, and apply `render.yaml`. Render generates `JWT_SECRET`; do not enter one manually.
