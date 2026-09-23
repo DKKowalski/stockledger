@@ -6,17 +6,59 @@ enum StockMovementType {
   return_in  = "return_in"
   return_out = "return_out"
   damage     = "damage"
+  sale       = "sale"
 }
 
 enum UserRole {
   @@type("pg/text@1")
 
-  administrator    = "administrator"
+  administrator     = "administrator"
   inventory_manager = "inventory_manager"
+  shop_attendant    = "shop_attendant"
+}
+
+enum LocationType {
+  @@type("pg/text@1")
+
+  warehouse = "warehouse"
+  shop      = "shop"
+}
+
+model Company {
+  id        Uuid                       @id @default(uuid())
+  name      VarChar(120)
+  createdAt TimestamptzString          @default(now()) @map("created_at")
+  updatedAt temporal.updatedAtString() @map("updated_at")
+
+  @@rls
+  @@map("companies")
+}
+
+model Location {
+  id        Uuid                       @id @default(uuid())
+  companyId Uuid                       @map("company_id")
+  name      VarChar(120)
+  type      LocationType
+  createdAt TimestamptzString          @default(now()) @map("created_at")
+  updatedAt temporal.updatedAtString() @map("updated_at")
+
+  company Company @relation(
+    fields: [companyId],
+    references: [id],
+    onDelete: Restrict,
+    onUpdate: Cascade
+  )
+
+  @@unique([companyId, name])
+  @@index([companyId])
+  @@rls
+  @@map("locations")
 }
 
 model User {
   id           Uuid                       @id @default(uuid())
+  companyId    Uuid                       @map("company_id")
+  locationId   Uuid?                      @map("location_id")
   fullName     VarChar(120)               @map("full_name")
   email        VarChar(255)               @unique
   passwordHash VarChar(255)               @map("password_hash")
@@ -24,46 +66,119 @@ model User {
   createdAt    TimestamptzString          @default(now()) @map("created_at")
   updatedAt    temporal.updatedAtString() @map("updated_at")
 
+  company  Company   @relation(
+    fields: [companyId],
+    references: [id],
+    onDelete: Restrict,
+    onUpdate: Cascade
+  )
+  location Location? @relation(
+    fields: [locationId],
+    references: [id],
+    onDelete: Restrict,
+    onUpdate: Cascade
+  )
+
+  @@check(expression: "role <> 'shop_attendant' OR location_id IS NOT NULL", name: "user_shop_attendant_has_location")
+  @@index([companyId])
+  @@rls
   @@map("users")
 }
 
 model InventoryItem {
-  id             Uuid                       @id @default(uuid())
-  sku            VarChar(40)                @unique
-  name           VarChar(120)
-  category       VarChar(80)
-  unit           VarChar(20)
-  reorderLevel   Int                        @default(0) @map("reorder_level")
-  unitCostCents  Int                        @default(0) @map("unit_cost_cents")
-  openingStock   Int                        @default(0) @map("opening_stock")
-  createdAt      TimestamptzString          @default(now()) @map("created_at")
-  updatedAt      temporal.updatedAtString() @map("updated_at")
+  id            Uuid                       @id @default(uuid())
+  companyId     Uuid                       @map("company_id")
+  sku           VarChar(40)
+  name          VarChar(120)
+  category      VarChar(80)
+  unit          VarChar(20)
+  reorderLevel  Int                        @default(0) @map("reorder_level")
+  unitCostCents Int                        @default(0) @map("unit_cost_cents")
+  createdAt     TimestamptzString          @default(now()) @map("created_at")
+  updatedAt     temporal.updatedAtString() @map("updated_at")
 
+  company Company @relation(
+    fields: [companyId],
+    references: [id],
+    onDelete: Restrict,
+    onUpdate: Cascade
+  )
+
+  @@unique([companyId, sku])
   @@check(expression: "reorder_level >= 0", name: "inventory_item_reorder_level_nonnegative")
   @@check(expression: "unit_cost_cents >= 0", name: "inventory_item_unit_cost_nonnegative")
-  @@check(expression: "opening_stock >= 0", name: "inventory_item_opening_stock_nonnegative")
+  @@index([companyId])
+  @@rls
   @@map("inventory_items")
 }
 
-model StockMovement {
-  id           Uuid              @id @default(uuid())
-  itemId       Uuid              @map("item_id")
-  type         StockMovementType
-  quantity     Int
-  movementDate DateString        @map("movement_date")
-  reference    VarChar(80)?
-  note         VarChar(500)?
-  createdAt    TimestamptzString @default(now()) @map("created_at")
+model LocationStock {
+  id           Uuid                       @id @default(uuid())
+  locationId   Uuid                       @map("location_id")
+  itemId       Uuid                       @map("item_id")
+  openingStock Int                        @default(0) @map("opening_stock")
+  createdAt    TimestamptzString          @default(now()) @map("created_at")
+  updatedAt    temporal.updatedAtString() @map("updated_at")
 
-  item InventoryItem @relation(
+  location Location      @relation(
+    fields: [locationId],
+    references: [id],
+    onDelete: Cascade,
+    onUpdate: Cascade
+  )
+  item     InventoryItem @relation(
     fields: [itemId],
     references: [id],
     onDelete: Cascade,
     onUpdate: Cascade
   )
 
-  @@check(expression: "quantity > 0", name: "stock_movement_quantity_positive")
+  @@unique([locationId, itemId])
+  @@check(expression: "opening_stock >= 0", name: "location_stock_opening_nonnegative")
   @@index([itemId])
+  @@rls
+  @@map("location_stocks")
+}
+
+model StockMovement {
+  id                    Uuid              @id @default(uuid())
+  itemId                Uuid              @map("item_id")
+  locationId            Uuid              @map("location_id")
+  destinationLocationId Uuid?             @map("destination_location_id")
+  type                  StockMovementType
+  quantity              Int
+  movementDate          DateString        @map("movement_date")
+  reference             VarChar(80)?
+  note                  VarChar(500)?
+  createdAt             TimestamptzString @default(now()) @map("created_at")
+
+  item        InventoryItem @relation(
+    fields: [itemId],
+    references: [id],
+    onDelete: Cascade,
+    onUpdate: Cascade
+  )
+  location    Location      @relation(
+    "movement_source",
+    fields: [locationId],
+    references: [id],
+    onDelete: Restrict,
+    onUpdate: Cascade
+  )
+  destination Location?     @relation(
+    "movement_destination",
+    fields: [destinationLocationId],
+    references: [id],
+    onDelete: Restrict,
+    onUpdate: Cascade
+  )
+
+  @@check(expression: "quantity > 0", name: "stock_movement_quantity_positive")
+  @@check(expression: "destination_location_id IS NULL OR destination_location_id <> location_id", name: "stock_movement_destination_differs")
+  @@index([itemId])
+  @@index([locationId])
+  @@index([destinationLocationId])
   @@index([movementDate])
+  @@rls
   @@map("stock_movements")
 }

@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsInt, IsNotEmpty, IsString, Matches, MaxLength, Min } from 'class-validator';
+import { IsInt, IsNotEmpty, IsString, IsUUID, Matches, MaxLength, Min } from 'class-validator';
 
 export class CreateItemDto {
   @IsString()
@@ -37,4 +37,7 @@ export class CreateItemDto {
   @IsInt()
   @Min(0)
   openingStock!: number;
+
+  @IsUUID()
+  locationId!: string;
 }

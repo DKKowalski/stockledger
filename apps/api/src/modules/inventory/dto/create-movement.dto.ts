@@ -15,6 +15,13 @@ export class CreateMovementDto {
   @IsUUID()
   itemId!: string;
 
+  @IsUUID()
+  locationId!: string;
+
+  @IsOptional()
+  @IsUUID()
+  destinationLocationId?: string;
+
   @IsEnum(StockMovementType)
   type!: StockMovementType;
 

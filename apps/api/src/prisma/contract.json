@@ -4,8 +4,20 @@
   "target": "postgres",
   "profileHash": "3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2",
   "roots": {
+    "companies": {
+      "model": "Company",
+      "namespace": "public"
+    },
     "inventory_items": {
       "model": "InventoryItem",
+      "namespace": "public"
+    },
+    "location_stocks": {
+      "model": "LocationStock",
+      "namespace": "public"
+    },
+    "locations": {
+      "model": "Location",
       "namespace": "public"
     },
     "stock_movements": {
@@ -21,6 +33,19 @@
     "namespaces": {
       "public": {
         "enum": {
+          "LocationType": {
+            "codecId": "pg/text@1",
+            "members": [
+              {
+                "name": "warehouse",
+                "value": "warehouse"
+              },
+              {
+                "name": "shop",
+                "value": "shop"
+              }
+            ]
+          },
           "StockMovementType": {
             "codecId": "pg/text@1",
             "members": [
@@ -43,6 +68,10 @@
               {
                 "name": "damage",
                 "value": "damage"
+              },
+              {
+                "name": "sale",
+                "value": "sale"
               }
             ]
           },
@@ -56,23 +85,17 @@
               {
                 "name": "inventory_manager",
                 "value": "inventory_manager"
+              },
+              {
+                "name": "shop_attendant",
+                "value": "shop_attendant"
               }
             ]
           }
         },
         "models": {
-          "InventoryItem": {
+          "Company": {
             "fields": {
-              "category": {
-                "nullable": false,
-                "type": {
-                  "codecId": "sql/varchar@1",
-                  "kind": "scalar",
-                  "typeParams": {
-                    "length": 80
-                  }
-                }
-              },
               "createdAt": {
                 "nullable": false,
                 "type": {
@@ -97,11 +120,75 @@
                   }
                 }
               },
-              "openingStock": {
+              "updatedAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/int4@1",
+                  "codecId": "pg/timestamptz-string@1",
                   "kind": "scalar"
+                }
+              }
+            },
+            "relations": {},
+            "storage": {
+              "fields": {
+                "createdAt": {
+                  "column": "created_at"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "name": {
+                  "column": "name"
+                },
+                "updatedAt": {
+                  "column": "updated_at"
+                }
+              },
+              "namespaceId": "public",
+              "table": "companies"
+            }
+          },
+          "InventoryItem": {
+            "fields": {
+              "category": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 80
+                  }
+                }
+              },
+              "companyId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "name": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 120
+                  }
                 }
               },
               "reorderLevel": {
@@ -146,11 +233,31 @@
                 }
               }
             },
-            "relations": {},
+            "relations": {
+              "company": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "companyId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Company",
+                  "namespace": "public"
+                }
+              }
+            },
             "storage": {
               "fields": {
                 "category": {
                   "column": "category"
+                },
+                "companyId": {
+                  "column": "company_id"
                 },
                 "createdAt": {
                   "column": "created_at"
@@ -160,9 +267,6 @@
                 },
                 "name": {
                   "column": "name"
-                },
-                "openingStock": {
-                  "column": "opening_stock"
                 },
                 "reorderLevel": {
                   "column": "reorder_level"
@@ -184,7 +288,104 @@
               "table": "inventory_items"
             }
           },
-          "StockMovement": {
+          "Location": {
+            "fields": {
+              "companyId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "name": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 120
+                  }
+                }
+              },
+              "type": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                },
+                "valueSet": {
+                  "entityKind": "enum",
+                  "entityName": "LocationType",
+                  "namespaceId": "public",
+                  "plane": "domain"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "company": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "companyId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Company",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "companyId": {
+                  "column": "company_id"
+                },
+                "createdAt": {
+                  "column": "created_at"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "name": {
+                  "column": "name"
+                },
+                "type": {
+                  "column": "type"
+                },
+                "updatedAt": {
+                  "column": "updated_at"
+                }
+              },
+              "namespaceId": "public",
+              "table": "locations"
+            }
+          },
+          "LocationStock": {
             "fields": {
               "createdAt": {
                 "nullable": false,
@@ -201,6 +402,124 @@
                 }
               },
               "itemId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "locationId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "openingStock": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "item": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "itemId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "InventoryItem",
+                  "namespace": "public"
+                }
+              },
+              "location": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "locationId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Location",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "createdAt": {
+                  "column": "created_at"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "itemId": {
+                  "column": "item_id"
+                },
+                "locationId": {
+                  "column": "location_id"
+                },
+                "openingStock": {
+                  "column": "opening_stock"
+                },
+                "updatedAt": {
+                  "column": "updated_at"
+                }
+              },
+              "namespaceId": "public",
+              "table": "location_stocks"
+            }
+          },
+          "StockMovement": {
+            "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "destinationLocationId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "itemId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "locationId": {
                 "nullable": false,
                 "type": {
                   "codecId": "pg/uuid@1",
@@ -256,6 +575,22 @@
               }
             },
             "relations": {
+              "destination": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "destinationLocationId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Location",
+                  "namespace": "public"
+                }
+              },
               "item": {
                 "cardinality": "N:1",
                 "nullable": false,
@@ -271,6 +606,22 @@
                   "model": "InventoryItem",
                   "namespace": "public"
                 }
+              },
+              "location": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "locationId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Location",
+                  "namespace": "public"
+                }
               }
             },
             "storage": {
@@ -278,11 +629,17 @@
                 "createdAt": {
                   "column": "created_at"
                 },
+                "destinationLocationId": {
+                  "column": "destination_location_id"
+                },
                 "id": {
                   "column": "id"
                 },
                 "itemId": {
                   "column": "item_id"
+                },
+                "locationId": {
+                  "column": "location_id"
                 },
                 "movementDate": {
                   "column": "movement_date"
@@ -306,6 +663,13 @@
           },
           "User": {
             "fields": {
+              "companyId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
               "createdAt": {
                 "nullable": false,
                 "type": {
@@ -335,6 +699,13 @@
               },
               "id": {
                 "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "locationId": {
+                "nullable": true,
                 "type": {
                   "codecId": "pg/uuid@1",
                   "kind": "scalar"
@@ -371,9 +742,45 @@
                 }
               }
             },
-            "relations": {},
+            "relations": {
+              "company": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "companyId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Company",
+                  "namespace": "public"
+                }
+              },
+              "location": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "locationId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Location",
+                  "namespace": "public"
+                }
+              }
+            },
             "storage": {
               "fields": {
+                "companyId": {
+                  "column": "company_id"
+                },
                 "createdAt": {
                   "column": "created_at"
                 },
@@ -385,6 +792,9 @@
                 },
                 "id": {
                   "column": "id"
+                },
+                "locationId": {
+                  "column": "location_id"
                 },
                 "passwordHash": {
                   "column": "password_hash"
@@ -408,34 +818,41 @@
     "namespaces": {
       "public": {
         "entries": {
-          "table": {
+          "rls": {
+            "companies": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "companies"
+            },
             "inventory_items": {
-              "checks": [
-                {
-                  "expression": "opening_stock >= 0",
-                  "name": "inventory_item_opening_stock_nonnegative_8908d81c",
-                  "prefix": "inventory_item_opening_stock_nonnegative"
-                },
-                {
-                  "expression": "reorder_level >= 0",
-                  "name": "inventory_item_reorder_level_nonnegative_e896746f",
-                  "prefix": "inventory_item_reorder_level_nonnegative"
-                },
-                {
-                  "expression": "unit_cost_cents >= 0",
-                  "name": "inventory_item_unit_cost_nonnegative_0e3258af",
-                  "prefix": "inventory_item_unit_cost_nonnegative"
-                }
-              ],
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "inventory_items"
+            },
+            "location_stocks": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "location_stocks"
+            },
+            "locations": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "locations"
+            },
+            "stock_movements": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "stock_movements"
+            },
+            "users": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "users"
+            }
+          },
+          "table": {
+            "companies": {
               "columns": {
-                "category": {
-                  "codecId": "sql/varchar@1",
-                  "nativeType": "character varying",
-                  "nullable": false,
-                  "typeParams": {
-                    "length": 80
-                  }
-                },
                 "created_at": {
                   "codecId": "pg/timestamptz-string@1",
                   "default": {
@@ -458,14 +875,69 @@
                     "length": 120
                   }
                 },
-                "opening_stock": {
-                  "codecId": "pg/int4@1",
-                  "default": {
-                    "kind": "literal",
-                    "value": 0
-                  },
-                  "nativeType": "int4",
+                "updated_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
                   "nullable": false
+                }
+              },
+              "foreignKeys": [],
+              "indexes": [],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": []
+            },
+            "inventory_items": {
+              "checks": [
+                {
+                  "expression": "reorder_level >= 0",
+                  "name": "inventory_item_reorder_level_nonnegative_e896746f",
+                  "prefix": "inventory_item_reorder_level_nonnegative"
+                },
+                {
+                  "expression": "unit_cost_cents >= 0",
+                  "name": "inventory_item_unit_cost_nonnegative_0e3258af",
+                  "prefix": "inventory_item_unit_cost_nonnegative"
+                }
+              ],
+              "columns": {
+                "category": {
+                  "codecId": "sql/varchar@1",
+                  "nativeType": "character varying",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 80
+                  }
+                },
+                "company_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "created_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "name": {
+                  "codecId": "sql/varchar@1",
+                  "nativeType": "character varying",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 120
+                  }
                 },
                 "reorder_level": {
                   "codecId": "pg/int4@1",
@@ -507,8 +979,36 @@
                   "nullable": false
                 }
               },
-              "foreignKeys": [],
-              "indexes": [],
+              "foreignKeys": [
+                {
+                  "onDelete": "restrict",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "company_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "inventory_items"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "companies"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "company_id"
+                  ],
+                  "name": "inventory_items_company_id_idx_1303a718",
+                  "prefix": "inventory_items_company_id_idx",
+                  "unique": false
+                }
+              ],
               "primaryKey": {
                 "columns": [
                   "id"
@@ -517,22 +1017,18 @@
               "uniques": [
                 {
                   "columns": [
+                    "company_id",
                     "sku"
                   ]
                 }
               ]
             },
-            "stock_movements": {
+            "location_stocks": {
               "checks": [
                 {
-                  "expression": "quantity > 0",
-                  "name": "stock_movement_quantity_positive_4402679f",
-                  "prefix": "stock_movement_quantity_positive"
-                },
-                {
-                  "expression": "\"type\" IN ('purchase', 'transfer', 'return_in', 'return_out', 'damage')",
-                  "name": "stock_movements_type_check_9c78a0ca",
-                  "prefix": "stock_movements_type_check"
+                  "expression": "opening_stock >= 0",
+                  "name": "location_stock_opening_nonnegative_8908d81c",
+                  "prefix": "location_stock_opening_nonnegative"
                 }
               ],
               "columns": {
@@ -551,6 +1047,241 @@
                   "nullable": false
                 },
                 "item_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "location_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "opening_stock": {
+                  "codecId": "pg/int4@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": 0
+                  },
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "updated_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "location_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "location_stocks"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "locations"
+                  }
+                },
+                {
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "item_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "location_stocks"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "inventory_items"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "item_id"
+                  ],
+                  "name": "location_stocks_item_id_idx_4b8ce5fb",
+                  "prefix": "location_stocks_item_id_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "location_id"
+                  ],
+                  "name": "location_stocks_location_id_idx_6316b129",
+                  "prefix": "location_stocks_location_id_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "location_id",
+                    "item_id"
+                  ]
+                }
+              ]
+            },
+            "locations": {
+              "checks": [
+                {
+                  "expression": "\"type\" IN ('warehouse', 'shop')",
+                  "name": "locations_type_check_fd72d584",
+                  "prefix": "locations_type_check"
+                }
+              ],
+              "columns": {
+                "company_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "created_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "name": {
+                  "codecId": "sql/varchar@1",
+                  "nativeType": "character varying",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 120
+                  }
+                },
+                "type": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false,
+                  "valueSet": {
+                    "entityKind": "valueSet",
+                    "entityName": "LocationType",
+                    "namespaceId": "public",
+                    "plane": "storage"
+                  }
+                },
+                "updated_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "onDelete": "restrict",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "company_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "locations"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "companies"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "company_id"
+                  ],
+                  "name": "locations_company_id_idx_1303a718",
+                  "prefix": "locations_company_id_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "company_id",
+                    "name"
+                  ]
+                }
+              ]
+            },
+            "stock_movements": {
+              "checks": [
+                {
+                  "expression": "destination_location_id IS NULL OR destination_location_id <> location_id",
+                  "name": "stock_movement_destination_differs_e3316603",
+                  "prefix": "stock_movement_destination_differs"
+                },
+                {
+                  "expression": "quantity > 0",
+                  "name": "stock_movement_quantity_positive_4402679f",
+                  "prefix": "stock_movement_quantity_positive"
+                },
+                {
+                  "expression": "\"type\" IN ('purchase', 'transfer', 'return_in', 'return_out', 'damage', 'sale')",
+                  "name": "stock_movements_type_check_6b3e5aa1",
+                  "prefix": "stock_movements_type_check"
+                }
+              ],
+              "columns": {
+                "created_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "destination_location_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": true
+                },
+                "id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "item_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "location_id": {
                   "codecId": "pg/uuid@1",
                   "nativeType": "uuid",
                   "nullable": false
@@ -611,15 +1342,67 @@
                     "namespaceId": "public",
                     "tableName": "inventory_items"
                   }
+                },
+                {
+                  "onDelete": "restrict",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "location_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "stock_movements"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "locations"
+                  }
+                },
+                {
+                  "onDelete": "restrict",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "destination_location_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "stock_movements"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "locations"
+                  }
                 }
               ],
               "indexes": [
+                {
+                  "columns": [
+                    "destination_location_id"
+                  ],
+                  "name": "stock_movements_destination_location_id_idx_eca4a338",
+                  "prefix": "stock_movements_destination_location_id_idx",
+                  "unique": false
+                },
                 {
                   "columns": [
                     "item_id"
                   ],
                   "name": "stock_movements_item_id_idx_4b8ce5fb",
                   "prefix": "stock_movements_item_id_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "location_id"
+                  ],
+                  "name": "stock_movements_location_id_idx_6316b129",
+                  "prefix": "stock_movements_location_id_idx",
                   "unique": false
                 },
                 {
@@ -641,12 +1424,22 @@
             "users": {
               "checks": [
                 {
-                  "expression": "\"role\" IN ('administrator', 'inventory_manager')",
-                  "name": "users_role_check_1e1cae07",
+                  "expression": "role <> 'shop_attendant' OR location_id IS NOT NULL",
+                  "name": "user_shop_attendant_has_location_60fbae6d",
+                  "prefix": "user_shop_attendant_has_location"
+                },
+                {
+                  "expression": "\"role\" IN ('administrator', 'inventory_manager', 'shop_attendant')",
+                  "name": "users_role_check_e70a9d4c",
                   "prefix": "users_role_check"
                 }
               ],
               "columns": {
+                "company_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
                 "created_at": {
                   "codecId": "pg/timestamptz-string@1",
                   "default": {
@@ -677,6 +1470,11 @@
                   "nativeType": "uuid",
                   "nullable": false
                 },
+                "location_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": true
+                },
                 "password_hash": {
                   "codecId": "sql/varchar@1",
                   "nativeType": "character varying",
@@ -706,8 +1504,62 @@
                   "nullable": false
                 }
               },
-              "foreignKeys": [],
-              "indexes": [],
+              "foreignKeys": [
+                {
+                  "onDelete": "restrict",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "company_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "users"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "companies"
+                  }
+                },
+                {
+                  "onDelete": "restrict",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "location_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "users"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "locations"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "company_id"
+                  ],
+                  "name": "users_company_id_idx_1303a718",
+                  "prefix": "users_company_id_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "location_id"
+                  ],
+                  "name": "users_location_id_idx_6316b129",
+                  "prefix": "users_location_id_idx",
+                  "unique": false
+                }
+              ],
               "primaryKey": {
                 "columns": [
                   "id"
@@ -723,6 +1575,13 @@
             }
           },
           "valueSet": {
+            "LocationType": {
+              "kind": "valueSet",
+              "values": [
+                "warehouse",
+                "shop"
+              ]
+            },
             "StockMovementType": {
               "kind": "valueSet",
               "values": [
@@ -730,14 +1589,16 @@
                 "transfer",
                 "return_in",
                 "return_out",
-                "damage"
+                "damage",
+                "sale"
               ]
             },
             "UserRole": {
               "kind": "valueSet",
               "values": [
                 "administrator",
-                "inventory_manager"
+                "inventory_manager",
+                "shop_attendant"
               ]
             }
           }
@@ -746,12 +1607,38 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "df03163d99e1f7db874132120495d01cb9a4f6d45a933b32c23a7d2038e9228b"
+    "storageHash": "de2cdacbde8b0ef378d3f7574ab9e1f6338e1db8ca9edc62fc56e3fab22da24d"
   },
   "execution": {
-    "executionHash": "d70fa63fe647e1f3f1ed49a9803c818a04ac0c002840b3a4797c4f4699a2d00a",
+    "executionHash": "a5c0df357ad692205cc2ebd15ee9b91f11720c1dfc0f9406e4e6f34f0729648f",
     "mutations": {
       "defaults": [
+        {
+          "onCreate": {
+            "id": "uuidv4",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "id",
+            "namespace": "public",
+            "table": "companies"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "onUpdate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "updated_at",
+            "namespace": "public",
+            "table": "companies"
+          }
+        },
         {
           "onCreate": {
             "id": "uuidv4",
@@ -776,6 +1663,58 @@
             "column": "updated_at",
             "namespace": "public",
             "table": "inventory_items"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "uuidv4",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "id",
+            "namespace": "public",
+            "table": "location_stocks"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "onUpdate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "updated_at",
+            "namespace": "public",
+            "table": "location_stocks"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "uuidv4",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "id",
+            "namespace": "public",
+            "table": "locations"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "onUpdate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "updated_at",
+            "namespace": "public",
+            "table": "locations"
           }
         },
         {

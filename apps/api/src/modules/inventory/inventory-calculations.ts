@@ -8,14 +8,27 @@ export type ItemRecord = {
   unit: string;
   reorderLevel: number;
   unitCostCents: number;
-  openingStock: number;
   createdAt: string;
   updatedAt: string;
+};
+
+export type LocationRecord = {
+  id: string;
+  name: string;
+  type: 'warehouse' | 'shop';
+};
+
+export type StockRecord = {
+  locationId: string;
+  itemId: string;
+  openingStock: number;
 };
 
 export type MovementRecord = {
   id: string;
   itemId: string;
+  locationId: string;
+  destinationLocationId: string | null;
   type: StockMovementType;
   quantity: number;
   movementDate: string;
@@ -30,64 +43,98 @@ function sum(movements: readonly MovementRecord[], type: StockMovementType) {
     .reduce((total, movement) => total + movement.quantity, 0);
 }
 
+function touches(movement: MovementRecord, locationId: string) {
+  return movement.locationId === locationId || movement.destinationLocationId === locationId;
+}
+
 export function buildSnapshot(
   items: readonly ItemRecord[],
+  locations: readonly LocationRecord[],
+  stocks: readonly StockRecord[],
   movements: readonly MovementRecord[],
   days = 30,
+  locationId: string | null = null,
   now = new Date(),
 ) {
   const periodStart = new Date(now);
   periodStart.setUTCDate(periodStart.getUTCDate() - days);
   const startDate = periodStart.toISOString().slice(0, 10);
+  const visibleLocations = locationId
+    ? locations.filter((location) => location.id === locationId)
+    : locations;
 
-  const base = items.map((item) => {
-    const entries = movements.filter((movement) => movement.itemId === item.id);
-    const purchases = sum(entries, StockMovementType.PURCHASE);
-    const returnsIn = sum(entries, StockMovementType.RETURN_IN);
-    const transferred = sum(entries, StockMovementType.TRANSFER);
-    const returnsOut = sum(entries, StockMovementType.RETURN_OUT);
-    const damaged = sum(entries, StockMovementType.DAMAGE);
-    const closing = item.openingStock + purchases + returnsIn - transferred - returnsOut - damaged;
-    const transfers = entries.filter((entry) => entry.type === StockMovementType.TRANSFER);
+  const lines = visibleLocations.flatMap((location) => items.map((item) => {
+    const opening = stocks.find((stock) => stock.itemId === item.id && stock.locationId === location.id)?.openingStock ?? 0;
+    const sourced = movements.filter((movement) => movement.itemId === item.id && movement.locationId === location.id);
+    const received = movements.filter((movement) => (
+      movement.itemId === item.id
+      && movement.type === StockMovementType.TRANSFER
+      && movement.destinationLocationId === location.id
+    ));
+    const purchases = sum(sourced, StockMovementType.PURCHASE);
+    const returnsIn = sum(sourced, StockMovementType.RETURN_IN);
+    const transferredOut = sum(sourced, StockMovementType.TRANSFER);
+    const returnsOut = sum(sourced, StockMovementType.RETURN_OUT);
+    const damaged = sum(sourced, StockMovementType.DAMAGE);
+    const sales = sum(sourced, StockMovementType.SALE);
+    const transferredIn = received.reduce((total, movement) => total + movement.quantity, 0);
+    const closing = opening + purchases + returnsIn + transferredIn - transferredOut - returnsOut - damaged - sales;
+    const outbound = sourced.filter((movement) => (
+      movement.type === StockMovementType.TRANSFER || movement.type === StockMovementType.SALE
+    ));
+    const active = opening > 0 || movements.some((movement) => movement.itemId === item.id && touches(movement, location.id));
     return {
       item,
-      opening: item.openingStock,
+      location,
+      opening,
       purchases,
       returnsIn,
-      transferred,
+      transferredIn,
+      transferredOut,
       returnsOut,
       damaged,
+      sales,
       closing,
       valueCents: closing * item.unitCostCents,
-      outLastPeriod: transfers
-        .filter((entry) => entry.movementDate >= startDate)
-        .reduce((total, entry) => total + entry.quantity, 0),
-      lastOutDate: transfers.map((entry) => entry.movementDate).sort().at(-1) ?? null,
-      isLowStock: closing <= item.reorderLevel,
+      outLastPeriod: outbound
+        .filter((movement) => movement.movementDate >= startDate)
+        .reduce((total, movement) => total + movement.quantity, 0),
+      lastOutDate: outbound.map((movement) => movement.movementDate).sort().at(-1) ?? null,
+      isLowStock: active && closing <= item.reorderLevel,
+      active,
     };
-  });
+  }));
 
-  const moving = [...base]
+  const shown = lines.filter((line) => locationId !== null || line.active);
+  const moving = [...shown]
     .filter((position) => position.outLastPeriod > 0)
     .sort((left, right) => right.outLastPeriod - left.outLastPeriod);
   const fastIds = new Set(
     moving
       .slice(0, moving.length ? Math.ceil(moving.length / 3) : 0)
-      .map((position) => position.item.id),
+      .map((position) => `${position.location.id}:${position.item.id}`),
   );
-  const positions = base
+  const positions = shown
     .map((position) => {
       let velocity: MovementVelocity = 'none';
-      if (fastIds.has(position.item.id)) velocity = 'fast';
+      const key = `${position.location.id}:${position.item.id}`;
+      if (fastIds.has(key)) velocity = 'fast';
       else if (position.outLastPeriod > 0) velocity = 'slow';
       else if (position.closing > 0) velocity = 'dead';
       return { ...position, velocity };
     })
-    .sort((left, right) => left.item.name.localeCompare(right.item.name));
+    .sort((left, right) => left.item.name.localeCompare(right.item.name) || left.location.name.localeCompare(right.location.name));
+
+  const locationById = new Map(locations.map((location) => [location.id, location]));
+  const visibleMovements = movements.filter((movement) => (
+    locationId === null || touches(movement, locationId)
+  ));
 
   return {
     periodDays: days,
     generatedAt: now.toISOString(),
+    locationId,
+    locations,
     summary: {
       closingUnits: positions.reduce((total, position) => total + position.closing, 0),
       stockValueCents: positions.reduce((total, position) => total + position.valueCents, 0),
@@ -96,11 +143,13 @@ export function buildSnapshot(
       deadStockLines: positions.filter((position) => position.velocity === 'dead').length,
     },
     positions,
-    movements: [...movements]
-      .sort((left, right) => right.movementDate.localeCompare(left.movementDate))
+    movements: [...visibleMovements]
+      .sort((left, right) => right.movementDate.localeCompare(left.movementDate) || right.createdAt.localeCompare(left.createdAt))
       .map((movement) => ({
         ...movement,
         item: items.find((item) => item.id === movement.itemId) ?? null,
+        location: locationById.get(movement.locationId) ?? null,
+        destination: movement.destinationLocationId ? locationById.get(movement.destinationLocationId) ?? null : null,
         sign: MOVEMENT_SIGN[movement.type],
       })),
   };

@@ -1,49 +1,118 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import type { Varchar } from '@prisma/orm-postgres/target/codec-types';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import type { UserRole } from '../auth/auth.types.js';
+import { buildSnapshot, type ItemRecord, type LocationRecord, type MovementRecord, type StockRecord } from './inventory-calculations.js';
 import { CreateItemDto } from './dto/create-item.dto.js';
+import { CreateLocationDto } from './dto/create-location.dto.js';
 import { CreateMovementDto } from './dto/create-movement.dto.js';
-import { buildSnapshot, type ItemRecord, type MovementRecord } from './inventory-calculations.js';
 import { MOVEMENT_SIGN, StockMovementType } from './inventory.types.js';
+
+type Actor = {
+  id: string;
+  role: UserRole;
+  companyId: string;
+  locationId: string | null;
+};
 
 @Injectable()
 export class InventoryService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async snapshot(days = 30) {
-    const [items, movements] = await Promise.all([
-      this.prisma.client.orm.public.InventoryItem.all(),
-      this.prisma.client.orm.public.StockMovement.all(),
-    ]);
-    return buildSnapshot(items as ItemRecord[], movements as MovementRecord[], days);
+  async snapshot(userId: string, days = 30, locationId?: string) {
+    const actor = await this.actor(userId);
+    const scope = await this.scope(actor.companyId);
+    const selected = this.visibleLocation(actor, scope.locations, locationId);
+    return buildSnapshot(
+      scope.items,
+      actor.role === 'shop_attendant' ? scope.locations.filter((location) => location.id === selected) : scope.locations,
+      scope.stocks,
+      scope.movements,
+      days,
+      selected,
+    );
   }
 
-  async createItem(body: CreateItemDto) {
-    const sku = body.sku.trim().toUpperCase();
-    const existing = await this.prisma.client.orm.public.InventoryItem.first({
-      sku: sku as Varchar<40>,
+  async createLocation(userId: string, body: CreateLocationDto) {
+    const actor = await this.actor(userId);
+    this.assertAdministrator(actor);
+    const name = body.name.trim();
+    const existing = await this.prisma.client.orm.public.Location.first({
+      companyId: actor.companyId,
+      name: name as Varchar<120>,
     });
+    if (existing) throw new ConflictException(`${name} already exists`);
+
+    return this.presentLocation(await this.prisma.client.orm.public.Location.create({
+      companyId: actor.companyId,
+      name: name as Varchar<120>,
+      type: body.type,
+    }));
+  }
+
+  async createItem(userId: string, body: CreateItemDto) {
+    const actor = await this.actor(userId);
+    this.assertAdministrator(actor);
+    const scope = await this.scope(actor.companyId);
+    this.knownLocation(scope.locations, body.locationId);
+    const sku = body.sku.trim().toUpperCase();
+    const existing = scope.items.find((item) => item.sku.toLowerCase() === sku.toLowerCase());
     if (existing) throw new ConflictException(`SKU ${sku} already exists`);
 
-    return this.prisma.client.orm.public.InventoryItem.create({
+    const item = await this.prisma.client.orm.public.InventoryItem.create({
+      companyId: actor.companyId,
       sku: sku as Varchar<40>,
       name: body.name.trim() as Varchar<120>,
       category: body.category.trim() as Varchar<80>,
       unit: body.unit.trim() as Varchar<20>,
       reorderLevel: body.reorderLevel,
       unitCostCents: body.unitCostCents,
+    });
+    await this.prisma.client.orm.public.LocationStock.create({
+      locationId: body.locationId,
+      itemId: item.id,
       openingStock: body.openingStock,
     });
+    return item;
   }
 
-  async createMovement(body: CreateMovementDto) {
-    const item = await this.prisma.client.orm.public.InventoryItem.first({ id: body.itemId });
+  async createMovement(userId: string, body: CreateMovementDto) {
+    const actor = await this.actor(userId);
+    if (body.type === StockMovementType.SALE) {
+      if (actor.role !== 'shop_attendant' || !actor.locationId) {
+        throw new ForbiddenException('Only a shop attendant can record a sale');
+      }
+    } else if (actor.role === 'shop_attendant') {
+      throw new ForbiddenException('Shop attendants can only record a sale');
+    }
+    const scope = await this.scope(actor.companyId);
+    const item = scope.items.find((candidate) => candidate.id === body.itemId);
     if (!item) throw new NotFoundException('Inventory item not found');
+    const locationId = body.type === StockMovementType.SALE ? actor.locationId! : body.locationId;
+    const place = this.knownLocation(scope.locations, locationId);
+    if (body.type === StockMovementType.SALE && place.type !== 'shop') {
+      throw new BadRequestException('A sale is recorded at a shop');
+    }
+
+    const destinationId = body.destinationLocationId ?? null;
+    if (body.type === StockMovementType.TRANSFER) {
+      if (!destinationId) throw new BadRequestException('Choose the place that receives the stock');
+      if (destinationId === locationId) throw new BadRequestException('Choose a different place to receive the stock');
+      this.knownLocation(scope.locations, destinationId);
+    } else if (destinationId) {
+      throw new BadRequestException('Only a transfer moves stock into another place');
+    }
 
     if (MOVEMENT_SIGN[body.type] === -1) {
-      const current = (await this.snapshot()).positions.find(
-        (position) => position.item.id === body.itemId,
-      );
+      const current = buildSnapshot(scope.items, scope.locations, scope.stocks, scope.movements, 30, locationId)
+        .positions.find((position) => position.item.id === body.itemId);
       if (!current || body.quantity > current.closing) {
         throw new ConflictException(`Only ${current?.closing ?? 0} ${item.unit} available`);
       }
@@ -51,6 +120,8 @@ export class InventoryService {
 
     return this.prisma.client.orm.public.StockMovement.create({
       itemId: body.itemId,
+      locationId,
+      destinationLocationId: destinationId,
       type: body.type,
       quantity: body.quantity,
       movementDate: body.movementDate,
@@ -59,20 +130,78 @@ export class InventoryService {
     });
   }
 
-  async deleteMovement(id: string) {
-    const movement = await this.prisma.client.orm.public.StockMovement.first({ id });
+  async deleteMovement(userId: string, id: string) {
+    const actor = await this.actor(userId);
+    if (actor.role === 'shop_attendant') {
+      throw new ForbiddenException('Shop attendants cannot remove stock movements');
+    }
+    const scope = await this.scope(actor.companyId);
+    const movement = scope.movements.find((candidate) => candidate.id === id);
     if (!movement) throw new NotFoundException('Stock movement not found');
 
-    if (MOVEMENT_SIGN[movement.type as StockMovementType] === 1) {
-      const current = (await this.snapshot()).positions.find(
-        (position) => position.item.id === movement.itemId,
-      );
-      if (current && current.closing - movement.quantity < 0) {
-        throw new ConflictException('Later outbound movements depend on this stock');
-      }
+    const remaining = scope.movements.filter((candidate) => candidate.id !== id);
+    const affected = [movement.locationId, movement.destinationLocationId].filter((locationId): locationId is string => Boolean(locationId));
+    for (const locationId of affected) {
+      const negative = buildSnapshot(scope.items, scope.locations, scope.stocks, remaining, 30, locationId)
+        .positions.some((position) => position.closing < 0);
+      if (negative) throw new ConflictException('Later movements depend on this stock');
     }
 
     await this.prisma.client.orm.public.StockMovement.where({ id }).delete();
     return { id };
+  }
+
+  private async actor(userId: string): Promise<Actor> {
+    const user = await this.prisma.client.orm.public.User.first({ id: userId });
+    if (!user) throw new UnauthorizedException('Account no longer exists');
+    return {
+      id: user.id,
+      role: user.role,
+      companyId: user.companyId,
+      locationId: user.locationId,
+    };
+  }
+
+  private async scope(companyId: string) {
+    const [items, locations] = await Promise.all([
+      this.prisma.client.orm.public.InventoryItem.where({ companyId }).all(),
+      this.prisma.client.orm.public.Location.where({ companyId }).all(),
+    ]);
+    const itemIds = new Set(items.map((item) => item.id));
+    const locationIds = new Set(locations.map((location) => location.id));
+    const [stocks, movements] = await Promise.all([
+      this.prisma.client.orm.public.LocationStock.all(),
+      this.prisma.client.orm.public.StockMovement.all(),
+    ]);
+    return {
+      items: items as ItemRecord[],
+      locations: locations.map((location) => this.presentLocation(location)),
+      stocks: (stocks as StockRecord[]).filter((stock) => itemIds.has(stock.itemId) && locationIds.has(stock.locationId)),
+      movements: (movements as MovementRecord[]).filter((movement) => itemIds.has(movement.itemId)),
+    };
+  }
+
+  private visibleLocation(actor: Actor, locations: readonly LocationRecord[], requested?: string) {
+    if (actor.role === 'shop_attendant') {
+      if (!actor.locationId) throw new ForbiddenException('This account is not assigned to a shop');
+      return actor.locationId;
+    }
+    if (!requested) return null;
+    this.knownLocation(locations, requested);
+    return requested;
+  }
+
+  private knownLocation(locations: readonly LocationRecord[], locationId: string) {
+    const location = locations.find((candidate) => candidate.id === locationId);
+    if (!location) throw new NotFoundException('Place not found');
+    return location;
+  }
+
+  private assertAdministrator(actor: Actor) {
+    if (actor.role !== 'administrator') throw new ForbiddenException('Only an administrator can change company setup');
+  }
+
+  private presentLocation(location: { id: string; name: string; type: 'warehouse' | 'shop' }): LocationRecord {
+    return { id: location.id, name: location.name, type: location.type };
   }
 }

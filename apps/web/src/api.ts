@@ -1,4 +1,4 @@
-import type { LoginResponse, MovementType, Snapshot, User } from './types';
+import type { LocationType, LoginResponse, MovementType, Place, Snapshot, User, UserRole } from './types';
 
 const base = (import.meta.env.VITE_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 
@@ -30,11 +30,16 @@ export const api = {
   login: (body: { email: string; password: string }) =>
     request<LoginResponse>('/auth/login', { method: 'POST', body: JSON.stringify(body) }),
   profile: (accessToken: string) => request<User>('/auth/me', undefined, accessToken),
-  snapshot: (accessToken: string, days: number) =>
-    request<Snapshot>(`/inventory/snapshot?days=${days}`, undefined, accessToken),
+  users: (accessToken: string) => request<User[]>('/auth/users', undefined, accessToken),
+  addUser: (accessToken: string, body: { fullName: string; email: string; password: string; role: Exclude<UserRole, 'administrator'>; locationId?: string }) =>
+    request<User>('/auth/users', { method: 'POST', body: JSON.stringify(body) }, accessToken),
+  snapshot: (accessToken: string, days: number, locationId?: string | null) =>
+    request<Snapshot>(`/inventory/snapshot?days=${days}${locationId ? `&locationId=${locationId}` : ''}`, undefined, accessToken),
+  addLocation: (accessToken: string, body: { name: string; type: LocationType }) =>
+    request<Place>('/inventory/locations', { method: 'POST', body: JSON.stringify(body) }, accessToken),
   addItem: (accessToken: string, body: Record<string, string | number>) =>
     request('/inventory/items', { method: 'POST', body: JSON.stringify(body) }, accessToken),
-  addMovement: (accessToken: string, body: { itemId: string; type: MovementType; quantity: number; movementDate: string; reference?: string; note?: string }) =>
+  addMovement: (accessToken: string, body: { itemId: string; locationId: string; destinationLocationId?: string; type: MovementType; quantity: number; movementDate: string; reference?: string; note?: string }) =>
     request('/inventory/movements', { method: 'POST', body: JSON.stringify(body) }, accessToken),
   deleteMovement: (accessToken: string, id: string) =>
     request(`/inventory/movements/${id}`, { method: 'DELETE' }, accessToken),

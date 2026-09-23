@@ -12,14 +12,17 @@ import {
   Info,
   LayoutDashboard,
   LogOut,
+  MapPin,
   Menu,
   Package,
+  ShoppingBag,
   PackageOpen,
   PackageX,
   RefreshCw,
   Trash2,
   TrendingUp,
   TriangleAlert,
+  Users,
   Warehouse,
   X,
   type LucideIcon,
@@ -40,14 +43,26 @@ import { Navigate, NavLink, Outlet, Route, Routes } from 'react-router-dom';
 import { ApiError, api } from './api';
 import { useAuth } from './auth-context';
 import { StockLedgerMark } from './components/stockledger-mark';
-import type { MovementType, Position, Snapshot } from './types';
+import type { LocationType, MovementType, Place, Position, Snapshot, User, UserRole } from './types';
+
+const roleLabel: Record<UserRole, string> = {
+  administrator: 'Administrator',
+  inventory_manager: 'Inventory manager',
+  shop_attendant: 'Shop attendant',
+};
+
+const placeLabel: Record<LocationType, string> = {
+  warehouse: 'Warehouse',
+  shop: 'Shop',
+};
 
 const movementMeta: Record<MovementType, { label: string; hint: string }> = {
-  purchase: { label: 'Purchase', hint: 'Goods received into the warehouse' },
-  transfer: { label: 'Transfer to shop', hint: 'Warehouse to main shop movement' },
-  return_in: { label: 'Return in', hint: 'Goods returned from the shop' },
+  purchase: { label: 'Purchase', hint: 'Goods received into a place' },
+  transfer: { label: 'Transfer', hint: 'Move stock from one place to another' },
+  return_in: { label: 'Return in', hint: 'Goods returned into a place' },
   return_out: { label: 'Return to supplier', hint: 'Goods sent back to the supplier' },
   damage: { label: 'Damaged stock', hint: 'Stock written off as damaged' },
+  sale: { label: 'Sale', hint: 'Goods sold at a shop' },
 };
 
 const money = (cents: number) =>
@@ -68,9 +83,12 @@ type Store = {
   error: string | null;
   days: number;
   setDays: (days: number) => void;
+  locationId: string | null;
+  setLocationId: (locationId: string | null) => void;
   refresh: () => Promise<void>;
-  notice: { id: number; message: string; visible: boolean } | null;
+  notice: { id: number; title: string; message: string; visible: boolean } | null;
   dismissNotice: () => void;
+  notify: (message: string, title?: string) => void;
   mutate: (action: () => Promise<unknown>, successMessage: string) => Promise<void>;
 };
 
@@ -94,9 +112,12 @@ export function App() {
         element={accessToken ? <InventoryProvider><Shell /></InventoryProvider> : <Navigate to="/login" replace />}
       >
         <Route index element={<Dashboard />} />
+        <Route path="sell" element={<Sell />} />
         <Route path="items" element={<Items />} />
         <Route path="movements" element={<Movements />} />
         <Route path="reports" element={<Reports />} />
+        <Route path="places" element={<Places />} />
+        <Route path="team" element={<Team />} />
       </Route>
       <Route path="*" element={<Navigate to={accessToken ? '/' : '/login'} replace />} />
     </Routes>
@@ -106,21 +127,21 @@ export function App() {
 function AppLoader() {
   return (
     <div className="app-loader" role="status">
-      <span className="brand-mark"><StockLedgerMark /></span>
-      <RefreshCw className="spin" size={18} />
+      <span className="brand-mark"><StockLedgerMark animated size={48} /></span>
       <span className="sr-only">Restoring session</span>
     </div>
   );
 }
 
 function InventoryProvider({ children }: { children: ReactNode }) {
-  const { accessToken, signOut } = useAuth();
+  const { accessToken, user, signOut } = useAuth();
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [days, setDays] = useState(30);
-  const [notice, setNotice] = useState<{ id: number; message: string; visible: boolean } | null>(null);
+  const [locationId, setLocationId] = useState<string | null>(user?.role === 'shop_attendant' ? user.locationId : null);
+  const [notice, setNotice] = useState<{ id: number; title: string; message: string; visible: boolean } | null>(null);
   const noticeId = useRef(0);
   const noticeTimer = useRef<number | null>(null);
 
@@ -135,18 +156,18 @@ function InventoryProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     setError(null);
     try {
-      setSnapshot(await api.snapshot(accessToken, days));
+      setSnapshot(await api.snapshot(accessToken, days, locationId));
     } catch (caught) {
       handleError(caught, 'Could not load inventory');
     } finally {
       setLoading(false);
     }
-  }, [accessToken, days, handleError]);
+  }, [accessToken, days, locationId, handleError]);
 
   useEffect(() => {
     let cancelled = false;
 
-    void api.snapshot(accessToken, days)
+    void api.snapshot(accessToken, days, locationId)
       .then((nextSnapshot) => {
         if (!cancelled) {
           setSnapshot(nextSnapshot);
@@ -161,7 +182,7 @@ function InventoryProvider({ children }: { children: ReactNode }) {
       });
 
     return () => { cancelled = true; };
-  }, [accessToken, days, handleError]);
+  }, [accessToken, days, locationId, handleError]);
 
   const dismissNotice = useCallback(() => {
     if (noticeTimer.current) window.clearTimeout(noticeTimer.current);
@@ -169,10 +190,10 @@ function InventoryProvider({ children }: { children: ReactNode }) {
     noticeTimer.current = window.setTimeout(() => setNotice(null), 180);
   }, []);
 
-  const showNotice = useCallback((message: string) => {
+  const notify = useCallback((message: string, title = 'Inventory updated') => {
     if (noticeTimer.current) window.clearTimeout(noticeTimer.current);
     const id = ++noticeId.current;
-    setNotice({ id, message, visible: true });
+    setNotice({ id, title, message, visible: true });
     noticeTimer.current = window.setTimeout(() => {
       setNotice((current) => current?.id === id ? { ...current, visible: false } : current);
       noticeTimer.current = window.setTimeout(() => {
@@ -190,19 +211,19 @@ function InventoryProvider({ children }: { children: ReactNode }) {
     setError(null);
     try {
       await action();
-      setSnapshot(await api.snapshot(accessToken, days));
-      showNotice(successMessage);
+      setSnapshot(await api.snapshot(accessToken, days, locationId));
+      notify(successMessage);
     } catch (caught) {
       handleError(caught, 'Request failed');
       throw caught;
     } finally {
       setBusy(false);
     }
-  }, [accessToken, days, handleError, showNotice]);
+  }, [accessToken, days, locationId, handleError, notify]);
 
   const store = useMemo(
-    () => ({ snapshot, loading, busy, error, days, setDays, refresh, notice, dismissNotice, mutate }),
-    [snapshot, loading, busy, error, days, refresh, notice, dismissNotice, mutate],
+    () => ({ snapshot, loading, busy, error, days, setDays, locationId, setLocationId, refresh, notice, dismissNotice, notify, mutate }),
+    [snapshot, loading, busy, error, days, locationId, refresh, notice, dismissNotice, notify, mutate],
   );
 
   return <StoreContext.Provider value={store}>{children}</StoreContext.Provider>;
@@ -272,7 +293,7 @@ function Login() {
               </span>
             </label>
             <button className="button login-submit" disabled={submitting}>
-              {submitting ? <><RefreshCw className="spin" size={17} />Signing in</> : <>Sign in<ArrowUpRight size={17} /></>}
+              {submitting ? <><StockLedgerMark animated size={20} />Signing in</> : <>Sign in<ArrowUpRight size={17} /></>}
             </button>
           </form>
 
@@ -291,12 +312,16 @@ function Shell() {
   const { error, refresh, notice, dismissNotice } = useStore();
   const { user, signOut } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
-  const links = [
+  const links: Array<readonly [string, string, LucideIcon]> = [
     ['/', 'Overview', LayoutDashboard],
-    ['/items', 'Items', Package],
-    ['/movements', 'Stock movements', ArrowLeftRight],
-    ['/reports', 'Reports', ChartColumn],
-  ] as const;
+  ];
+  if (user?.role === 'shop_attendant') links.push(['/sell', 'Sell', ShoppingBag]);
+  links.push(['/items', 'Items', Package]);
+  if (user?.role !== 'shop_attendant') links.push(['/movements', 'Stock movements', ArrowLeftRight]);
+  links.push(['/reports', 'Reports', ChartColumn]);
+  if (user?.role === 'administrator') {
+    links.push(['/places', 'Places', MapPin], ['/team', 'Team', Users]);
+  }
   const initials = user?.fullName.split(' ').map((part) => part[0]).slice(0, 2).join('') ?? 'SL';
 
   return (
@@ -315,7 +340,7 @@ function Shell() {
           <div className="navbar-account">
             <div className="topbar-user">
               <span className="avatar">{initials}</span>
-              <span className="topbar-user-copy"><b>{user?.fullName}</b><small>{user?.role === 'administrator' ? 'Administrator' : 'Inventory manager'}</small></span>
+              <span className="topbar-user-copy"><b>{user?.fullName}</b><small>{user ? roleLabel[user.role] : ''}</small></span>
             </div>
             <button className="signout-button" aria-label="Sign out" title="Sign out" onClick={signOut}><LogOut size={17} /></button>
           </div>
@@ -329,7 +354,7 @@ function Shell() {
         <main className="page"><Outlet /></main>
         {notice && <div className={`toast ${notice.visible ? 'visible' : ''}`} role="status" aria-live="polite">
           <span className="toast-icon"><Check size={16} /></span>
-          <div><b>Inventory updated</b><span>{notice.message}</span></div>
+          <div><b>{notice.title}</b><span>{notice.message}</span></div>
           <button aria-label="Dismiss notification" onClick={dismissNotice}><X size={16} /></button>
         </div>}
       </div>
@@ -343,7 +368,7 @@ function Header({ title, subtitle, actions }: { title: string; subtitle: string;
 
 function State({ children }: { children: ReactNode }) {
   const { loading, snapshot } = useStore();
-  if (loading && !snapshot) return <div className="empty page-state"><RefreshCw className="spin" /><p>Loading inventory</p></div>;
+  if (loading && !snapshot) return <div className="empty page-state"><StockLedgerMark animated size={40} /><p>Loading inventory</p></div>;
   return children;
 }
 
@@ -361,25 +386,39 @@ function Kpi({ icon: Icon, label, value, note, tone = '' }: { icon: LucideIcon; 
   );
 }
 
+function PlaceFilter() {
+  const { snapshot, locationId, setLocationId } = useStore();
+  const { user } = useAuth();
+  if (!snapshot) return null;
+  const locked = user?.role === 'shop_attendant';
+  return (
+    <SelectControl aria-label="Place" value={locationId ?? ''} disabled={locked} onChange={(event) => setLocationId(event.target.value || null)}>
+      {!locked && <option value="">All places</option>}
+      {snapshot.locations.map((place) => <option key={place.id} value={place.id}>{place.name}</option>)}
+    </SelectControl>
+  );
+}
+
 function Dashboard() {
   const { snapshot, refresh, loading } = useStore();
   const { user } = useAuth();
   const firstName = user?.fullName.split(' ')[0] ?? 'there';
+  const placeName = snapshot?.locationId ? snapshot.locations.find((place) => place.id === snapshot.locationId)?.name : null;
 
   return <State>{snapshot && <>
-    <Header title={`Welcome back, ${firstName}`} subtitle="Here is what is happening across your warehouse today." actions={<><button className="button secondary" onClick={() => void refresh()} disabled={loading}><RefreshCw size={16} />Refresh</button><NavLink className="button" to="/movements">Record movement<ArrowUpRight size={16} /></NavLink></>} />
+    <Header title={`Welcome back, ${firstName}`} subtitle={placeName ? `Stock held at ${placeName}.` : 'Stock held across every place in the company.'} actions={<><PlaceFilter /><button className="button secondary" onClick={() => void refresh()} disabled={loading}><RefreshCw size={16} />Refresh</button>{user?.role === 'shop_attendant' ? <NavLink className="button" to="/sell">Sell<ArrowUpRight size={16} /></NavLink> : <NavLink className="button" to="/movements">Record movement<ArrowUpRight size={16} /></NavLink>}</>} />
     <section className="kpi-grid">
       <Kpi icon={Warehouse} label="Closing stock" value={snapshot.summary.closingUnits.toLocaleString()} note={`${money(snapshot.summary.stockValueCents)} at cost`} />
       <Kpi icon={TriangleAlert} label="Low stock items" value={String(snapshot.summary.lowStockItems)} note="At or below reorder level" tone="warning" />
       <Kpi icon={PackageX} label="Damaged units" value={snapshot.summary.damagedUnits.toLocaleString()} note="Written off to date" tone="danger" />
-      <Kpi icon={TrendingUp} label="Dead stock lines" value={String(snapshot.summary.deadStockLines)} note={`No shop transfer in ${snapshot.periodDays} days`} tone="success" />
+      <Kpi icon={TrendingUp} label="Dead stock lines" value={String(snapshot.summary.deadStockLines)} note={`No sale or transfer out in ${snapshot.periodDays} days`} tone="success" />
     </section>
     <section className="insights-grid">
       <StockLevels positions={snapshot.positions} />
       <StockHealth positions={snapshot.positions} />
     </section>
     <section className="dashboard-grid">
-      <Panel title="Recent movements" subtitle="Latest warehouse activity" className="movement-panel">
+      <Panel title="Recent movements" subtitle="Latest stock activity" className="movement-panel">
         {snapshot.movements.length ? <div className="movement-list">{snapshot.movements.slice(0, 6).map((movement) => (
           <div className="movement-row" key={movement.id}>
             <span className={`movement-icon ${movement.sign === 1 ? 'in' : 'out'}`}><ArrowLeftRight size={15} /></span>
@@ -399,8 +438,8 @@ function StockLevels({ positions }: { positions: Position[] }) {
     position,
     values: [
       { key: 'opening', label: 'Opening', value: position.opening },
-      { key: 'in', label: 'Stock in', value: position.purchases + position.returnsIn },
-      { key: 'out', label: 'Stock out', value: position.transferred + position.returnsOut + position.damaged },
+      { key: 'in', label: 'Stock in', value: position.purchases + position.returnsIn + position.transferredIn },
+      { key: 'out', label: 'Stock out', value: position.transferredOut + position.returnsOut + position.damaged + position.sales },
       { key: 'closing', label: 'Closing', value: position.closing },
     ],
   }));
@@ -420,7 +459,7 @@ function StockLevels({ positions }: { positions: Position[] }) {
         </div>
         <div className="chart-grid-lines"><i /><i /><i /><i /></div>
         <div className="chart-bars">{series.map(({ position, values }) => (
-          <div className="chart-group" key={position.item.id} title={position.item.name}>
+          <div className="chart-group" key={`${position.location.id}-${position.item.id}`} title={`${position.item.name} · ${position.location.name}`}>
             <div className="chart-group-bars">
               {values.map(({ key, label, value }) => (
                 <span className={`chart-bar ${key}`} key={key} title={`${label}: ${value}`} style={{ height: `${Math.max((value / max) * 100, 4)}%` }}>
@@ -473,8 +512,8 @@ function LowStock({ positions }: { positions: Position[] }) {
 
   return <div className="low-stock-list">{rows.map((position) => {
     const percent = Math.min((position.closing / Math.max(position.item.reorderLevel, 1)) * 100, 100);
-    return <div className="low-stock-row" key={position.item.id}>
-      <div><b>{position.item.name}</b><small>{position.closing} of {position.item.reorderLevel} {position.item.unit}</small></div>
+    return <div className="low-stock-row" key={`${position.location.id}-${position.item.id}`}>
+      <div><b>{position.item.name}</b><small>{position.location.name} · {position.closing} of {position.item.reorderLevel} {position.item.unit}</small></div>
       <span className="stock-progress"><i style={{ width: `${percent}%` }} /></span>
     </div>;
   })}</div>;
@@ -489,41 +528,113 @@ function SelectControl({ children, ...props }: ComponentProps<'select'>) {
 }
 
 function StockTable({ positions, compact = false }: { positions: Position[]; compact?: boolean }) {
-  return <div className="table-wrap"><table><thead><tr><th>Item</th><th className="num">Opening</th>{!compact && <><th className="num">Purchases</th><th className="num">Returns in</th></>}<th className="num">In</th><th className="num">Out</th><th className="num">Closing</th>{!compact && <th className="num">Value</th>}</tr></thead><tbody>{positions.map((p) => <tr key={p.item.id}><td><b>{p.item.name}</b><small>{p.item.sku}</small></td><td className="num">{p.opening}</td>{!compact && <><td className="num">{p.purchases}</td><td className="num">{p.returnsIn}</td></>}<td className="num positive">+{p.purchases + p.returnsIn}</td><td className="num negative">−{p.transferred + p.returnsOut + p.damaged}</td><td className="num"><b>{p.closing}</b>{p.isLowStock && <span className="badge">low</span>}</td>{!compact && <td className="num">{money(p.valueCents)}</td>}</tr>)}</tbody></table></div>;
+  const showPlace = new Set(positions.map((position) => position.location.id)).size > 1;
+  return <div className="table-wrap"><table><thead><tr><th>Item</th>{showPlace && <th>Place</th>}<th className="num">Opening</th>{!compact && <><th className="num">Purchases</th><th className="num">Returns in</th></>}<th className="num">In</th><th className="num">Out</th><th className="num">Closing</th>{!compact && <th className="num">Value</th>}</tr></thead><tbody>{positions.map((position) => <tr key={`${position.location.id}-${position.item.id}`}><td><b>{position.item.name}</b><small>{position.item.sku}</small></td>{showPlace && <td>{position.location.name}</td>}<td className="num">{position.opening}</td>{!compact && <><td className="num">{position.purchases}</td><td className="num">{position.returnsIn}</td></>}<td className="num positive">+{position.purchases + position.returnsIn + position.transferredIn}</td><td className="num negative">−{position.transferredOut + position.returnsOut + position.damaged + position.sales}</td><td className="num"><b>{position.closing}</b>{position.isLowStock && <span className="badge">low</span>}</td>{!compact && <td className="num">{money(position.valueCents)}</td>}</tr>)}</tbody></table></div>;
 }
 
 function Items() {
-  const { accessToken } = useAuth();
+  const { accessToken, user } = useAuth();
   const { snapshot, mutate, busy } = useStore();
-  const [form, setForm] = useState({ sku: '', name: '', category: '', unit: 'pcs', reorderLevel: '10', unitCost: '0', openingStock: '0' });
+  const [form, setForm] = useState({ sku: '', name: '', category: '', unit: 'pcs', reorderLevel: '10', unitCost: '0', openingStock: '0', locationId: '' });
   const change = (key: keyof typeof form, value: string) => setForm((current) => ({ ...current, [key]: value }));
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (!accessToken) return;
-    await mutate(() => api.addItem(accessToken, { sku: form.sku, name: form.name, category: form.category || 'General', unit: form.unit || 'pcs', reorderLevel: Number(form.reorderLevel), unitCostCents: Math.round(Number(form.unitCost) * 100), openingStock: Number(form.openingStock) }), `${form.name} was added to inventory.`);
-    setForm({ sku: '', name: '', category: '', unit: 'pcs', reorderLevel: '10', unitCost: '0', openingStock: '0' });
+    await mutate(() => api.addItem(accessToken, { sku: form.sku, name: form.name, category: form.category || 'General', unit: form.unit || 'pcs', reorderLevel: Number(form.reorderLevel), unitCostCents: Math.round(Number(form.unitCost) * 100), openingStock: Number(form.openingStock), locationId: form.locationId }), `${form.name} was added to inventory.`);
+    setForm({ sku: '', name: '', category: '', unit: 'pcs', reorderLevel: '10', unitCost: '0', openingStock: '0', locationId: '' });
   };
-  return <State><Header title="Items" subtitle="Manage your item master, opening balances, and reorder levels." />
-    <Panel title="Add item" subtitle="Create a new warehouse stock line"><form className="form-grid item-form" onSubmit={(event) => void submit(event)}>{(['sku', 'name', 'category', 'unit'] as const).map((key) => <label key={key}><span>{key === 'sku' ? 'SKU' : key[0].toUpperCase() + key.slice(1)}</span><input required={key === 'sku' || key === 'name'} value={form[key]} onChange={(event) => change(key, event.target.value)} /></label>)}<label><span>Reorder level</span><input type="number" min="0" required value={form.reorderLevel} onChange={(event) => change('reorderLevel', event.target.value)} /></label><label><span>Unit cost</span><input type="number" min="0" step="0.01" required value={form.unitCost} onChange={(event) => change('unitCost', event.target.value)} /></label><label><span>Opening stock</span><input type="number" min="0" required value={form.openingStock} onChange={(event) => change('openingStock', event.target.value)} /></label><button className="button" disabled={busy}>Add item<ArrowUpRight size={16} /></button></form></Panel>
-    <Panel title={`Item master (${snapshot?.positions.length ?? 0})`} className="spaced">{snapshot?.positions.length ? <div className="table-wrap"><table><thead><tr><th>Item</th><th>Category</th><th>Unit</th><th className="num">Reorder</th><th className="num">Cost</th><th className="num">Closing</th><th className="num">Value</th></tr></thead><tbody>{snapshot.positions.map((p) => <tr key={p.item.id}><td><b>{p.item.name}</b><small>{p.item.sku}</small></td><td>{p.item.category}</td><td>{p.item.unit}</td><td className="num">{p.item.reorderLevel}</td><td className="num">{money(p.item.unitCostCents)}</td><td className="num"><b>{p.closing}</b></td><td className="num">{money(p.valueCents)}</td></tr>)}</tbody></table></div> : <Empty text="No items yet." />}</Panel>
+  const canAdd = user?.role === 'administrator';
+  return <State><Header title="Items" subtitle="The company catalog. Opening stock is recorded at one place." />
+    {canAdd && <Panel title="Add item" subtitle="Opening stock lands at the place you choose"><form className="form-grid item-form" onSubmit={(event) => void submit(event)}>{(['sku', 'name', 'category', 'unit'] as const).map((key) => <label key={key}><span>{key === 'sku' ? 'SKU' : key[0].toUpperCase() + key.slice(1)}</span><input required={key === 'sku' || key === 'name'} value={form[key]} onChange={(event) => change(key, event.target.value)} /></label>)}<label><span>Reorder level</span><input type="number" min="0" required value={form.reorderLevel} onChange={(event) => change('reorderLevel', event.target.value)} /></label><label><span>Unit cost</span><input type="number" min="0" step="0.01" required value={form.unitCost} onChange={(event) => change('unitCost', event.target.value)} /></label><label><span>Opening place</span><SelectControl required value={form.locationId} onChange={(event) => change('locationId', event.target.value)}><option value="">Select place</option>{snapshot?.locations.map((place) => <option key={place.id} value={place.id}>{place.name}</option>)}</SelectControl></label><label><span>Opening stock</span><input type="number" min="0" required value={form.openingStock} onChange={(event) => change('openingStock', event.target.value)} /></label><button className="button" disabled={busy || !snapshot?.locations.length}>Add item<ArrowUpRight size={16} /></button></form></Panel>}
+    <Panel title={`Stock by place (${snapshot?.positions.length ?? 0})`} className={canAdd ? 'spaced' : ''}>{snapshot?.positions.length ? <div className="table-wrap"><table><thead><tr><th>Item</th><th>Place</th><th>Category</th><th>Unit</th><th className="num">Reorder</th><th className="num">Cost</th><th className="num">Closing</th><th className="num">Value</th></tr></thead><tbody>{snapshot.positions.map((position) => <tr key={`${position.location.id}-${position.item.id}`}><td><b>{position.item.name}</b><small>{position.item.sku}</small></td><td>{position.location.name}</td><td>{position.item.category}</td><td>{position.item.unit}</td><td className="num">{position.item.reorderLevel}</td><td className="num">{money(position.item.unitCostCents)}</td><td className="num"><b>{position.closing}</b></td><td className="num">{money(position.valueCents)}</td></tr>)}</tbody></table></div> : <Empty text="No items yet." />}</Panel>
+  </State>;
+}
+
+function Sell() {
+  const { accessToken, user } = useAuth();
+  const { snapshot, mutate, busy } = useStore();
+  const [form, setForm] = useState({ itemId: '', quantity: '' });
+  const shop = snapshot?.locations.find((place) => place.id === user?.locationId) ?? snapshot?.locations[0];
+  const stocked = snapshot?.positions.filter((position) => position.closing > 0) ?? [];
+  const selected = stocked.find((position) => position.item.id === form.itemId);
+  const sales = snapshot?.movements.filter((movement) => movement.type === 'sale') ?? [];
+  if (user?.role !== 'shop_attendant') return <Navigate to="/" replace />;
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!accessToken || !user.locationId || !selected) return;
+    const quantity = Number(form.quantity);
+    await mutate(() => api.addMovement(accessToken, {
+      itemId: selected.item.id,
+      locationId: user.locationId!,
+      type: 'sale',
+      quantity,
+      movementDate: new Date().toISOString().slice(0, 10),
+    }), `Sold ${quantity} ${selected.item.unit} of ${selected.item.name}.`);
+    setForm({ itemId: '', quantity: '' });
+  };
+
+  return <State>
+    <Header title="Sell" subtitle={shop ? `A sale reduces stock at ${shop.name} only.` : 'A sale reduces stock at your shop only.'} />
+    <Panel title="Record a sale" subtitle="Pick an item that is on the shelf.">
+      {stocked.length ? <form className="form-grid sell-form" onSubmit={(event) => void submit(event)}>
+        <label>
+          <span>Item</span>
+          <SelectControl required value={form.itemId} onChange={(event) => setForm({ itemId: event.target.value, quantity: '' })}>
+            <option value="">Select item</option>
+            {stocked.map((position) => <option key={position.item.id} value={position.item.id}>{position.item.name}</option>)}
+          </SelectControl>
+        </label>
+        <label>
+          <span className="label-row"><span>Quantity</span><span className="info-tooltip"><button type="button" aria-label="Stock on hand" aria-describedby="sale-quantity-hint"><Info size={14} /></button><span id="sale-quantity-hint" role="tooltip">{selected ? `${selected.closing} ${selected.item.unit} on hand` : 'Choose an item to see what is on hand'}</span></span></span>
+          <input type="number" min="1" max={selected?.closing} required value={form.quantity} onChange={(event) => setForm({ ...form, quantity: event.target.value })} />
+        </label>
+        <button className="button" disabled={busy || !selected}>Sell<ArrowUpRight size={16} /></button>
+      </form> : <Empty text="Nothing to sell yet. Stock arrives when someone transfers it to this shop." />}
+    </Panel>
+    <Panel title={`Recent sales (${sales.length})`} className="spaced">
+      {sales.length ? <div className="table-wrap"><table><thead><tr><th>Date</th><th>Item</th><th className="num">Qty</th></tr></thead><tbody>{sales.map((sale) => <tr key={sale.id}><td>{formatDate(sale.movementDate)}</td><td><b>{sale.item?.name ?? 'Deleted item'}</b><small>{sale.item?.sku}</small></td><td className="num negative">−{sale.quantity}</td></tr>)}</tbody></table></div> : <Empty text="No sales recorded at this shop yet." />}
+    </Panel>
   </State>;
 }
 
 function Movements() {
-  const { accessToken } = useAuth();
+  const { accessToken, user } = useAuth();
   const { snapshot, mutate, busy } = useStore();
   const [filter, setFilter] = useState<'all' | MovementType>('all');
-  const [form, setForm] = useState({ itemId: '', type: 'purchase' as MovementType, quantity: '', movementDate: new Date().toISOString().slice(0, 10), reference: '', note: '' });
+  const [form, setForm] = useState({ itemId: '', locationId: '', destinationLocationId: '', type: 'purchase' as MovementType, quantity: '', movementDate: new Date().toISOString().slice(0, 10), reference: '', note: '' });
+  const items = [...new Map((snapshot?.positions ?? []).map((position) => [position.item.id, position.item])).values()];
+  const places = snapshot?.locations ?? [];
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (!accessToken) return;
-    await mutate(() => api.addMovement(accessToken, { ...form, quantity: Number(form.quantity) }), `${movementMeta[form.type].label} was recorded.`);
+    await mutate(() => api.addMovement(accessToken, {
+      itemId: form.itemId,
+      locationId: form.locationId,
+      destinationLocationId: form.type === 'transfer' ? form.destinationLocationId : undefined,
+      type: form.type,
+      quantity: Number(form.quantity),
+      movementDate: form.movementDate,
+      reference: form.reference,
+      note: form.note,
+    }), `${movementMeta[form.type].label} was recorded.`);
     setForm((current) => ({ ...current, quantity: '', reference: '', note: '' }));
   };
   const rows = snapshot?.movements.filter((movement) => filter === 'all' || movement.type === filter) ?? [];
-  return <State><Header title="Stock movements" subtitle="Record each receipt, transfer, return, and write-off." />
-    <Panel title="Record movement" subtitle="The ledger updates the current balance immediately"><form className="form-grid movement-form" onSubmit={(event) => void submit(event)}><label><span>Item</span><SelectControl required value={form.itemId} onChange={(event) => setForm({ ...form, itemId: event.target.value })}><option value="">Select item</option>{snapshot?.positions.map((position) => <option key={position.item.id} value={position.item.id}>{position.item.name} ({position.closing} {position.item.unit})</option>)}</SelectControl></label><label><span className="label-row"><span>Movement type</span><span className="info-tooltip"><button type="button" aria-label="About movement type" aria-describedby="movement-type-hint"><Info size={14} /></button><span id="movement-type-hint" role="tooltip">{movementMeta[form.type].hint}</span></span></span><SelectControl value={form.type} onChange={(event) => setForm({ ...form, type: event.target.value as MovementType })}>{Object.entries(movementMeta).map(([value, meta]) => <option key={value} value={value}>{meta.label}</option>)}</SelectControl></label><label><span>Quantity</span><input type="number" min="1" required value={form.quantity} onChange={(event) => setForm({ ...form, quantity: event.target.value })} /></label><label><span>Date</span><input type="date" required value={form.movementDate} onChange={(event) => setForm({ ...form, movementDate: event.target.value })} /></label><label><span>Reference</span><input value={form.reference} onChange={(event) => setForm({ ...form, reference: event.target.value })} /></label><label><span>Note</span><input value={form.note} onChange={(event) => setForm({ ...form, note: event.target.value })} /></label><button className="button" disabled={busy || !snapshot?.positions.length}>Save movement<ArrowUpRight size={16} /></button></form></Panel>
-    <Panel title={`Movement ledger (${rows.length})`} className="spaced"><div className="filter-row"><label><span className="sr-only">Filter movement type</span><SelectControl value={filter} onChange={(event) => setFilter(event.target.value as typeof filter)}><option value="all">All movement types</option>{Object.entries(movementMeta).map(([value, meta]) => <option key={value} value={value}>{meta.label}</option>)}</SelectControl></label></div>{rows.length ? <div className="table-wrap"><table><thead><tr><th>Date</th><th>Item</th><th>Type</th><th>Reference</th><th className="num">Qty</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>{rows.map((movement) => <tr key={movement.id}><td>{formatDate(movement.movementDate)}</td><td><b>{movement.item?.name ?? 'Deleted item'}</b><small>{movement.note}</small></td><td>{movementMeta[movement.type].label}</td><td>{movement.reference || '—'}</td><td className={`num ${movement.sign === 1 ? 'positive' : 'negative'}`}>{movement.sign === 1 ? '+' : '−'}{movement.quantity}</td><td className="num"><button className="icon-button" aria-label="Delete movement" disabled={busy} onClick={() => accessToken && void mutate(() => api.deleteMovement(accessToken, movement.id), 'The stock movement was removed.')}><Trash2 size={16} /></button></td></tr>)}</tbody></table></div> : <Empty text="No movements match this filter." />}</Panel>
+  if (user?.role === 'shop_attendant') return <Navigate to="/" replace />;
+  return <State><Header title="Stock movements" subtitle="Receipts stay in one place. A transfer leaves one place and arrives at another." />
+    <Panel title="Record movement" subtitle="The ledger updates both balances immediately"><form className="form-grid movement-form" onSubmit={(event) => void submit(event)}>
+      <label><span>Item</span><SelectControl required value={form.itemId} onChange={(event) => setForm({ ...form, itemId: event.target.value })}><option value="">Select item</option>{items.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</SelectControl></label>
+      <label><span className="label-row"><span>Movement type</span><span className="info-tooltip"><button type="button" aria-label="About movement type" aria-describedby="movement-type-hint"><Info size={14} /></button><span id="movement-type-hint" role="tooltip">{movementMeta[form.type].hint}</span></span></span><SelectControl value={form.type} onChange={(event) => setForm({ ...form, type: event.target.value as MovementType, destinationLocationId: '' })}>{(Object.entries(movementMeta) as [MovementType, { label: string; hint: string }][]).filter(([value]) => value !== 'sale').map(([value, meta]) => <option key={value} value={value}>{meta.label}</option>)}</SelectControl></label>
+      <label><span>{form.type === 'transfer' ? 'From' : 'Place'}</span><SelectControl required value={form.locationId} onChange={(event) => setForm({ ...form, locationId: event.target.value })}><option value="">Select place</option>{places.map((place) => <option key={place.id} value={place.id}>{place.name}</option>)}</SelectControl></label>
+      {form.type === 'transfer' && <label><span>To</span><SelectControl required value={form.destinationLocationId} onChange={(event) => setForm({ ...form, destinationLocationId: event.target.value })}><option value="">Select place</option>{places.filter((place) => place.id !== form.locationId).map((place) => <option key={place.id} value={place.id}>{place.name}</option>)}</SelectControl></label>}
+      <label><span>Quantity</span><input type="number" min="1" required value={form.quantity} onChange={(event) => setForm({ ...form, quantity: event.target.value })} /></label>
+      <label><span>Date</span><input type="date" required value={form.movementDate} onChange={(event) => setForm({ ...form, movementDate: event.target.value })} /></label>
+      <label><span>Reference</span><input value={form.reference} onChange={(event) => setForm({ ...form, reference: event.target.value })} /></label>
+      <label><span>Note</span><input value={form.note} onChange={(event) => setForm({ ...form, note: event.target.value })} /></label>
+      <button className="button" disabled={busy || !items.length}>Save movement<ArrowUpRight size={16} /></button>
+    </form></Panel>
+    <Panel title={`Movement ledger (${rows.length})`} className="spaced"><div className="filter-row"><label><span className="sr-only">Filter movement type</span><SelectControl value={filter} onChange={(event) => setFilter(event.target.value as typeof filter)}><option value="all">All movement types</option>{Object.entries(movementMeta).map(([value, meta]) => <option key={value} value={value}>{meta.label}</option>)}</SelectControl></label></div>{rows.length ? <div className="table-wrap"><table><thead><tr><th>Date</th><th>Item</th><th>Type</th><th>Place</th><th>Reference</th><th className="num">Qty</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>{rows.map((movement) => <tr key={movement.id}><td>{formatDate(movement.movementDate)}</td><td><b>{movement.item?.name ?? 'Deleted item'}</b><small>{movement.note}</small></td><td>{movementMeta[movement.type].label}</td><td>{movement.destination ? `${movement.location?.name ?? 'Unknown'} → ${movement.destination.name}` : movement.location?.name ?? 'Unknown'}</td><td>{movement.reference || '—'}</td><td className={`num ${movement.sign === 1 ? 'positive' : 'negative'}`}>{movement.sign === 1 ? '+' : '−'}{movement.quantity}</td><td className="num"><button className="icon-button" aria-label="Delete movement" disabled={busy} onClick={() => accessToken && void mutate(() => api.deleteMovement(accessToken, movement.id), 'The stock movement was removed.')}><Trash2 size={16} /></button></td></tr>)}</tbody></table></div> : <Empty text="No movements match this filter." />}</Panel>
   </State>;
 }
 
@@ -532,8 +643,148 @@ function Reports() {
   const [tab, setTab] = useState<'current' | 'low' | 'fast' | 'slow' | 'dead'>('current');
   const rows = snapshot?.positions.filter((position) => tab === 'current' || (tab === 'low' ? position.isLowStock : position.velocity === tab)) ?? [];
   const labels = { current: 'Current stock', low: 'Low stock', fast: 'Fast movers', slow: 'Slow movers', dead: 'Dead stock' };
-  return <State><Header title="Reports" subtitle={`Movement analysis based on shop transfers in the last ${days} days.`} actions={<SelectControl value={days} onChange={(event) => setDays(Number(event.target.value))}><option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="90">Last 90 days</option></SelectControl>} />
+  return <State><Header title="Reports" subtitle={`Sales and transfers out of each place over the last ${days} days.`} actions={<><PlaceFilter /><SelectControl value={days} onChange={(event) => setDays(Number(event.target.value))}><option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="90">Last 90 days</option></SelectControl></>} />
     <div className="tabs" role="tablist">{(Object.keys(labels) as (keyof typeof labels)[]).map((key) => <button role="tab" aria-selected={tab === key} className={tab === key ? 'active' : ''} key={key} onClick={() => setTab(key)}>{labels[key]} ({key === 'current' ? snapshot?.positions.length : snapshot?.positions.filter((position) => key === 'low' ? position.isLowStock : position.velocity === key).length})</button>)}</div>
-    <Panel title={labels[tab]} subtitle={tab === 'current' ? 'Closing = opening + purchases + returns in − transfers − supplier returns − damaged.' : undefined}>{rows.length ? (tab === 'current' ? <StockTable positions={rows} /> : <div className="table-wrap"><table><thead><tr><th>Item</th><th className="num">Transferred</th><th className="num">Closing</th><th className="num">Value held</th><th className="num">Last transfer</th></tr></thead><tbody>{rows.map((position) => <tr key={position.item.id}><td><b>{position.item.name}</b><small>{position.item.sku}</small></td><td className="num">{position.outLastPeriod}</td><td className="num">{position.closing}</td><td className="num">{money(position.valueCents)}</td><td className="num">{position.lastOutDate ? formatDate(position.lastOutDate) : 'Never'}</td></tr>)}</tbody></table></div>) : <Empty text="No items in this report." />}</Panel>
+    <Panel title={labels[tab]} subtitle={tab === 'current' ? 'Closing = opening + purchases + returns in + transfers in − transfers out − supplier returns − damaged − sales.' : undefined}>{rows.length ? (tab === 'current' ? <StockTable positions={rows} /> : <div className="table-wrap"><table><thead><tr><th>Item</th><th>Place</th><th className="num">Sold or transferred</th><th className="num">Closing</th><th className="num">Value held</th><th className="num">Last time out</th></tr></thead><tbody>{rows.map((position) => <tr key={`${position.location.id}-${position.item.id}`}><td><b>{position.item.name}</b><small>{position.item.sku}</small></td><td>{position.location.name}</td><td className="num">{position.outLastPeriod}</td><td className="num">{position.closing}</td><td className="num">{money(position.valueCents)}</td><td className="num">{position.lastOutDate ? formatDate(position.lastOutDate) : 'Never'}</td></tr>)}</tbody></table></div>) : <Empty text="No items in this report." />}</Panel>
   </State>;
+}
+
+function Places() {
+  const { accessToken, user } = useAuth();
+  const { snapshot, mutate, busy } = useStore();
+  const [form, setForm] = useState({ name: '', type: 'shop' as LocationType });
+  if (user?.role !== 'administrator') return <Navigate to="/" replace />;
+  const places = snapshot?.locations ?? [];
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!accessToken) return;
+    await mutate(() => api.addLocation(accessToken, form), `${form.name} was added.`);
+    setForm({ name: '', type: 'shop' });
+  };
+  return <State>
+    <Header title="Places" subtitle="Warehouses and shops that hold their own stock." />
+    <Panel title="Add a place" subtitle="A transfer can move stock between any of these.">
+      <form className="form-grid place-form" onSubmit={(event) => void submit(event)}>
+        <label><span>Name</span><input required maxLength={120} value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></label>
+        <label><span>Type</span><SelectControl value={form.type} onChange={(event) => setForm({ ...form, type: event.target.value as LocationType })}><option value="shop">Shop</option><option value="warehouse">Warehouse</option></SelectControl></label>
+        <button className="button" disabled={busy}>Add place<ArrowUpRight size={16} /></button>
+      </form>
+    </Panel>
+    <Panel title={`Places (${places.length})`} className="spaced">{places.length ? <div className="table-wrap"><table><thead><tr><th>Name</th><th>Type</th></tr></thead><tbody>{places.map((place: Place) => <tr key={place.id}><td><b>{place.name}</b></td><td>{placeLabel[place.type]}</td></tr>)}</tbody></table></div> : <Empty text="No places yet." />}</Panel>
+  </State>;
+}
+
+const joinedOn = (value: string) =>
+  new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(value));
+
+function Team() {
+  const { accessToken, user, signOut } = useAuth();
+  const { notify, snapshot } = useStore();
+  const [people, setPeople] = useState<User[] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [listError, setListError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [form, setForm] = useState({ fullName: '', email: '', password: '', role: 'inventory_manager' as 'inventory_manager' | 'shop_attendant', locationId: '' });
+  const shops = snapshot?.locations.filter((place) => place.type === 'shop') ?? [];
+
+  const load = useCallback(async () => {
+    if (!accessToken) return;
+    setLoading(true);
+    setListError(null);
+    try {
+      setPeople(await api.users(accessToken));
+    } catch (caught) {
+      if (caught instanceof ApiError && caught.status === 401) signOut();
+      setListError(caught instanceof Error ? caught.message : 'Could not load accounts');
+    } finally {
+      setLoading(false);
+    }
+  }, [accessToken, signOut]);
+
+  useEffect(() => {
+    if (user?.role !== 'administrator') return;
+    const timer = window.setTimeout(() => void load(), 0);
+    return () => window.clearTimeout(timer);
+  }, [load, user?.role]);
+
+  if (user?.role !== 'administrator') return <Navigate to="/" replace />;
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!accessToken) return;
+    setSubmitting(true);
+    setFormError(null);
+    try {
+      const created = await api.addUser(accessToken, {
+        fullName: form.fullName,
+        email: form.email,
+        password: form.password,
+        role: form.role,
+        locationId: form.role === 'shop_attendant' ? form.locationId : undefined,
+      });
+      setPeople((current) =>
+        [...(current ?? []).filter((person) => person.id !== created.id), created]
+          .sort((left, right) => left.fullName.localeCompare(right.fullName) || left.email.localeCompare(right.email)),
+      );
+      notify(`${created.fullName} can sign in with the password you chose.`, 'Account created');
+      setForm({ fullName: '', email: '', password: '', role: 'inventory_manager', locationId: '' });
+      setShowPassword(false);
+    } catch (caught) {
+      if (caught instanceof ApiError && caught.status === 401) signOut();
+      else setFormError(caught instanceof Error ? caught.message : 'Could not add this account');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return <>
+    <Header title="Team" subtitle="Add inventory managers and shop attendants." />
+    <Panel title="Add a person" subtitle="Inventory managers move stock between places. A shop attendant is assigned to one shop.">
+      <form className="form-grid team-form" onSubmit={(event) => void submit(event)}>
+        {formError && <div className="form-error" role="alert">{formError}</div>}
+        <label>
+          <span>Full name</span>
+          <input autoComplete="name" required maxLength={120} value={form.fullName} onChange={(event) => setForm({ ...form, fullName: event.target.value })} />
+        </label>
+        <label>
+          <span>Email address</span>
+          <input autoComplete="off" inputMode="email" required type="email" maxLength={255} value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} />
+        </label>
+        <label>
+          <span>Role</span>
+          <SelectControl value={form.role} onChange={(event) => setForm({ ...form, role: event.target.value as typeof form.role, locationId: '' })}>
+            <option value="inventory_manager">Inventory manager</option>
+            <option value="shop_attendant">Shop attendant</option>
+          </SelectControl>
+        </label>
+        {form.role === 'shop_attendant' && <label>
+          <span>Shop</span>
+          <SelectControl required value={form.locationId} onChange={(event) => setForm({ ...form, locationId: event.target.value })}>
+            <option value="">Select shop</option>
+            {shops.map((shop) => <option key={shop.id} value={shop.id}>{shop.name}</option>)}
+          </SelectControl>
+        </label>}
+        <label>
+          <span>Password</span>
+          <span className="password-field">
+            <input autoComplete="new-password" minLength={8} maxLength={128} placeholder="At least 8 characters" required type={showPassword ? 'text' : 'password'} value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} />
+            <button type="button" aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword((visible) => !visible)}>
+              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </span>
+        </label>
+        <button className="button" disabled={submitting}>
+          {submitting ? <><StockLedgerMark animated size={20} />Adding</> : <>Add person<ArrowUpRight size={16} /></>}
+        </button>
+      </form>
+    </Panel>
+    <Panel title={`People (${people?.length ?? 0})`} className="spaced">
+      {loading && !people ? <div className="empty"><StockLedgerMark animated size={32} /><p>Loading accounts</p></div>
+        : listError && !people ? <div className="empty"><p>{listError}</p><button className="button secondary" onClick={() => void load()}>Try again</button></div>
+          : people?.length ? <div className="table-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Place</th><th className="num">Joined</th></tr></thead><tbody>{people.map((person) => <tr key={person.id}><td><b>{person.fullName}</b></td><td>{person.email}</td><td>{roleLabel[person.role]}</td><td>{snapshot?.locations.find((place) => place.id === person.locationId)?.name ?? 'All places'}</td><td className="num">{joinedOn(person.createdAt)}</td></tr>)}</tbody></table></div>
+            : <div className="empty"><Users size={22} /><p>No accounts yet.</p></div>}
+    </Panel>
+  </>;
 }

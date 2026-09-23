@@ -8,9 +8,12 @@ The product's visual direction, component rules, and logo brief live in the [UI 
 
 - Inventory dashboard with closing stock, stock value, low-stock, damage and dead-stock summaries
 - Email and password login backed by Argon2 password hashing and expiring JWT sessions
+- Administrator accounts can add inventory managers, who can record stock but cannot manage people
 - Protected API routes and session restoration after a browser refresh
-- Item master with opening balances, reorder levels and unit cost
-- Immutable stock movement ledger for purchases, shop transfers, returns and damage
+- Item master with reorder levels, unit cost, and an opening balance at one place
+- Warehouses and shops that each hold their own stock
+- Transfers that leave one place and arrive at another, plus purchases, returns, and damage
+- Shop attendant accounts assigned to one shop, with a sale that reduces only that shop
 - Current, low, fast, slow and dead-stock reports for 7, 30 or 90 days
 - Server-side validation that prevents outbound movements from taking stock below zero
 - Responsive React UI with loading, empty and error states
@@ -44,8 +47,9 @@ Password: StockLedger123!
 ## Stock equation
 
 ```text
-closing = opening + purchases + returns in
-          - transfers to shop - returns to supplier - damaged
+closing at a place = opening
+          + purchases + returns in + transfers in
+          - transfers out - returns to supplier - damaged - sales
 ```
 
 The API owns this calculation. The React client renders the resulting snapshot and never maintains a second stock total.

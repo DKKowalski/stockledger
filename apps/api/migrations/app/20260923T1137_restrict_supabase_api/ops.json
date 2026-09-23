@@ -1,0 +1,262 @@
+[
+  {
+    "id": "rowLevelSecurity.public.companies",
+    "label": "Enable row-level security on \"companies\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rowLevelSecurity",
+        "name": "companies"
+      }
+    },
+    "precheck": [
+      {
+        "description": "check RLS is not already enabled on \"companies\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND NOT (\"c\".\"relrowsecurity\"))) AS \"result\"",
+        "params": [
+          "public",
+          "companies"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "enable row-level security on \"companies\"",
+        "sql": "ALTER TABLE \"public\".\"companies\" ENABLE ROW LEVEL SECURITY"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify row-level security is enabled on \"companies\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"c\".\"relrowsecurity\")) AS \"result\"",
+        "params": [
+          "public",
+          "companies"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rowLevelSecurity.public.inventory_items",
+    "label": "Enable row-level security on \"inventory_items\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rowLevelSecurity",
+        "name": "inventory_items"
+      }
+    },
+    "precheck": [
+      {
+        "description": "check RLS is not already enabled on \"inventory_items\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND NOT (\"c\".\"relrowsecurity\"))) AS \"result\"",
+        "params": [
+          "public",
+          "inventory_items"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "enable row-level security on \"inventory_items\"",
+        "sql": "ALTER TABLE \"public\".\"inventory_items\" ENABLE ROW LEVEL SECURITY"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify row-level security is enabled on \"inventory_items\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"c\".\"relrowsecurity\")) AS \"result\"",
+        "params": [
+          "public",
+          "inventory_items"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rowLevelSecurity.public.location_stocks",
+    "label": "Enable row-level security on \"location_stocks\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rowLevelSecurity",
+        "name": "location_stocks"
+      }
+    },
+    "precheck": [
+      {
+        "description": "check RLS is not already enabled on \"location_stocks\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND NOT (\"c\".\"relrowsecurity\"))) AS \"result\"",
+        "params": [
+          "public",
+          "location_stocks"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "enable row-level security on \"location_stocks\"",
+        "sql": "ALTER TABLE \"public\".\"location_stocks\" ENABLE ROW LEVEL SECURITY"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify row-level security is enabled on \"location_stocks\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"c\".\"relrowsecurity\")) AS \"result\"",
+        "params": [
+          "public",
+          "location_stocks"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rowLevelSecurity.public.locations",
+    "label": "Enable row-level security on \"locations\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rowLevelSecurity",
+        "name": "locations"
+      }
+    },
+    "precheck": [
+      {
+        "description": "check RLS is not already enabled on \"locations\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND NOT (\"c\".\"relrowsecurity\"))) AS \"result\"",
+        "params": [
+          "public",
+          "locations"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "enable row-level security on \"locations\"",
+        "sql": "ALTER TABLE \"public\".\"locations\" ENABLE ROW LEVEL SECURITY"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify row-level security is enabled on \"locations\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"c\".\"relrowsecurity\")) AS \"result\"",
+        "params": [
+          "public",
+          "locations"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rowLevelSecurity.public.stock_movements",
+    "label": "Enable row-level security on \"stock_movements\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rowLevelSecurity",
+        "name": "stock_movements"
+      }
+    },
+    "precheck": [
+      {
+        "description": "check RLS is not already enabled on \"stock_movements\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND NOT (\"c\".\"relrowsecurity\"))) AS \"result\"",
+        "params": [
+          "public",
+          "stock_movements"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "enable row-level security on \"stock_movements\"",
+        "sql": "ALTER TABLE \"public\".\"stock_movements\" ENABLE ROW LEVEL SECURITY"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify row-level security is enabled on \"stock_movements\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"c\".\"relrowsecurity\")) AS \"result\"",
+        "params": [
+          "public",
+          "stock_movements"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rowLevelSecurity.public.users",
+    "label": "Enable row-level security on \"users\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rowLevelSecurity",
+        "name": "users"
+      }
+    },
+    "precheck": [
+      {
+        "description": "check RLS is not already enabled on \"users\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND NOT (\"c\".\"relrowsecurity\"))) AS \"result\"",
+        "params": [
+          "public",
+          "users"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "enable row-level security on \"users\"",
+        "sql": "ALTER TABLE \"public\".\"users\" ENABLE ROW LEVEL SECURITY"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify row-level security is enabled on \"users\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"c\".\"relrowsecurity\")) AS \"result\"",
+        "params": [
+          "public",
+          "users"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "security.restrict_supabase_data_api",
+    "label": "Restrict application tables to the NestJS API",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres"
+    },
+    "precheck": [
+      {
+        "description": "Supabase Data API grants may need to be removed",
+        "sql": "SELECT EXISTS (\n  SELECT 1\n  FROM information_schema.role_table_grants\n  WHERE table_schema = 'public'\n    AND table_name IN ('companies', 'inventory_items', 'location_stocks', 'locations', 'stock_movements', 'users')\n    AND grantee IN ('anon', 'authenticated')\n    AND privilege_type IN ('SELECT', 'INSERT', 'UPDATE', 'DELETE')\n) AS result"
+      }
+    ],
+    "execute": [
+      {
+        "description": "Revoke direct Data API access to application data",
+        "sql": "DO $security$\n              DECLARE app_table text;\n              BEGIN\n                FOREACH app_table IN ARRAY ARRAY['companies', 'inventory_items', 'location_stocks', 'locations', 'stock_movements', 'users']\n                LOOP\n                  IF to_regrole('anon') IS NOT NULL THEN\n                    EXECUTE format('REVOKE ALL PRIVILEGES ON TABLE public.%I FROM anon', app_table);\n                  END IF;\n\n                  IF to_regrole('authenticated') IS NOT NULL THEN\n                    EXECUTE format('REVOKE ALL PRIVILEGES ON TABLE public.%I FROM authenticated', app_table);\n                  END IF;\n                END LOOP;\n\n                IF to_regrole('anon') IS NOT NULL THEN\n                  EXECUTE 'ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL PRIVILEGES ON TABLES FROM anon';\n                  EXECUTE 'ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL PRIVILEGES ON SEQUENCES FROM anon';\n                END IF;\n\n                IF to_regrole('authenticated') IS NOT NULL THEN\n                  EXECUTE 'ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL PRIVILEGES ON TABLES FROM authenticated';\n                  EXECUTE 'ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL PRIVILEGES ON SEQUENCES FROM authenticated';\n                END IF;\n              END\n              $security$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "Verify direct Data API grants were removed",
+        "sql": "SELECT NOT EXISTS (\n  SELECT 1\n  FROM information_schema.role_table_grants\n  WHERE table_schema = 'public'\n    AND table_name IN ('companies', 'inventory_items', 'location_stocks', 'locations', 'stock_movements', 'users')\n    AND grantee IN ('anon', 'authenticated')\n    AND privilege_type IN ('SELECT', 'INSERT', 'UPDATE', 'DELETE')\n) AS result"
+      }
+    ]
+  }
+]

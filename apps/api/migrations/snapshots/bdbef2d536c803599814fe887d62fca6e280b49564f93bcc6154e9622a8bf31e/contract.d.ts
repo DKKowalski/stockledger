@@ -34,7 +34,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'de2cdacbde8b0ef378d3f7574ab9e1f6338e1db8ca9edc62fc56e3fab22da24d'>;
+  StorageHashBase<'bdbef2d536c803599814fe887d62fca6e280b49564f93bcc6154e9622a8bf31e'>;
 export type ExecutionHash =
   ExecutionHashBase<'a5c0df357ad692205cc2ebd15ee9b91f11720c1dfc0f9406e4e6f34f0729648f'>;
 export type ProfileHash =
@@ -281,7 +281,7 @@ export type FieldOutputTypes = {
       readonly itemId: CodecTypes['pg/uuid@1']['output'];
       readonly locationId: CodecTypes['pg/uuid@1']['output'];
       readonly destinationLocationId: CodecTypes['pg/uuid@1']['output'] | null;
-      readonly type: 'purchase' | 'transfer' | 'return_in' | 'return_out' | 'damage' | 'sale';
+      readonly type: 'purchase' | 'transfer' | 'return_in' | 'return_out' | 'damage';
       readonly quantity: CodecTypes['pg/int4@1']['output'];
       readonly movementDate: CodecTypes['pg/date-string@1']['output'];
       readonly reference: Varchar<80> | null;
@@ -342,7 +342,7 @@ export type FieldInputTypes = {
       readonly itemId: CodecTypes['pg/uuid@1']['input'];
       readonly locationId: CodecTypes['pg/uuid@1']['input'];
       readonly destinationLocationId: CodecTypes['pg/uuid@1']['input'] | null;
-      readonly type: 'purchase' | 'transfer' | 'return_in' | 'return_out' | 'damage' | 'sale';
+      readonly type: 'purchase' | 'transfer' | 'return_in' | 'return_out' | 'damage';
       readonly quantity: CodecTypes['pg/int4@1']['input'];
       readonly movementDate: CodecTypes['pg/date-string@1']['input'];
       readonly reference: CodecTypes['sql/varchar@1']['input'] | null;
@@ -408,7 +408,7 @@ export type StorageColumnTypes = {
       readonly note: Varchar<500> | null;
       readonly quantity: CodecTypes['pg/int4@1']['output'];
       readonly reference: Varchar<80> | null;
-      readonly type: 'purchase' | 'transfer' | 'return_in' | 'return_out' | 'damage' | 'sale';
+      readonly type: 'purchase' | 'transfer' | 'return_in' | 'return_out' | 'damage';
     };
     readonly users: {
       readonly company_id: CodecTypes['pg/uuid@1']['output'];
@@ -469,7 +469,7 @@ export type StorageColumnInputTypes = {
       readonly note: CodecTypes['sql/varchar@1']['input'] | null;
       readonly quantity: CodecTypes['pg/int4@1']['input'];
       readonly reference: CodecTypes['sql/varchar@1']['input'] | null;
-      readonly type: 'purchase' | 'transfer' | 'return_in' | 'return_out' | 'damage' | 'sale';
+      readonly type: 'purchase' | 'transfer' | 'return_in' | 'return_out' | 'damage';
     };
     readonly users: {
       readonly company_id: CodecTypes['pg/uuid@1']['input'];
@@ -547,7 +547,7 @@ export namespace Models {
     itemId: CodecTypes['pg/uuid@1']['output'];
     locationId: CodecTypes['pg/uuid@1']['output'];
     destinationLocationId: CodecTypes['pg/uuid@1']['output'] | null;
-    type: 'purchase' | 'transfer' | 'return_in' | 'return_out' | 'damage' | 'sale';
+    type: 'purchase' | 'transfer' | 'return_in' | 'return_out' | 'damage';
     quantity: CodecTypes['pg/int4@1']['output'];
     movementDate: CodecTypes['pg/date-string@1']['output'];
     reference: Varchar<80> | null;
@@ -1087,7 +1087,6 @@ type ContractBase = Omit<
                 'return_in',
                 'return_out',
                 'damage',
-                'sale',
               ];
             };
             readonly UserRole: {
@@ -1616,7 +1615,6 @@ type ContractBase = Omit<
               { readonly name: 'return_in'; readonly value: 'return_in' },
               { readonly name: 'return_out'; readonly value: 'return_out' },
               { readonly name: 'damage'; readonly value: 'damage' },
-              { readonly name: 'sale'; readonly value: 'sale' },
             ];
           };
           readonly UserRole: {

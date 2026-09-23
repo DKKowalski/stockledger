@@ -1,0 +1,1691 @@
+[
+  {
+    "id": "dropConstraint.inventory_items.inventory_items_sku_key",
+    "label": "Drop constraint \"inventory_items_sku_key\" on \"inventory_items\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "inventory_items_sku_key",
+        "table": "inventory_items"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"inventory_items_sku_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "inventory_items_sku_key",
+          "public",
+          "\"public\".\"inventory_items\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop constraint \"inventory_items_sku_key\"",
+        "sql": "ALTER TABLE \"public\".\"inventory_items\" DROP CONSTRAINT \"inventory_items_sku_key\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"inventory_items_sku_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "inventory_items_sku_key",
+          "public",
+          "\"public\".\"inventory_items\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropCheckConstraint.users.users_role_check_1e1cae07",
+    "label": "Drop check constraint \"users_role_check_1e1cae07\" on \"users\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "users_role_check_1e1cae07",
+        "table": "users"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"users_role_check_1e1cae07\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "users_role_check_1e1cae07",
+          "public",
+          "\"public\".\"users\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop check constraint \"users_role_check_1e1cae07\"",
+        "sql": "ALTER TABLE \"public\".\"users\" DROP CONSTRAINT \"users_role_check_1e1cae07\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"users_role_check_1e1cae07\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "users_role_check_1e1cae07",
+          "public",
+          "\"public\".\"users\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.companies",
+    "label": "Create table \"companies\"",
+    "summary": "Creates table \"companies\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "companies"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"companies\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"companies\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"companies\"",
+        "sql": "CREATE TABLE \"public\".\"companies\" (\n  \"created_at\" timestamptz DEFAULT (now()) NOT NULL,\n  \"id\" uuid NOT NULL,\n  \"name\" character varying(120) NOT NULL,\n  \"updated_at\" timestamptz NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"companies\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"companies\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.location_stocks",
+    "label": "Create table \"location_stocks\"",
+    "summary": "Creates table \"location_stocks\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "location_stocks"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"location_stocks\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"location_stocks\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"location_stocks\"",
+        "sql": "CREATE TABLE \"public\".\"location_stocks\" (\n  \"created_at\" timestamptz DEFAULT (now()) NOT NULL,\n  \"id\" uuid NOT NULL,\n  \"item_id\" uuid NOT NULL,\n  \"location_id\" uuid NOT NULL,\n  \"opening_stock\" int4 DEFAULT 0 NOT NULL,\n  \"updated_at\" timestamptz NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"location_stock_opening_nonnegative_8908d81c\" CHECK (opening_stock >= 0)\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"location_stocks\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"location_stocks\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.locations",
+    "label": "Create table \"locations\"",
+    "summary": "Creates table \"locations\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "locations"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"locations\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"locations\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"locations\"",
+        "sql": "CREATE TABLE \"public\".\"locations\" (\n  \"company_id\" uuid NOT NULL,\n  \"created_at\" timestamptz DEFAULT (now()) NOT NULL,\n  \"id\" uuid NOT NULL,\n  \"name\" character varying(120) NOT NULL,\n  \"type\" text NOT NULL,\n  \"updated_at\" timestamptz NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"locations_type_check_fd72d584\" CHECK (\"type\" IN ('warehouse', 'shop'))\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"locations\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"locations\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "data.seed_company_locations",
+    "label": "Create the demo company and move opening stock to the main warehouse",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres"
+    },
+    "precheck": [
+      {
+        "description": "Demo company or warehouse opening stock is not in place yet",
+        "sql": "SELECT NOT (\n            EXISTS (SELECT 1 FROM \"public\".\"companies\" WHERE \"id\" = $1::uuid)\n            AND EXISTS (SELECT 1 FROM \"public\".\"locations\" WHERE \"id\" = $2::uuid)\n            AND EXISTS (SELECT 1 FROM \"public\".\"locations\" WHERE \"id\" = $3::uuid)\n            AND NOT EXISTS (\n              SELECT 1 FROM \"public\".\"inventory_items\" AS item\n              WHERE NOT EXISTS (\n                SELECT 1 FROM \"public\".\"location_stocks\" AS stock\n                WHERE stock.\"item_id\" = item.\"id\" AND stock.\"location_id\" = $2::uuid\n              )\n            )\n          ) AS ok",
+        "params": [
+          "31000000-0000-4000-8000-000000000001",
+          "32000000-0000-4000-8000-000000000001",
+          "32000000-0000-4000-8000-000000000002"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "Insert the demo company",
+        "sql": "INSERT INTO \"public\".\"companies\" (\"id\", \"name\", \"created_at\", \"updated_at\")\n              VALUES ($1::uuid, 'StockLedger Demo', now(), now())\n              ON CONFLICT (\"id\") DO NOTHING",
+        "params": [
+          "31000000-0000-4000-8000-000000000001"
+        ]
+      },
+      {
+        "description": "Insert the main warehouse and main shop",
+        "sql": "INSERT INTO \"public\".\"locations\" (\"id\", \"company_id\", \"name\", \"type\", \"created_at\", \"updated_at\")\n              VALUES\n                ($1::uuid, $3::uuid, 'Main warehouse', 'warehouse', now(), now()),\n                ($2::uuid, $3::uuid, 'Main shop', 'shop', now(), now())\n              ON CONFLICT (\"id\") DO NOTHING",
+        "params": [
+          "32000000-0000-4000-8000-000000000001",
+          "32000000-0000-4000-8000-000000000002",
+          "31000000-0000-4000-8000-000000000001"
+        ]
+      },
+      {
+        "description": "Copy each item opening balance onto the main warehouse",
+        "sql": "INSERT INTO \"public\".\"location_stocks\" (\"id\", \"location_id\", \"item_id\", \"opening_stock\", \"created_at\", \"updated_at\")\n              SELECT gen_random_uuid(), $1::uuid, item.\"id\", item.\"opening_stock\", now(), now()\n              FROM \"public\".\"inventory_items\" AS item\n              WHERE NOT EXISTS (\n                SELECT 1 FROM \"public\".\"location_stocks\" AS stock\n                WHERE stock.\"item_id\" = item.\"id\" AND stock.\"location_id\" = $1::uuid\n              )",
+        "params": [
+          "32000000-0000-4000-8000-000000000001"
+        ]
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "Demo company, both places, and warehouse opening balances exist",
+        "sql": "SELECT (\n            EXISTS (SELECT 1 FROM \"public\".\"companies\" WHERE \"id\" = $1::uuid)\n            AND EXISTS (SELECT 1 FROM \"public\".\"locations\" WHERE \"id\" = $2::uuid)\n            AND EXISTS (SELECT 1 FROM \"public\".\"locations\" WHERE \"id\" = $3::uuid)\n            AND NOT EXISTS (\n              SELECT 1 FROM \"public\".\"inventory_items\" AS item\n              WHERE NOT EXISTS (\n                SELECT 1 FROM \"public\".\"location_stocks\" AS stock\n                WHERE stock.\"item_id\" = item.\"id\" AND stock.\"location_id\" = $2::uuid\n              )\n            )\n          ) AS ok",
+        "params": [
+          "31000000-0000-4000-8000-000000000001",
+          "32000000-0000-4000-8000-000000000001",
+          "32000000-0000-4000-8000-000000000002"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropCheckConstraint.inventory_items.inventory_item_opening_stock_nonnegative_8908d81c",
+    "label": "Drop check constraint \"inventory_item_opening_stock_nonnegative_8908d81c\" on \"inventory_items\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "inventory_item_opening_stock_nonnegative_8908d81c",
+        "table": "inventory_items"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"inventory_item_opening_stock_nonnegative_8908d81c\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "inventory_item_opening_stock_nonnegative_8908d81c",
+          "public",
+          "\"public\".\"inventory_items\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop check constraint \"inventory_item_opening_stock_nonnegative_8908d81c\"",
+        "sql": "ALTER TABLE \"public\".\"inventory_items\" DROP CONSTRAINT \"inventory_item_opening_stock_nonnegative_8908d81c\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"inventory_item_opening_stock_nonnegative_8908d81c\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "inventory_item_opening_stock_nonnegative_8908d81c",
+          "public",
+          "\"public\".\"inventory_items\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropColumn.inventory_items.opening_stock",
+    "label": "Drop column \"opening_stock\" from \"inventory_items\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "opening_stock",
+        "table": "inventory_items"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"opening_stock\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "inventory_items",
+          "opening_stock"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop column \"opening_stock\"",
+        "sql": "ALTER TABLE \"public\".\"inventory_items\" DROP COLUMN \"opening_stock\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"opening_stock\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "inventory_items",
+          "opening_stock"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.stock_movements.destination_location_id",
+    "label": "Add column \"destination_location_id\" to \"stock_movements\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "destination_location_id",
+        "table": "stock_movements"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"destination_location_id\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "stock_movements",
+          "destination_location_id"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"destination_location_id\"",
+        "sql": "ALTER TABLE \"public\".\"stock_movements\" ADD COLUMN \"destination_location_id\" uuid"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"destination_location_id\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "stock_movements",
+          "destination_location_id"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.users.location_id",
+    "label": "Add column \"location_id\" to \"users\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "location_id",
+        "table": "users"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"location_id\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "users",
+          "location_id"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"location_id\"",
+        "sql": "ALTER TABLE \"public\".\"users\" ADD COLUMN \"location_id\" uuid"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"location_id\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "users",
+          "location_id"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.inventory_items.company_id",
+    "label": "Add column \"company_id\" to \"inventory_items\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "company_id",
+        "table": "inventory_items"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"company_id\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "inventory_items",
+          "company_id"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"company_id\"",
+        "sql": "ALTER TABLE \"public\".\"inventory_items\" ADD COLUMN \"company_id\" uuid"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"company_id\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "inventory_items",
+          "company_id"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "data_migration.backfill-inventory_items-company_id",
+    "label": "Data transform: backfill-inventory_items-company_id",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres"
+    },
+    "precheck": [
+      {
+        "description": "Check backfill-inventory_items-company_id has work to do",
+        "sql": "SELECT EXISTS (SELECT \"id\" AS \"id\" FROM \"public\".\"inventory_items\" WHERE \"company_id\" IS NULL LIMIT 1) AS ok",
+        "params": []
+      }
+    ],
+    "execute": [
+      {
+        "description": "Run backfill-inventory_items-company_id",
+        "sql": "UPDATE \"public\".\"inventory_items\" SET \"company_id\" = $1::uuid, \"updated_at\" = $2 WHERE \"company_id\" IS NULL",
+        "params": [
+          "31000000-0000-4000-8000-000000000001",
+          "2026-09-22T15:00:00.000Z"
+        ]
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "Verify backfill-inventory_items-company_id resolved all violations",
+        "sql": "SELECT NOT EXISTS (SELECT \"id\" AS \"id\" FROM \"public\".\"inventory_items\" WHERE \"company_id\" IS NULL LIMIT 1) AS ok",
+        "params": []
+      }
+    ]
+  },
+  {
+    "id": "alterNullability.setNotNull.inventory_items.company_id",
+    "label": "Set NOT NULL on \"inventory_items\".\"company_id\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "company_id",
+        "table": "inventory_items"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"company_id\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "inventory_items",
+          "company_id"
+        ]
+      },
+      {
+        "description": "ensure no NULL values in \"company_id\"",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"public\".\"inventory_items\" WHERE \"company_id\" IS NULL) AS \"result\"",
+        "params": []
+      }
+    ],
+    "execute": [
+      {
+        "description": "set NOT NULL on \"company_id\"",
+        "sql": "ALTER TABLE \"public\".\"inventory_items\" ALTER COLUMN \"company_id\" SET NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"company_id\" is NOT NULL",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "inventory_items",
+          "company_id",
+          "NO"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.stock_movements.location_id",
+    "label": "Add column \"location_id\" to \"stock_movements\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "location_id",
+        "table": "stock_movements"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"location_id\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "stock_movements",
+          "location_id"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"location_id\"",
+        "sql": "ALTER TABLE \"public\".\"stock_movements\" ADD COLUMN \"location_id\" uuid"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"location_id\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "stock_movements",
+          "location_id"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "data_migration.backfill-stock_movements-location_id",
+    "label": "Data transform: backfill-stock_movements-location_id",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres"
+    },
+    "precheck": [
+      {
+        "description": "Check backfill-stock_movements-location_id has work to do",
+        "sql": "SELECT EXISTS (SELECT \"id\" AS \"id\" FROM \"public\".\"stock_movements\" WHERE \"location_id\" IS NULL LIMIT 1) AS ok",
+        "params": []
+      }
+    ],
+    "execute": [
+      {
+        "description": "Run backfill-stock_movements-location_id",
+        "sql": "UPDATE \"public\".\"stock_movements\" SET \"location_id\" = $1::uuid WHERE \"location_id\" IS NULL",
+        "params": [
+          "32000000-0000-4000-8000-000000000001"
+        ]
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "Verify backfill-stock_movements-location_id resolved all violations",
+        "sql": "SELECT NOT EXISTS (SELECT \"id\" AS \"id\" FROM \"public\".\"stock_movements\" WHERE \"location_id\" IS NULL LIMIT 1) AS ok",
+        "params": []
+      }
+    ]
+  },
+  {
+    "id": "alterNullability.setNotNull.stock_movements.location_id",
+    "label": "Set NOT NULL on \"stock_movements\".\"location_id\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "location_id",
+        "table": "stock_movements"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"location_id\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "stock_movements",
+          "location_id"
+        ]
+      },
+      {
+        "description": "ensure no NULL values in \"location_id\"",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"public\".\"stock_movements\" WHERE \"location_id\" IS NULL) AS \"result\"",
+        "params": []
+      }
+    ],
+    "execute": [
+      {
+        "description": "set NOT NULL on \"location_id\"",
+        "sql": "ALTER TABLE \"public\".\"stock_movements\" ALTER COLUMN \"location_id\" SET NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"location_id\" is NOT NULL",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "stock_movements",
+          "location_id",
+          "NO"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.users.company_id",
+    "label": "Add column \"company_id\" to \"users\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "company_id",
+        "table": "users"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"company_id\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "users",
+          "company_id"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"company_id\"",
+        "sql": "ALTER TABLE \"public\".\"users\" ADD COLUMN \"company_id\" uuid"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"company_id\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "users",
+          "company_id"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "data_migration.backfill-users-company_id",
+    "label": "Data transform: backfill-users-company_id",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres"
+    },
+    "precheck": [
+      {
+        "description": "Check backfill-users-company_id has work to do",
+        "sql": "SELECT EXISTS (SELECT \"id\" AS \"id\" FROM \"public\".\"users\" WHERE \"company_id\" IS NULL LIMIT 1) AS ok",
+        "params": []
+      }
+    ],
+    "execute": [
+      {
+        "description": "Run backfill-users-company_id",
+        "sql": "UPDATE \"public\".\"users\" SET \"company_id\" = $1::uuid, \"updated_at\" = $2 WHERE \"company_id\" IS NULL",
+        "params": [
+          "31000000-0000-4000-8000-000000000001",
+          "2026-09-22T15:00:00.000Z"
+        ]
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "Verify backfill-users-company_id resolved all violations",
+        "sql": "SELECT NOT EXISTS (SELECT \"id\" AS \"id\" FROM \"public\".\"users\" WHERE \"company_id\" IS NULL LIMIT 1) AS ok",
+        "params": []
+      }
+    ]
+  },
+  {
+    "id": "alterNullability.setNotNull.users.company_id",
+    "label": "Set NOT NULL on \"users\".\"company_id\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "company_id",
+        "table": "users"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"company_id\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "users",
+          "company_id"
+        ]
+      },
+      {
+        "description": "ensure no NULL values in \"company_id\"",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"public\".\"users\" WHERE \"company_id\" IS NULL) AS \"result\"",
+        "params": []
+      }
+    ],
+    "execute": [
+      {
+        "description": "set NOT NULL on \"company_id\"",
+        "sql": "ALTER TABLE \"public\".\"users\" ALTER COLUMN \"company_id\" SET NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"company_id\" is NOT NULL",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "users",
+          "company_id",
+          "NO"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.inventory_items.inventory_items_company_id_sku_key",
+    "label": "Add unique constraint on \"inventory_items\" (company_id, sku)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "inventory_items_company_id_sku_key",
+        "table": "inventory_items"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"inventory_items_company_id_sku_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "inventory_items_company_id_sku_key",
+          "public",
+          "\"public\".\"inventory_items\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"inventory_items_company_id_sku_key\"",
+        "sql": "ALTER TABLE \"public\".\"inventory_items\" ADD CONSTRAINT \"inventory_items_company_id_sku_key\" UNIQUE (\"company_id\", \"sku\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"inventory_items_company_id_sku_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "inventory_items_company_id_sku_key",
+          "public",
+          "\"public\".\"inventory_items\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.location_stocks.location_stocks_location_id_item_id_key",
+    "label": "Add unique constraint on \"location_stocks\" (location_id, item_id)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "location_stocks_location_id_item_id_key",
+        "table": "location_stocks"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"location_stocks_location_id_item_id_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "location_stocks_location_id_item_id_key",
+          "public",
+          "\"public\".\"location_stocks\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"location_stocks_location_id_item_id_key\"",
+        "sql": "ALTER TABLE \"public\".\"location_stocks\" ADD CONSTRAINT \"location_stocks_location_id_item_id_key\" UNIQUE (\"location_id\", \"item_id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"location_stocks_location_id_item_id_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "location_stocks_location_id_item_id_key",
+          "public",
+          "\"public\".\"location_stocks\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.locations.locations_company_id_name_key",
+    "label": "Add unique constraint on \"locations\" (company_id, name)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "locations_company_id_name_key",
+        "table": "locations"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"locations_company_id_name_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "locations_company_id_name_key",
+          "public",
+          "\"public\".\"locations\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"locations_company_id_name_key\"",
+        "sql": "ALTER TABLE \"public\".\"locations\" ADD CONSTRAINT \"locations_company_id_name_key\" UNIQUE (\"company_id\", \"name\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"locations_company_id_name_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "locations_company_id_name_key",
+          "public",
+          "\"public\".\"locations\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "checkConstraint.stock_movements.stock_movement_destination_differs_e3316603",
+    "label": "Add check constraint \"stock_movement_destination_differs_e3316603\" on \"stock_movements\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "stock_movement_destination_differs_e3316603",
+        "table": "stock_movements"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"stock_movement_destination_differs_e3316603\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "stock_movement_destination_differs_e3316603",
+          "public",
+          "\"public\".\"stock_movements\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add check constraint \"stock_movement_destination_differs_e3316603\"",
+        "sql": "ALTER TABLE \"public\".\"stock_movements\" ADD CONSTRAINT \"stock_movement_destination_differs_e3316603\" CHECK (destination_location_id IS NULL OR destination_location_id <> location_id)"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"stock_movement_destination_differs_e3316603\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "stock_movement_destination_differs_e3316603",
+          "public",
+          "\"public\".\"stock_movements\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "checkConstraint.users.user_shop_attendant_has_location_60fbae6d",
+    "label": "Add check constraint \"user_shop_attendant_has_location_60fbae6d\" on \"users\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "user_shop_attendant_has_location_60fbae6d",
+        "table": "users"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"user_shop_attendant_has_location_60fbae6d\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "user_shop_attendant_has_location_60fbae6d",
+          "public",
+          "\"public\".\"users\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add check constraint \"user_shop_attendant_has_location_60fbae6d\"",
+        "sql": "ALTER TABLE \"public\".\"users\" ADD CONSTRAINT \"user_shop_attendant_has_location_60fbae6d\" CHECK (role <> 'shop_attendant' OR location_id IS NOT NULL)"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"user_shop_attendant_has_location_60fbae6d\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "user_shop_attendant_has_location_60fbae6d",
+          "public",
+          "\"public\".\"users\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "checkConstraint.users.users_role_check_e70a9d4c",
+    "label": "Add check constraint \"users_role_check_e70a9d4c\" on \"users\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "users_role_check_e70a9d4c",
+        "table": "users"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"users_role_check_e70a9d4c\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "users_role_check_e70a9d4c",
+          "public",
+          "\"public\".\"users\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add check constraint \"users_role_check_e70a9d4c\"",
+        "sql": "ALTER TABLE \"public\".\"users\" ADD CONSTRAINT \"users_role_check_e70a9d4c\" CHECK (\"role\" IN ('administrator', 'inventory_manager', 'shop_attendant'))"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"users_role_check_e70a9d4c\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "users_role_check_e70a9d4c",
+          "public",
+          "\"public\".\"users\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.inventory_items.inventory_items_company_id_idx_1303a718",
+    "label": "Create index \"inventory_items_company_id_idx_1303a718\" on \"inventory_items\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "inventory_items_company_id_idx_1303a718",
+        "table": "inventory_items"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"inventory_items_company_id_idx_1303a718\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"inventory_items_company_id_idx_1303a718\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"inventory_items_company_id_idx_1303a718\"",
+        "sql": "CREATE INDEX \"inventory_items_company_id_idx_1303a718\" ON \"public\".\"inventory_items\" (\"company_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"inventory_items_company_id_idx_1303a718\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"inventory_items_company_id_idx_1303a718\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.location_stocks.location_stocks_item_id_idx_4b8ce5fb",
+    "label": "Create index \"location_stocks_item_id_idx_4b8ce5fb\" on \"location_stocks\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "location_stocks_item_id_idx_4b8ce5fb",
+        "table": "location_stocks"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"location_stocks_item_id_idx_4b8ce5fb\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"location_stocks_item_id_idx_4b8ce5fb\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"location_stocks_item_id_idx_4b8ce5fb\"",
+        "sql": "CREATE INDEX \"location_stocks_item_id_idx_4b8ce5fb\" ON \"public\".\"location_stocks\" (\"item_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"location_stocks_item_id_idx_4b8ce5fb\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"location_stocks_item_id_idx_4b8ce5fb\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.location_stocks.location_stocks_location_id_idx_6316b129",
+    "label": "Create index \"location_stocks_location_id_idx_6316b129\" on \"location_stocks\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "location_stocks_location_id_idx_6316b129",
+        "table": "location_stocks"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"location_stocks_location_id_idx_6316b129\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"location_stocks_location_id_idx_6316b129\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"location_stocks_location_id_idx_6316b129\"",
+        "sql": "CREATE INDEX \"location_stocks_location_id_idx_6316b129\" ON \"public\".\"location_stocks\" (\"location_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"location_stocks_location_id_idx_6316b129\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"location_stocks_location_id_idx_6316b129\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.locations.locations_company_id_idx_1303a718",
+    "label": "Create index \"locations_company_id_idx_1303a718\" on \"locations\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "locations_company_id_idx_1303a718",
+        "table": "locations"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"locations_company_id_idx_1303a718\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"locations_company_id_idx_1303a718\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"locations_company_id_idx_1303a718\"",
+        "sql": "CREATE INDEX \"locations_company_id_idx_1303a718\" ON \"public\".\"locations\" (\"company_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"locations_company_id_idx_1303a718\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"locations_company_id_idx_1303a718\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.stock_movements.stock_movements_destination_location_id_idx_eca4a338",
+    "label": "Create index \"stock_movements_destination_location_id_idx_eca4a338\" on \"stock_movements\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "stock_movements_destination_location_id_idx_eca4a338",
+        "table": "stock_movements"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"stock_movements_destination_location_id_idx_eca4a338\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"stock_movements_destination_location_id_idx_eca4a338\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"stock_movements_destination_location_id_idx_eca4a338\"",
+        "sql": "CREATE INDEX \"stock_movements_destination_location_id_idx_eca4a338\" ON \"public\".\"stock_movements\" (\"destination_location_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"stock_movements_destination_location_id_idx_eca4a338\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"stock_movements_destination_location_id_idx_eca4a338\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.stock_movements.stock_movements_location_id_idx_6316b129",
+    "label": "Create index \"stock_movements_location_id_idx_6316b129\" on \"stock_movements\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "stock_movements_location_id_idx_6316b129",
+        "table": "stock_movements"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"stock_movements_location_id_idx_6316b129\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"stock_movements_location_id_idx_6316b129\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"stock_movements_location_id_idx_6316b129\"",
+        "sql": "CREATE INDEX \"stock_movements_location_id_idx_6316b129\" ON \"public\".\"stock_movements\" (\"location_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"stock_movements_location_id_idx_6316b129\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"stock_movements_location_id_idx_6316b129\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.users.users_company_id_idx_1303a718",
+    "label": "Create index \"users_company_id_idx_1303a718\" on \"users\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "users_company_id_idx_1303a718",
+        "table": "users"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"users_company_id_idx_1303a718\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"users_company_id_idx_1303a718\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"users_company_id_idx_1303a718\"",
+        "sql": "CREATE INDEX \"users_company_id_idx_1303a718\" ON \"public\".\"users\" (\"company_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"users_company_id_idx_1303a718\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"users_company_id_idx_1303a718\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.users.users_location_id_idx_6316b129",
+    "label": "Create index \"users_location_id_idx_6316b129\" on \"users\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "users_location_id_idx_6316b129",
+        "table": "users"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"users_location_id_idx_6316b129\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"users_location_id_idx_6316b129\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"users_location_id_idx_6316b129\"",
+        "sql": "CREATE INDEX \"users_location_id_idx_6316b129\" ON \"public\".\"users\" (\"location_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"users_location_id_idx_6316b129\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"users_location_id_idx_6316b129\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.inventory_items.inventory_items_company_id_fkey",
+    "label": "Add foreign key \"inventory_items_company_id_fkey\" on \"inventory_items\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "inventory_items_company_id_fkey",
+        "table": "inventory_items"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"inventory_items_company_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "inventory_items_company_id_fkey",
+          "public",
+          "\"public\".\"inventory_items\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"inventory_items_company_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"inventory_items\"\nADD CONSTRAINT \"inventory_items_company_id_fkey\"\nFOREIGN KEY (\"company_id\")\nREFERENCES \"public\".\"companies\" (\"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"inventory_items_company_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "inventory_items_company_id_fkey",
+          "public",
+          "\"public\".\"inventory_items\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.location_stocks.location_stocks_location_id_fkey",
+    "label": "Add foreign key \"location_stocks_location_id_fkey\" on \"location_stocks\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "location_stocks_location_id_fkey",
+        "table": "location_stocks"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"location_stocks_location_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "location_stocks_location_id_fkey",
+          "public",
+          "\"public\".\"location_stocks\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"location_stocks_location_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"location_stocks\"\nADD CONSTRAINT \"location_stocks_location_id_fkey\"\nFOREIGN KEY (\"location_id\")\nREFERENCES \"public\".\"locations\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"location_stocks_location_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "location_stocks_location_id_fkey",
+          "public",
+          "\"public\".\"location_stocks\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.location_stocks.location_stocks_item_id_fkey",
+    "label": "Add foreign key \"location_stocks_item_id_fkey\" on \"location_stocks\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "location_stocks_item_id_fkey",
+        "table": "location_stocks"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"location_stocks_item_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "location_stocks_item_id_fkey",
+          "public",
+          "\"public\".\"location_stocks\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"location_stocks_item_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"location_stocks\"\nADD CONSTRAINT \"location_stocks_item_id_fkey\"\nFOREIGN KEY (\"item_id\")\nREFERENCES \"public\".\"inventory_items\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"location_stocks_item_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "location_stocks_item_id_fkey",
+          "public",
+          "\"public\".\"location_stocks\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.locations.locations_company_id_fkey",
+    "label": "Add foreign key \"locations_company_id_fkey\" on \"locations\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "locations_company_id_fkey",
+        "table": "locations"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"locations_company_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "locations_company_id_fkey",
+          "public",
+          "\"public\".\"locations\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"locations_company_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"locations\"\nADD CONSTRAINT \"locations_company_id_fkey\"\nFOREIGN KEY (\"company_id\")\nREFERENCES \"public\".\"companies\" (\"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"locations_company_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "locations_company_id_fkey",
+          "public",
+          "\"public\".\"locations\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.stock_movements.stock_movements_destination_location_id_fkey",
+    "label": "Add foreign key \"stock_movements_destination_location_id_fkey\" on \"stock_movements\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "stock_movements_destination_location_id_fkey",
+        "table": "stock_movements"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"stock_movements_destination_location_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "stock_movements_destination_location_id_fkey",
+          "public",
+          "\"public\".\"stock_movements\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"stock_movements_destination_location_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"stock_movements\"\nADD CONSTRAINT \"stock_movements_destination_location_id_fkey\"\nFOREIGN KEY (\"destination_location_id\")\nREFERENCES \"public\".\"locations\" (\"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"stock_movements_destination_location_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "stock_movements_destination_location_id_fkey",
+          "public",
+          "\"public\".\"stock_movements\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.stock_movements.stock_movements_location_id_fkey",
+    "label": "Add foreign key \"stock_movements_location_id_fkey\" on \"stock_movements\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "stock_movements_location_id_fkey",
+        "table": "stock_movements"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"stock_movements_location_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "stock_movements_location_id_fkey",
+          "public",
+          "\"public\".\"stock_movements\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"stock_movements_location_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"stock_movements\"\nADD CONSTRAINT \"stock_movements_location_id_fkey\"\nFOREIGN KEY (\"location_id\")\nREFERENCES \"public\".\"locations\" (\"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"stock_movements_location_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "stock_movements_location_id_fkey",
+          "public",
+          "\"public\".\"stock_movements\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.users.users_company_id_fkey",
+    "label": "Add foreign key \"users_company_id_fkey\" on \"users\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "users_company_id_fkey",
+        "table": "users"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"users_company_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "users_company_id_fkey",
+          "public",
+          "\"public\".\"users\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"users_company_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"users\"\nADD CONSTRAINT \"users_company_id_fkey\"\nFOREIGN KEY (\"company_id\")\nREFERENCES \"public\".\"companies\" (\"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"users_company_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "users_company_id_fkey",
+          "public",
+          "\"public\".\"users\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.users.users_location_id_fkey",
+    "label": "Add foreign key \"users_location_id_fkey\" on \"users\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "users_location_id_fkey",
+        "table": "users"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"users_location_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "users_location_id_fkey",
+          "public",
+          "\"public\".\"users\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"users_location_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"users\"\nADD CONSTRAINT \"users_location_id_fkey\"\nFOREIGN KEY (\"location_id\")\nREFERENCES \"public\".\"locations\" (\"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"users_location_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "users_location_id_fkey",
+          "public",
+          "\"public\".\"users\""
+        ]
+      }
+    ]
+  }
+]

@@ -4,6 +4,7 @@ export enum StockMovementType {
   RETURN_IN = 'return_in',
   RETURN_OUT = 'return_out',
   DAMAGE = 'damage',
+  SALE = 'sale',
 }
 
 export type MovementVelocity = 'fast' | 'slow' | 'dead' | 'none';
@@ -14,4 +15,5 @@ export const MOVEMENT_SIGN: Record<StockMovementType, 1 | -1> = {
   transfer: -1,
   return_out: -1,
   damage: -1,
+  sale: -1,
 };
