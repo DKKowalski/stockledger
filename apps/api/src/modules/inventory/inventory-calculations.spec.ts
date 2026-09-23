@@ -12,6 +12,7 @@ const item: ItemRecord = {
   unit: 'bag',
   reorderLevel: 10,
   unitCostCents: 1250,
+  sellingPriceCents: null,
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
 };
@@ -28,6 +29,7 @@ const movement = (
   destinationLocationId,
   type,
   quantity,
+  unitPriceCents: null,
   movementDate: '2026-09-10',
   reference: null,
   note: null,

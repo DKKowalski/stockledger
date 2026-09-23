@@ -13,7 +13,7 @@ export type User = {
 export type LoginResponse = { accessToken: string; user: User };
 export type Item = {
   id: string; sku: string; name: string; category: string; unit: string;
-  reorderLevel: number; unitCostCents: number;
+  reorderLevel: number; unitCostCents: number; sellingPriceCents: number | null;
   createdAt: string; updatedAt: string;
 };
 export type Place = { id: string; name: string; type: LocationType };
@@ -26,12 +26,14 @@ export type Position = {
 export type Movement = {
   id: string; itemId: string; locationId: string; destinationLocationId: string | null;
   type: MovementType; quantity: number; movementDate: string; reference: string | null;
+  unitPriceCents: number | null; saleTotalCents: number | null;
   note: string | null; createdAt: string; item: Item | null;
   location: Place | null; destination: Place | null; sign: 1 | -1;
 };
 export type Snapshot = {
   periodDays: number; generatedAt: string; locationId: string | null;
   locations: Place[];
+  items: Item[];
   summary: { closingUnits: number; stockValueCents: number; lowStockItems: number; damagedUnits: number; deadStockLines: number };
   positions: Position[]; movements: Movement[];
 };

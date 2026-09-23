@@ -39,7 +39,9 @@ export const api = {
     request<Place>('/inventory/locations', { method: 'POST', body: JSON.stringify(body) }, accessToken),
   addItem: (accessToken: string, body: Record<string, string | number>) =>
     request('/inventory/items', { method: 'POST', body: JSON.stringify(body) }, accessToken),
-  addMovement: (accessToken: string, body: { itemId: string; locationId: string; destinationLocationId?: string; type: MovementType; quantity: number; movementDate: string; reference?: string; note?: string }) =>
+  updateSellingPrice: (accessToken: string, itemId: string, sellingPriceCents: number) =>
+    request(`/inventory/items/${itemId}/selling-price`, { method: 'PATCH', body: JSON.stringify({ sellingPriceCents }) }, accessToken),
+  addMovement: (accessToken: string, body: { itemId: string; locationId: string; destinationLocationId?: string; type: MovementType; quantity: number; movementDate: string; reference?: string; note?: string; expectedUnitPriceCents?: number }) =>
     request('/inventory/movements', { method: 'POST', body: JSON.stringify(body) }, accessToken),
   deleteMovement: (accessToken: string, id: string) =>
     request(`/inventory/movements/${id}`, { method: 'DELETE' }, accessToken),

@@ -13,6 +13,7 @@ import { buildSnapshot, type ItemRecord, type LocationRecord, type MovementRecor
 import { CreateItemDto } from './dto/create-item.dto.js';
 import { CreateLocationDto } from './dto/create-location.dto.js';
 import { CreateMovementDto } from './dto/create-movement.dto.js';
+import { UpdateSellingPriceDto } from './dto/update-selling-price.dto.js';
 import { MOVEMENT_SIGN, StockMovementType } from './inventory.types.js';
 
 type Actor = {
@@ -78,6 +79,7 @@ export class InventoryService {
         unit: body.unit.trim() as Varchar<20>,
         reorderLevel: body.reorderLevel,
         unitCostCents: body.unitCostCents,
+        sellingPriceCents: body.sellingPriceCents ?? null,
       });
       await tx.orm.public.LocationStock.create({
         locationId: body.locationId,
@@ -85,6 +87,17 @@ export class InventoryService {
         openingStock: body.openingStock,
       });
       return item;
+    });
+  }
+
+  async updateSellingPrice(userId: string, itemId: string, body: UpdateSellingPriceDto) {
+    const actor = await this.actor(userId);
+    this.assertAdministrator(actor);
+    return this.prisma.client.transaction(async (tx) => {
+      await this.lockItem(tx, actor.companyId, itemId);
+      await tx.orm.public.InventoryItem.where({ id: itemId, companyId: actor.companyId })
+        .update({ sellingPriceCents: body.sellingPriceCents });
+      return tx.orm.public.InventoryItem.first({ id: itemId, companyId: actor.companyId });
     });
   }
 
@@ -107,6 +120,16 @@ export class InventoryService {
     const scope = await this.scope(actor.companyId, tx, body.itemId);
     const item = scope.items.find((candidate) => candidate.id === body.itemId);
     if (!item) throw new NotFoundException('Inventory item not found');
+    const unitPriceCents = body.type === StockMovementType.SALE ? item.sellingPriceCents : null;
+    if (body.type === StockMovementType.SALE) {
+      if (unitPriceCents === null) throw new ConflictException('Ask an administrator to set a selling price for this item');
+      if (body.expectedUnitPriceCents !== undefined && body.expectedUnitPriceCents !== unitPriceCents) {
+        throw new ConflictException('The selling price has changed. Refresh and review the price before recording this sale');
+      }
+      if (!Number.isSafeInteger(unitPriceCents! * body.quantity)) {
+        throw new BadRequestException('The sale total is too large');
+      }
+    }
     const locationId = body.type === StockMovementType.SALE ? actor.locationId! : body.locationId;
     const place = this.knownLocation(scope.locations, locationId);
     if (body.type === StockMovementType.SALE && place.type !== 'shop') {
@@ -136,6 +159,7 @@ export class InventoryService {
       destinationLocationId: destinationId,
       type: body.type,
       quantity: body.quantity,
+      unitPriceCents,
       movementDate: body.movementDate,
       reference: body.reference?.trim() ? (body.reference.trim() as Varchar<80>) : null,
       note: body.note?.trim() ? (body.note.trim() as Varchar<500>) : null,

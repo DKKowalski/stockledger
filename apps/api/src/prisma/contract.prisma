@@ -94,6 +94,7 @@ model InventoryItem {
   unit          VarChar(20)
   reorderLevel  Int                        @default(0) @map("reorder_level")
   unitCostCents Int                        @default(0) @map("unit_cost_cents")
+  sellingPriceCents Int?                   @map("selling_price_cents")
   createdAt     TimestamptzString          @default(now()) @map("created_at")
   updatedAt     temporal.updatedAtString() @map("updated_at")
 
@@ -107,6 +108,7 @@ model InventoryItem {
   @@unique([companyId, sku])
   @@check(expression: "reorder_level >= 0", name: "inventory_item_reorder_level_nonnegative")
   @@check(expression: "unit_cost_cents >= 0", name: "inventory_item_unit_cost_nonnegative")
+  @@check(expression: "selling_price_cents IS NULL OR selling_price_cents >= 0", name: "inventory_item_selling_price_nonnegative")
   @@index([companyId])
   @@rls
   @@map("inventory_items")
@@ -147,6 +149,7 @@ model StockMovement {
   destinationLocationId Uuid?             @map("destination_location_id")
   type                  StockMovementType
   quantity              Int
+  unitPriceCents        Int?              @map("unit_price_cents")
   movementDate          DateString        @map("movement_date")
   reference             VarChar(80)?
   note                  VarChar(500)?
@@ -174,6 +177,7 @@ model StockMovement {
   )
 
   @@check(expression: "quantity > 0", name: "stock_movement_quantity_positive")
+  @@check(expression: "unit_price_cents IS NULL OR (type = 'sale' AND unit_price_cents >= 0)", name: "stock_movement_sale_price_valid")
   @@check(expression: "destination_location_id IS NULL OR destination_location_id <> location_id", name: "stock_movement_destination_differs")
   @@index([itemId])
   @@index([locationId])

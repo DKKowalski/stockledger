@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsInt, IsNotEmpty, IsString, IsUUID, Matches, MaxLength, Min } from 'class-validator';
+import { IsInt, IsNotEmpty, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min } from 'class-validator';
 
 export class CreateItemDto {
   @IsString()
@@ -32,6 +32,13 @@ export class CreateItemDto {
   @IsInt()
   @Min(0)
   unitCostCents!: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(2147483647)
+  sellingPriceCents?: number;
 
   @Type(() => Number)
   @IsInt()

@@ -69,7 +69,8 @@ const money = (cents: number) =>
   new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(cents / 100);
 
 const formatDate = (date: string) =>
@@ -535,19 +536,47 @@ function StockTable({ positions, compact = false }: { positions: Position[]; com
 function Items() {
   const { accessToken, user } = useAuth();
   const { snapshot, mutate, busy } = useStore();
-  const [form, setForm] = useState({ sku: '', name: '', category: '', unit: 'pcs', reorderLevel: '10', unitCost: '0', openingStock: '0', locationId: '' });
+  const [form, setForm] = useState({ sku: '', name: '', category: '', unit: 'pcs', reorderLevel: '10', unitCost: '0', sellingPrice: '', openingStock: '0', locationId: '' });
   const change = (key: keyof typeof form, value: string) => setForm((current) => ({ ...current, [key]: value }));
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (!accessToken) return;
-    await mutate(() => api.addItem(accessToken, { sku: form.sku, name: form.name, category: form.category || 'General', unit: form.unit || 'pcs', reorderLevel: Number(form.reorderLevel), unitCostCents: Math.round(Number(form.unitCost) * 100), openingStock: Number(form.openingStock), locationId: form.locationId }), `${form.name} was added to inventory.`);
-    setForm({ sku: '', name: '', category: '', unit: 'pcs', reorderLevel: '10', unitCost: '0', openingStock: '0', locationId: '' });
+    await mutate(() => api.addItem(accessToken, { sku: form.sku, name: form.name, category: form.category || 'General', unit: form.unit || 'pcs', reorderLevel: Number(form.reorderLevel), unitCostCents: Math.round(Number(form.unitCost) * 100), ...(form.sellingPrice !== '' ? { sellingPriceCents: Math.round(Number(form.sellingPrice) * 100) } : {}), openingStock: Number(form.openingStock), locationId: form.locationId }), `${form.name} was added to inventory.`);
+    setForm({ sku: '', name: '', category: '', unit: 'pcs', reorderLevel: '10', unitCost: '0', sellingPrice: '', openingStock: '0', locationId: '' });
   };
   const canAdd = user?.role === 'administrator';
   return <State><Header title="Items" subtitle="The company catalog. Opening stock is recorded at one place." />
-    {canAdd && <Panel title="Add item" subtitle="Opening stock lands at the place you choose"><form className="form-grid item-form" onSubmit={(event) => void submit(event)}>{(['sku', 'name', 'category', 'unit'] as const).map((key) => <label key={key}><span>{key === 'sku' ? 'SKU' : key[0].toUpperCase() + key.slice(1)}</span><input required={key === 'sku' || key === 'name'} value={form[key]} onChange={(event) => change(key, event.target.value)} /></label>)}<label><span>Reorder level</span><input type="number" min="0" required value={form.reorderLevel} onChange={(event) => change('reorderLevel', event.target.value)} /></label><label><span>Unit cost</span><input type="number" min="0" step="0.01" required value={form.unitCost} onChange={(event) => change('unitCost', event.target.value)} /></label><label><span>Opening place</span><SelectControl required value={form.locationId} onChange={(event) => change('locationId', event.target.value)}><option value="">Select place</option>{snapshot?.locations.map((place) => <option key={place.id} value={place.id}>{place.name}</option>)}</SelectControl></label><label><span>Opening stock</span><input type="number" min="0" required value={form.openingStock} onChange={(event) => change('openingStock', event.target.value)} /></label><button className="button" disabled={busy || !snapshot?.locations.length}>Add item<ArrowUpRight size={16} /></button></form></Panel>}
-    <Panel title={`Stock by place (${snapshot?.positions.length ?? 0})`} className={canAdd ? 'spaced' : ''}>{snapshot?.positions.length ? <div className="table-wrap"><table><thead><tr><th>Item</th><th>Place</th><th>Category</th><th>Unit</th><th className="num">Reorder</th><th className="num">Cost</th><th className="num">Closing</th><th className="num">Value</th></tr></thead><tbody>{snapshot.positions.map((position) => <tr key={`${position.location.id}-${position.item.id}`}><td><b>{position.item.name}</b><small>{position.item.sku}</small></td><td>{position.location.name}</td><td>{position.item.category}</td><td>{position.item.unit}</td><td className="num">{position.item.reorderLevel}</td><td className="num">{money(position.item.unitCostCents)}</td><td className="num"><b>{position.closing}</b></td><td className="num">{money(position.valueCents)}</td></tr>)}</tbody></table></div> : <Empty text="No items yet." />}</Panel>
+    {canAdd && <Panel title="Add item" subtitle="Opening stock lands at the place you choose"><form className="form-grid item-form" onSubmit={(event) => void submit(event).catch(() => {})}>{(['sku', 'name', 'category', 'unit'] as const).map((key) => <label key={key}><span>{key === 'sku' ? 'SKU' : key[0].toUpperCase() + key.slice(1)}</span><input required={key === 'sku' || key === 'name'} value={form[key]} onChange={(event) => change(key, event.target.value)} /></label>)}<label><span>Reorder level</span><input type="number" min="0" required value={form.reorderLevel} onChange={(event) => change('reorderLevel', event.target.value)} /></label><label><span>Unit cost</span><input type="number" min="0" step="0.01" required value={form.unitCost} onChange={(event) => change('unitCost', event.target.value)} /></label><label><span>Selling price (optional)</span><input type="number" min="0" max="21474836.47" step="0.01" placeholder="Not set" value={form.sellingPrice} onChange={(event) => change('sellingPrice', event.target.value)} /></label><label><span>Opening place</span><SelectControl required value={form.locationId} onChange={(event) => change('locationId', event.target.value)}><option value="">Select place</option>{snapshot?.locations.map((place) => <option key={place.id} value={place.id}>{place.name}</option>)}</SelectControl></label><label><span>Opening stock</span><input type="number" min="0" required value={form.openingStock} onChange={(event) => change('openingStock', event.target.value)} /></label><button className="button" disabled={busy || !snapshot?.locations.length}>Add item<ArrowUpRight size={16} /></button></form></Panel>}
+    {canAdd && <SellingPrices />}
+    <Panel title={`Stock by place (${snapshot?.positions.length ?? 0})`} className={canAdd ? 'spaced' : ''}>{snapshot?.positions.length ? <div className="table-wrap"><table><thead><tr><th>Item</th><th>Place</th><th>Category</th><th>Unit</th><th className="num">Reorder</th><th className="num">Cost</th><th className="num">Selling price</th><th className="num">Closing</th><th className="num">Value</th></tr></thead><tbody>{snapshot.positions.map((position) => <tr key={`${position.location.id}-${position.item.id}`}><td><b>{position.item.name}</b><small>{position.item.sku}</small></td><td>{position.location.name}</td><td>{position.item.category}</td><td>{position.item.unit}</td><td className="num">{position.item.reorderLevel}</td><td className="num">{money(position.item.unitCostCents)}</td><td className="num">{position.item.sellingPriceCents == null ? 'Not set' : money(position.item.sellingPriceCents)}</td><td className="num"><b>{position.closing}</b></td><td className="num">{money(position.valueCents)}</td></tr>)}</tbody></table></div> : <Empty text="No items yet." />}</Panel>
   </State>;
+}
+
+function SellingPrices() {
+  const { accessToken } = useAuth();
+  const { snapshot, mutate, busy } = useStore();
+  const [itemId, setItemId] = useState('');
+  const [price, setPrice] = useState('');
+  const catalog = snapshot?.items ?? [];
+  const selected = catalog.find((item) => item.id === itemId);
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!accessToken || !selected || price === '') return;
+    await mutate(() => api.updateSellingPrice(accessToken, selected.id, Math.round(Number(price) * 100)), `Selling price updated for ${selected.name}.`);
+    setItemId('');
+    setPrice('');
+  };
+  return <Panel title="Selling prices" subtitle="One price per item across all shops. Past sales keep their original price." className="spaced">
+    <form className="form-grid place-form" onSubmit={(event) => void submit(event).catch(() => {})}>
+      <label><span>Item</span><SelectControl aria-label="Item" required value={itemId} disabled={busy} onChange={(event) => {
+        const item = catalog.find((candidate) => candidate.id === event.target.value);
+        setItemId(event.target.value);
+        setPrice(item?.sellingPriceCents == null ? '' : (item.sellingPriceCents / 100).toFixed(2));
+      }}><option value="">Select item</option>{catalog.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.sellingPriceCents == null ? 'Not set' : money(item.sellingPriceCents)}</option>)}</SelectControl></label>
+      <label><span>Selling price</span><input type="number" min="0" max="21474836.47" step="0.01" required disabled={busy || !selected} value={price} onChange={(event) => setPrice(event.target.value)} /></label>
+      <button className="button" disabled={busy || !selected || price === ''}>Save price<Check size={16} /></button>
+    </form>
+  </Panel>;
 }
 
 function Sell() {
@@ -557,18 +586,21 @@ function Sell() {
   const shop = snapshot?.locations.find((place) => place.id === user?.locationId) ?? snapshot?.locations[0];
   const stocked = snapshot?.positions.filter((position) => position.closing > 0) ?? [];
   const selected = stocked.find((position) => position.item.id === form.itemId);
+  const unitPriceCents = selected?.item.sellingPriceCents;
+  const totalCents = unitPriceCents == null || !form.quantity ? null : unitPriceCents * Number(form.quantity);
   const sales = snapshot?.movements.filter((movement) => movement.type === 'sale') ?? [];
   if (user?.role !== 'shop_attendant') return <Navigate to="/" replace />;
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!accessToken || !user.locationId || !selected) return;
+    if (!accessToken || !user.locationId || !selected || unitPriceCents == null) return;
     const quantity = Number(form.quantity);
     await mutate(() => api.addMovement(accessToken, {
       itemId: selected.item.id,
       locationId: user.locationId!,
       type: 'sale',
       quantity,
+      expectedUnitPriceCents: unitPriceCents,
       movementDate: new Date().toISOString().slice(0, 10),
     }), `Sold ${quantity} ${selected.item.unit} of ${selected.item.name}.`);
     setForm({ itemId: '', quantity: '' });
@@ -577,10 +609,10 @@ function Sell() {
   return <State>
     <Header title="Sell" subtitle={shop ? `A sale reduces stock at ${shop.name} only.` : 'A sale reduces stock at your shop only.'} />
     <Panel title="Record a sale" subtitle="Pick an item that is on the shelf.">
-      {stocked.length ? <form className="form-grid sell-form" onSubmit={(event) => void submit(event)}>
+      {stocked.length ? <form className="form-grid sell-form" onSubmit={(event) => void submit(event).catch(() => {})}>
         <label>
           <span>Item</span>
-          <SelectControl required value={form.itemId} onChange={(event) => setForm({ itemId: event.target.value, quantity: '' })}>
+          <SelectControl aria-label="Item" required value={form.itemId} onChange={(event) => setForm({ itemId: event.target.value, quantity: '' })}>
             <option value="">Select item</option>
             {stocked.map((position) => <option key={position.item.id} value={position.item.id}>{position.item.name}</option>)}
           </SelectControl>
@@ -589,11 +621,14 @@ function Sell() {
           <span className="label-row"><span>Quantity</span><span className="info-tooltip"><button type="button" aria-label="Stock on hand" aria-describedby="sale-quantity-hint"><Info size={14} /></button><span id="sale-quantity-hint" role="tooltip">{selected ? `${selected.closing} ${selected.item.unit} on hand` : 'Choose an item to see what is on hand'}</span></span></span>
           <input type="number" min="1" max={selected?.closing} required value={form.quantity} onChange={(event) => setForm({ ...form, quantity: event.target.value })} />
         </label>
-        <button className="button" disabled={busy || !selected}>Sell<ArrowUpRight size={16} /></button>
+        <label><span>Unit price</span><input readOnly value={unitPriceCents == null ? 'Not set' : money(unitPriceCents)} /></label>
+        <label><span>Total</span><output className="sale-total" aria-live="polite">{totalCents == null ? '—' : money(totalCents)}</output></label>
+        <button className="button" disabled={busy || !selected || unitPriceCents == null}>Sell<ArrowUpRight size={16} /></button>
+        {selected && unitPriceCents == null && <p className="price-hint" role="status">Ask an administrator to set a selling price for this item.</p>}
       </form> : <Empty text="Nothing to sell yet. Stock arrives when someone transfers it to this shop." />}
     </Panel>
     <Panel title={`Recent sales (${sales.length})`} className="spaced">
-      {sales.length ? <div className="table-wrap"><table><thead><tr><th>Date</th><th>Item</th><th className="num">Qty</th></tr></thead><tbody>{sales.map((sale) => <tr key={sale.id}><td>{formatDate(sale.movementDate)}</td><td><b>{sale.item?.name ?? 'Deleted item'}</b><small>{sale.item?.sku}</small></td><td className="num negative">−{sale.quantity}</td></tr>)}</tbody></table></div> : <Empty text="No sales recorded at this shop yet." />}
+      {sales.length ? <div className="table-wrap"><table><thead><tr><th>Date</th><th>Item</th><th className="num">Qty</th><th className="num">Unit price</th><th className="num">Total</th></tr></thead><tbody>{sales.map((sale) => <tr key={sale.id}><td>{formatDate(sale.movementDate)}</td><td><b>{sale.item?.name ?? 'Deleted item'}</b><small>{sale.item?.sku}</small></td><td className="num negative">−{sale.quantity}</td><td className="num">{sale.unitPriceCents == null ? 'Not recorded' : money(sale.unitPriceCents)}</td><td className="num">{sale.saleTotalCents == null ? 'Not recorded' : money(sale.saleTotalCents)}</td></tr>)}</tbody></table></div> : <Empty text="No sales recorded at this shop yet." />}
     </Panel>
   </State>;
 }
@@ -634,7 +669,7 @@ function Movements() {
       <label><span>Note</span><input value={form.note} onChange={(event) => setForm({ ...form, note: event.target.value })} /></label>
       <button className="button" disabled={busy || !items.length}>Save movement<ArrowUpRight size={16} /></button>
     </form></Panel>
-    <Panel title={`Movement ledger (${rows.length})`} className="spaced"><div className="filter-row"><label><span className="sr-only">Filter movement type</span><SelectControl value={filter} onChange={(event) => setFilter(event.target.value as typeof filter)}><option value="all">All movement types</option>{Object.entries(movementMeta).map(([value, meta]) => <option key={value} value={value}>{meta.label}</option>)}</SelectControl></label></div>{rows.length ? <div className="table-wrap"><table><thead><tr><th>Date</th><th>Item</th><th>Type</th><th>Place</th><th>Reference</th><th className="num">Qty</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>{rows.map((movement) => <tr key={movement.id}><td>{formatDate(movement.movementDate)}</td><td><b>{movement.item?.name ?? 'Deleted item'}</b><small>{movement.note}</small></td><td>{movementMeta[movement.type].label}</td><td>{movement.destination ? `${movement.location?.name ?? 'Unknown'} → ${movement.destination.name}` : movement.location?.name ?? 'Unknown'}</td><td>{movement.reference || '—'}</td><td className={`num ${movement.sign === 1 ? 'positive' : 'negative'}`}>{movement.sign === 1 ? '+' : '−'}{movement.quantity}</td><td className="num"><button className="icon-button" aria-label="Delete movement" disabled={busy} onClick={() => accessToken && void mutate(() => api.deleteMovement(accessToken, movement.id), 'The stock movement was removed.')}><Trash2 size={16} /></button></td></tr>)}</tbody></table></div> : <Empty text="No movements match this filter." />}</Panel>
+    <Panel title={`Movement ledger (${rows.length})`} className="spaced"><div className="filter-row"><label><span className="sr-only">Filter movement type</span><SelectControl value={filter} onChange={(event) => setFilter(event.target.value as typeof filter)}><option value="all">All movement types</option>{Object.entries(movementMeta).map(([value, meta]) => <option key={value} value={value}>{meta.label}</option>)}</SelectControl></label></div>{rows.length ? <div className="table-wrap"><table><thead><tr><th>Date</th><th>Item</th><th>Type</th><th>Place</th><th>Reference</th><th className="num">Qty</th><th className="num">Sale price</th><th className="num">Sale total</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>{rows.map((movement) => <tr key={movement.id}><td>{formatDate(movement.movementDate)}</td><td><b>{movement.item?.name ?? 'Deleted item'}</b><small>{movement.note}</small></td><td>{movementMeta[movement.type].label}</td><td>{movement.destination ? `${movement.location?.name ?? 'Unknown'} → ${movement.destination.name}` : movement.location?.name ?? 'Unknown'}</td><td>{movement.reference || '—'}</td><td className={`num ${movement.sign === 1 ? 'positive' : 'negative'}`}>{movement.sign === 1 ? '+' : '−'}{movement.quantity}</td><td className="num">{movement.type !== 'sale' ? '—' : movement.unitPriceCents == null ? 'Not recorded' : money(movement.unitPriceCents)}</td><td className="num">{movement.type !== 'sale' ? '—' : movement.saleTotalCents == null ? 'Not recorded' : money(movement.saleTotalCents)}</td><td className="num"><button className="icon-button" aria-label="Delete movement" disabled={busy} onClick={() => accessToken && void mutate(() => api.deleteMovement(accessToken, movement.id), 'The stock movement was removed.')}><Trash2 size={16} /></button></td></tr>)}</tbody></table></div> : <Empty text="No movements match this filter." />}</Panel>
   </State>;
 }
 

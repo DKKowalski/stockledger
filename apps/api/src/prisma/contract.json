@@ -198,6 +198,13 @@
                   "kind": "scalar"
                 }
               },
+              "sellingPriceCents": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
               "sku": {
                 "nullable": false,
                 "type": {
@@ -270,6 +277,9 @@
                 },
                 "reorderLevel": {
                   "column": "reorder_level"
+                },
+                "sellingPriceCents": {
+                  "column": "selling_price_cents"
                 },
                 "sku": {
                   "column": "sku"
@@ -572,6 +582,13 @@
                   "namespaceId": "public",
                   "plane": "domain"
                 }
+              },
+              "unitPriceCents": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
               }
             },
             "relations": {
@@ -655,6 +672,9 @@
                 },
                 "type": {
                   "column": "type"
+                },
+                "unitPriceCents": {
+                  "column": "unit_price_cents"
                 }
               },
               "namespaceId": "public",
@@ -898,6 +918,11 @@
                   "prefix": "inventory_item_reorder_level_nonnegative"
                 },
                 {
+                  "expression": "selling_price_cents IS NULL OR selling_price_cents >= 0",
+                  "name": "inventory_item_selling_price_nonnegative_8a843ec1",
+                  "prefix": "inventory_item_selling_price_nonnegative"
+                },
+                {
                   "expression": "unit_cost_cents >= 0",
                   "name": "inventory_item_unit_cost_nonnegative_0e3258af",
                   "prefix": "inventory_item_unit_cost_nonnegative"
@@ -947,6 +972,11 @@
                   },
                   "nativeType": "int4",
                   "nullable": false
+                },
+                "selling_price_cents": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": true
                 },
                 "sku": {
                   "codecId": "sql/varchar@1",
@@ -1251,6 +1281,11 @@
                   "prefix": "stock_movement_quantity_positive"
                 },
                 {
+                  "expression": "unit_price_cents IS NULL OR (type = 'sale' AND unit_price_cents >= 0)",
+                  "name": "stock_movement_sale_price_valid_b98fe941",
+                  "prefix": "stock_movement_sale_price_valid"
+                },
+                {
                   "expression": "\"type\" IN ('purchase', 'transfer', 'return_in', 'return_out', 'damage', 'sale')",
                   "name": "stock_movements_type_check_6b3e5aa1",
                   "prefix": "stock_movements_type_check"
@@ -1322,6 +1357,11 @@
                     "namespaceId": "public",
                     "plane": "storage"
                   }
+                },
+                "unit_price_cents": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": true
                 }
               },
               "foreignKeys": [
@@ -1607,7 +1647,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "de2cdacbde8b0ef378d3f7574ab9e1f6338e1db8ca9edc62fc56e3fab22da24d"
+    "storageHash": "7bb8a0ed60364a679593978242cb0aa1f27f9b3f55cf32b5511df887efcd4981"
   },
   "execution": {
     "executionHash": "a5c0df357ad692205cc2ebd15ee9b91f11720c1dfc0f9406e4e6f34f0729648f",

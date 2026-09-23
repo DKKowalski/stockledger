@@ -1,0 +1,170 @@
+[
+  {
+    "id": "column.public.inventory_items.selling_price_cents",
+    "label": "Add column \"selling_price_cents\" to \"inventory_items\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "selling_price_cents",
+        "table": "inventory_items"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"selling_price_cents\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "inventory_items",
+          "selling_price_cents"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"selling_price_cents\"",
+        "sql": "ALTER TABLE \"public\".\"inventory_items\" ADD COLUMN \"selling_price_cents\" int4"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"selling_price_cents\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "inventory_items",
+          "selling_price_cents"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.stock_movements.unit_price_cents",
+    "label": "Add column \"unit_price_cents\" to \"stock_movements\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "unit_price_cents",
+        "table": "stock_movements"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"unit_price_cents\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "stock_movements",
+          "unit_price_cents"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"unit_price_cents\"",
+        "sql": "ALTER TABLE \"public\".\"stock_movements\" ADD COLUMN \"unit_price_cents\" int4"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"unit_price_cents\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "stock_movements",
+          "unit_price_cents"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "checkConstraint.inventory_items.inventory_item_selling_price_nonnegative_8a843ec1",
+    "label": "Add check constraint \"inventory_item_selling_price_nonnegative_8a843ec1\" on \"inventory_items\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "inventory_item_selling_price_nonnegative_8a843ec1",
+        "table": "inventory_items"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"inventory_item_selling_price_nonnegative_8a843ec1\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "inventory_item_selling_price_nonnegative_8a843ec1",
+          "public",
+          "\"public\".\"inventory_items\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add check constraint \"inventory_item_selling_price_nonnegative_8a843ec1\"",
+        "sql": "ALTER TABLE \"public\".\"inventory_items\" ADD CONSTRAINT \"inventory_item_selling_price_nonnegative_8a843ec1\" CHECK (selling_price_cents IS NULL OR selling_price_cents >= 0)"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"inventory_item_selling_price_nonnegative_8a843ec1\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "inventory_item_selling_price_nonnegative_8a843ec1",
+          "public",
+          "\"public\".\"inventory_items\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "checkConstraint.stock_movements.stock_movement_sale_price_valid_b98fe941",
+    "label": "Add check constraint \"stock_movement_sale_price_valid_b98fe941\" on \"stock_movements\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "stock_movement_sale_price_valid_b98fe941",
+        "table": "stock_movements"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"stock_movement_sale_price_valid_b98fe941\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "stock_movement_sale_price_valid_b98fe941",
+          "public",
+          "\"public\".\"stock_movements\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add check constraint \"stock_movement_sale_price_valid_b98fe941\"",
+        "sql": "ALTER TABLE \"public\".\"stock_movements\" ADD CONSTRAINT \"stock_movement_sale_price_valid_b98fe941\" CHECK (unit_price_cents IS NULL OR (type = 'sale' AND unit_price_cents >= 0))"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"stock_movement_sale_price_valid_b98fe941\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "stock_movement_sale_price_valid_b98fe941",
+          "public",
+          "\"public\".\"stock_movements\""
+        ]
+      }
+    ]
+  }
+]

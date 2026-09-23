@@ -8,6 +8,7 @@ export type ItemRecord = {
   unit: string;
   reorderLevel: number;
   unitCostCents: number;
+  sellingPriceCents: number | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -31,6 +32,7 @@ export type MovementRecord = {
   destinationLocationId: string | null;
   type: StockMovementType;
   quantity: number;
+  unitPriceCents: number | null;
   movementDate: string;
   reference: string | null;
   note: string | null;
@@ -131,6 +133,7 @@ export function buildSnapshot(
   ));
 
   return {
+    items,
     periodDays: days,
     generatedAt: now.toISOString(),
     locationId,
@@ -147,6 +150,8 @@ export function buildSnapshot(
       .sort((left, right) => right.movementDate.localeCompare(left.movementDate) || right.createdAt.localeCompare(left.createdAt))
       .map((movement) => ({
         ...movement,
+        saleTotalCents: movement.type === StockMovementType.SALE && movement.unitPriceCents !== null
+          ? movement.unitPriceCents * movement.quantity : null,
         item: items.find((item) => item.id === movement.itemId) ?? null,
         location: locationById.get(movement.locationId) ?? null,
         destination: movement.destinationLocationId ? locationById.get(movement.destinationLocationId) ?? null : null,

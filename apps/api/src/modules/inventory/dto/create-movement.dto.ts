@@ -7,7 +7,9 @@ import {
   IsString,
   IsUUID,
   MaxLength,
+  Max,
   Min,
+  ValidateIf,
 } from 'class-validator';
 import { StockMovementType } from '../inventory.types.js';
 
@@ -32,6 +34,13 @@ export class CreateMovementDto {
 
   @IsDateString({ strict: true })
   movementDate!: string;
+
+  // Optional quote check only. The server always uses the catalog price.
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsInt()
+  @Min(0)
+  @Max(2147483647)
+  expectedUnitPriceCents?: number;
 
   @IsOptional()
   @IsString()

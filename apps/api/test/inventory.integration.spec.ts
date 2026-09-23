@@ -47,7 +47,7 @@ async function fixture(openingStock = 5) {
   });
   const item = await service.createItem(admin.id, {
     sku: 'TEST-ITEM', name: 'Test item', category: 'Test', unit: 'pcs',
-    unitCostCents: 100, reorderLevel: 0, openingStock, locationId: warehouse.id,
+    unitCostCents: 100, sellingPriceCents: 175, reorderLevel: 0, openingStock, locationId: warehouse.id,
   });
   return { company, warehouse, shop, admin, attendant, item };
 }
@@ -107,6 +107,108 @@ function expectOneConflict(results: PromiseSettledResult<unknown>[]) {
 }
 
 describe('inventory transactions with PostgreSQL', () => {
+  it('stores the catalog price on each sale and preserves earlier sale totals', async () => {
+    const f = await fixture();
+    await transfer(f, 5);
+    const body = { itemId: f.item.id, locationId: f.shop.id, type: Type.SALE, quantity: 2, movementDate };
+    const first = await service.createMovement(f.attendant.id, body);
+    expect(first.unitPriceCents).toBe(175);
+    await service.updateSellingPrice(f.admin.id, f.item.id, { sellingPriceCents: 250 });
+    const second = await service.createMovement(f.attendant.id, body);
+    expect(second.unitPriceCents).toBe(250);
+    const snapshot = await service.snapshot(f.attendant.id);
+    expect(snapshot.movements.find((movement) => movement.id === first.id)).toMatchObject({ unitPriceCents: 175, saleTotalCents: 350 });
+    expect(snapshot.movements.find((movement) => movement.id === second.id)).toMatchObject({ unitPriceCents: 250, saleTotalCents: 500 });
+    expect(snapshot.items.find((item) => item.id === f.item.id)?.unitCostCents).toBe(100);
+  });
+
+  it('allows only the company administrator to set prices', async () => {
+    const f = await fixture();
+    const stranger = await fixture();
+    const manager = await db.orm.public.User.create({
+      companyId: f.company.id, fullName: varchar<120>('Manager'), role: 'inventory_manager',
+      email: varchar<255>(`${randomUUID()}@test.invalid`), passwordHash: varchar<255>('unused'),
+    });
+    for (const user of [f.attendant, manager]) {
+      await expect(service.updateSellingPrice(user.id, f.item.id, { sellingPriceCents: 200 }))
+        .rejects.toBeInstanceOf(ForbiddenException);
+    }
+    await expect(service.updateSellingPrice(stranger.admin.id, f.item.id, { sellingPriceCents: 200 }))
+      .rejects.toBeInstanceOf(NotFoundException);
+    expect((await db.orm.public.InventoryItem.first({ id: f.item.id }))?.sellingPriceCents).toBe(175);
+  });
+
+  it('rejects sales without a price but supports an explicit zero price', async () => {
+    const f = await fixture();
+    const item = await service.createItem(f.admin.id, {
+      sku: 'UNPRICED', name: 'Unpriced', category: 'Test', unit: 'pcs',
+      unitCostCents: 100, reorderLevel: 0, openingStock: 3, locationId: f.shop.id,
+    });
+    expect(item.sellingPriceCents).toBeNull();
+    const sale = { itemId: item.id, locationId: f.shop.id, type: Type.SALE, quantity: 1, movementDate };
+    await expect(service.createMovement(f.attendant.id, sale)).rejects.toBeInstanceOf(ConflictException);
+    expect(await db.orm.public.StockMovement.where({ itemId: item.id }).all()).toHaveLength(0);
+    await service.updateSellingPrice(f.admin.id, item.id, { sellingPriceCents: 0 });
+    const sold = await service.createMovement(f.attendant.id, { ...sale, expectedUnitPriceCents: 0 });
+    expect(sold.unitPriceCents).toBe(0);
+    expect((await service.snapshot(f.attendant.id)).movements.find((movement) => movement.id === sold.id)?.saleTotalCents).toBe(0);
+  });
+
+  it('rejects a stale displayed price without consuming stock', async () => {
+    const f = await fixture();
+    await transfer(f, 5);
+    await service.updateSellingPrice(f.admin.id, f.item.id, { sellingPriceCents: 250 });
+    await expect(service.createMovement(f.attendant.id, {
+      itemId: f.item.id, locationId: f.shop.id, type: Type.SALE, quantity: 1,
+      expectedUnitPriceCents: 175, movementDate,
+    })).rejects.toBeInstanceOf(ConflictException);
+    expect(await balance(f, f.shop.id)).toBe(5);
+  });
+
+  it('serializes price changes with sales and never charges a different quoted price', async () => {
+    const f = await fixture();
+    await transfer(f, 5);
+    const results = await race(f.item.id, [
+      () => service.updateSellingPrice(f.admin.id, f.item.id, { sellingPriceCents: 250 }),
+      () => otherService.createMovement(f.attendant.id, {
+        itemId: f.item.id, locationId: f.shop.id, type: Type.SALE, quantity: 1,
+        expectedUnitPriceCents: 175, movementDate,
+      }),
+    ]);
+    expect(results[0]!.status).toBe('fulfilled');
+    const sales = await db.orm.public.StockMovement.where({ itemId: f.item.id, type: 'sale' }).all();
+    if (results[1]!.status === 'fulfilled') {
+      expect(sales).toHaveLength(1);
+      expect(sales[0]!.unitPriceCents).toBe(175);
+      expect(await balance(f, f.shop.id)).toBe(4);
+    } else {
+      expect(results[1]!.reason).toBeInstanceOf(ConflictException);
+      expect(sales).toHaveLength(0);
+      expect(await balance(f, f.shop.id)).toBe(5);
+    }
+    expect((await db.orm.public.InventoryItem.first({ id: f.item.id }))?.sellingPriceCents).toBe(250);
+  });
+
+  it('leaves old unpriced sales and non-sale movements without a recorded price', async () => {
+    const f = await fixture();
+    const moved = await transfer(f, 5);
+    expect(moved.unitPriceCents).toBeNull();
+    const legacySale = await db.orm.public.StockMovement.create({
+      itemId: f.item.id, locationId: f.shop.id, type: 'sale', quantity: 1, movementDate,
+    });
+    await service.updateSellingPrice(f.admin.id, f.item.id, { sellingPriceCents: 250 });
+    const snapshot = await service.snapshot(f.admin.id);
+    expect(snapshot.movements.find((movement) => movement.id === legacySale.id))
+      .toMatchObject({ unitPriceCents: null, saleTotalCents: null });
+    expect(snapshot.movements.find((movement) => movement.id === moved.id)?.saleTotalCents).toBeNull();
+  });
+
+  it('includes zero-stock items in the catalog so an administrator can price them', async () => {
+    const f = await fixture(0);
+    await service.updateSellingPrice(f.admin.id, f.item.id, { sellingPriceCents: 350 });
+    expect((await service.snapshot(f.admin.id)).items.find((item) => item.id === f.item.id)?.sellingPriceCents).toBe(350);
+  });
+
   it('allows only one of two sales competing for the last units', async () => {
     const f = await fixture();
     await transfer(f, 5);

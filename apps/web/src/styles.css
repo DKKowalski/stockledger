@@ -228,7 +228,9 @@ th:last-child, td:last-child { padding-right: 22px; }
 .item-form { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .team-form { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.3fr) minmax(0, .9fr) minmax(0, 1fr) auto; }
 .place-form { grid-template-columns: minmax(0, 1.4fr) minmax(0, .8fr) auto; }
-.sell-form { grid-template-columns: minmax(0, 1.6fr) minmax(0, .7fr) auto; }
+.sell-form { grid-template-columns: minmax(0, 1.6fr) repeat(3, minmax(0, .8fr)) auto; }
+.sale-total { display: flex; align-items: center; min-height: 42px; font-size: 18px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.price-hint { grid-column: 1 / -1; margin: 0; font-size: 13px; }
 .movement-form { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 label { display: grid; gap: 7px; color: #3c4746; font-size: 12px; font-weight: 600; }
 label > span:first-child { transition: color 150ms ease; }
