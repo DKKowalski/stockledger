@@ -121,11 +121,21 @@ h1, h2, .brand, .login-brand, .mobile-login-brand { font-family: var(--font-disp
 .button.secondary { color: var(--ink); border-color: #dedfd9; background: #fff; }
 .button:active { transform: scale(.97); }
 .button:disabled, .icon-button:disabled { opacity: .48; cursor: not-allowed; transform: none; }
-.inventory-update-button { min-width: 104px; padding-inline: 13px 15px; color: #303426; border-color: #d4d7c9; background: #f8f8f3; }
-.inventory-update-mark { flex: 0 0 auto; color: var(--olive-dark); }
-.inventory-update-label { min-width: 47px; text-align: left; }
-.inventory-update-button.is-loading { opacity: 1; cursor: wait; color: #65695e; border-color: #d9ddc5; background: #f1f3e4; }
-.inventory-update-button .logo-loader-track { opacity: .2; }
+.inventory-sync-button { min-width: 119px; padding-inline: 12px 15px; color: #303426; border-color: #d5d8c8; background: #f6f7ee; }
+.inventory-sync-label { min-width: 61px; text-align: left; }
+.inventory-sync-button.is-loading { opacity: 1; cursor: wait; color: #4f543d; border-color: #cbd09f; background: #eef0d8; }
+.ledger-sync-icon { flex: 0 0 auto; color: var(--olive-dark); overflow: hidden; }
+.ledger-sync-cell { fill: currentColor; }
+.ledger-sync-line, .ledger-sync-scan { fill: none; stroke: currentColor; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.ledger-sync-line { opacity: .48; stroke-width: 1.5; }
+.ledger-sync-scan { opacity: 0; stroke: #11120f; stroke-width: 1.25; transform: translateX(0); }
+.ledger-sync-row, .ledger-sync-cell { transform-box: fill-box; transform-origin: center; }
+.ledger-sync-row { transition: opacity 150ms ease; }
+.ledger-sync-cell { transition: transform 180ms var(--ease-out); }
+.ledger-sync-icon.is-active .ledger-sync-row { animation: ledger-row-read 900ms linear infinite; }
+.ledger-sync-icon.is-active .ledger-sync-row-two { animation-delay: 120ms; }
+.ledger-sync-icon.is-active .ledger-sync-row-three { animation-delay: 240ms; }
+.ledger-sync-icon.is-active .ledger-sync-scan { animation: ledger-scan 900ms var(--ease-in-out) infinite; }
 .panel { min-width: 0; overflow: hidden; border: 1px solid var(--border); border-radius: 16px; background: var(--card-pure); box-shadow: none; }
 .panel-header { padding: 23px 23px 17px; }
 .panel-header h2 { color: var(--ink); font-size: 18px; font-weight: 500; letter-spacing: -.035em; }
@@ -283,10 +293,11 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgb(162 170 70 / 38%)
 
 @media (hover: hover) and (pointer: fine) {
   .button:hover { border-color: #292b26; background: #292b26; }
-  .button:not(.secondary):not(.inventory-update-button):hover svg:not(.logo-loader) { transform: translate(2px, -2px); }
+  .button:not(.secondary):not(.inventory-sync-button):hover svg:not(.logo-loader) { transform: translate(2px, -2px); }
   .button.secondary:hover { border-color: #aaaea2; color: var(--ink); background: #f5f5ef; }
-  .inventory-update-button:hover { color: var(--ink); border-color: #b9bea3; background: #f1f3e4; }
-  .inventory-update-button:hover .inventory-update-mark:not(.logo-loader) { transform: translateX(2px); }
+  .inventory-sync-button:hover { color: var(--ink); border-color: #b9bf8c; background: #ecefce; }
+  .inventory-sync-button:not(.is-loading):hover .ledger-sync-row-one .ledger-sync-cell { transform: translateX(1.5px); }
+  .inventory-sync-button:not(.is-loading):hover .ledger-sync-row-three .ledger-sync-cell { transform: translateX(.75px); }
   .demo-login:hover { border-color: #aeb1a4; background: #efefe9; }
   .select-control:hover { color: var(--ink); }
   .select-control select:hover { border-color: #aeb2a7; background: #fdfdfb; }
@@ -379,6 +390,15 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgb(162 170 70 / 38%)
 }
 
 @keyframes logo-dash { to { stroke-dashoffset: -76; } }
+@keyframes ledger-scan {
+  0% { opacity: 0; transform: translateX(0); }
+  16%, 84% { opacity: .9; }
+  100% { opacity: 0; transform: translateX(18px); }
+}
+@keyframes ledger-row-read {
+  0%, 58%, 100% { opacity: .58; }
+  22% { opacity: 1; }
+}
 @keyframes page-rise { from { opacity: 0; transform: translateY(4px); } }
 @keyframes bar-rise { from { opacity: .55; transform: scaleY(.86); } }
 @keyframes progress-reveal { from { opacity: .55; transform: scaleX(.82); } }
@@ -388,4 +408,6 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgb(162 170 70 / 38%)
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
   .logo-loader-dash { animation: none; stroke-dasharray: none; }
   .logo-loader-track { display: none; }
+  .ledger-sync-icon.is-active .ledger-sync-row { animation: none; opacity: 1; }
+  .ledger-sync-icon.is-active .ledger-sync-scan { animation: none; opacity: .75; transform: translateX(9px); }
 }

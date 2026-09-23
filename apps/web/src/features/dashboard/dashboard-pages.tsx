@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import { useInventoryStore } from '../../app/inventory-store';
 import { EmptyState, Kpi, LocationFilter, PageHeader, PageState, Panel } from '../../components/inventory-ui';
-import { StockLedgerMark } from '../../components/stockledger-mark';
+import { LedgerSyncIcon } from '../../components/ledger-sync-icon';
 import { formatDate, money, movementMeta } from '../../lib/presentation';
 import type { Movement, Position, Snapshot } from '../../types';
 
@@ -12,7 +12,7 @@ export function OperationsDashboardPage() {
   return <PageState>{snapshot && <DashboardBody
     title="Inventory overview"
     subtitle={snapshot.locationId ? `Stock held at ${snapshot.locations.find((place) => place.id === snapshot.locationId)?.name}.` : 'Stock held across every place in the company.'}
-    actions={<><LocationFilter /><InventoryUpdateButton loading={loading} refresh={refresh} /><NavLink className="button" to="/movements">Record movement<ArrowUpRight size={16} /></NavLink></>}
+    actions={<><LocationFilter /><InventorySyncButton loading={loading} refresh={refresh} /><NavLink className="button" to="/movements">Record movement<ArrowUpRight size={16} /></NavLink></>}
     positions={snapshot.positions}
     movements={snapshot.movements}
     periodDays={snapshot.periodDays}
@@ -28,7 +28,7 @@ export function ShopDashboardPage() {
   const revenue = sales.reduce((total, sale) => total + (sale.saleTotalCents ?? 0), 0);
   const unitsSold = sales.reduce((total, sale) => total + sale.quantity, 0);
   return <PageState>
-    <PageHeader title={shop?.name ?? 'Your shop'} subtitle="Stock and sales for your assigned shop." actions={<><InventoryUpdateButton loading={loading} refresh={refresh} /><NavLink className="button" to="/sell">Sell<ArrowUpRight size={16} /></NavLink></>} />
+    <PageHeader title={shop?.name ?? 'Your shop'} subtitle="Stock and sales for your assigned shop." actions={<><InventorySyncButton loading={loading} refresh={refresh} /><NavLink className="button" to="/sell">Sell<ArrowUpRight size={16} /></NavLink></>} />
     <section className="kpi-grid">
       <Kpi icon={Warehouse} label="Stock on hand" value={snapshot.summary.closingUnits.toLocaleString()} note={`${snapshot.positions.length} stocked item lines`} />
       <Kpi icon={ShoppingBag} label="Units sold" value={unitsSold.toLocaleString()} note={`During the last ${snapshot.periodDays} days`} tone="success" />
@@ -49,16 +49,16 @@ export function ShopDashboardPage() {
   </PageState>;
 }
 
-function InventoryUpdateButton({ loading, refresh }: { loading: boolean; refresh: () => Promise<void> }) {
+function InventorySyncButton({ loading, refresh }: { loading: boolean; refresh: () => Promise<void> }) {
   return <button
     aria-busy={loading}
-    className={`button inventory-update-button ${loading ? 'is-loading' : ''}`}
+    className={`button inventory-sync-button ${loading ? 'is-loading' : ''}`}
     disabled={loading}
     onClick={() => void refresh()}
     type="button"
   >
-    <StockLedgerMark animated={loading} className="inventory-update-mark" size={18} />
-    <span className="inventory-update-label" aria-live="polite">{loading ? 'Updating' : 'Update'}</span>
+    <LedgerSyncIcon active={loading} />
+    <span className="inventory-sync-label" aria-live="polite">{loading ? 'Syncing' : 'Sync stock'}</span>
   </button>;
 }
 
