@@ -22,6 +22,9 @@ type Actor = {
   locationId: string | null;
 };
 
+type InventoryClient = Pick<PrismaService['client'], 'orm'>;
+type InventoryTransaction = Parameters<Parameters<PrismaService['client']['transaction']>[0]>[0];
+
 @Injectable()
 export class InventoryService {
   constructor(private readonly prisma: PrismaService) {}
@@ -66,21 +69,23 @@ export class InventoryService {
     const existing = scope.items.find((item) => item.sku.toLowerCase() === sku.toLowerCase());
     if (existing) throw new ConflictException(`SKU ${sku} already exists`);
 
-    const item = await this.prisma.client.orm.public.InventoryItem.create({
-      companyId: actor.companyId,
-      sku: sku as Varchar<40>,
-      name: body.name.trim() as Varchar<120>,
-      category: body.category.trim() as Varchar<80>,
-      unit: body.unit.trim() as Varchar<20>,
-      reorderLevel: body.reorderLevel,
-      unitCostCents: body.unitCostCents,
+    return this.prisma.client.transaction(async (tx) => {
+      const item = await tx.orm.public.InventoryItem.create({
+        companyId: actor.companyId,
+        sku: sku as Varchar<40>,
+        name: body.name.trim() as Varchar<120>,
+        category: body.category.trim() as Varchar<80>,
+        unit: body.unit.trim() as Varchar<20>,
+        reorderLevel: body.reorderLevel,
+        unitCostCents: body.unitCostCents,
+      });
+      await tx.orm.public.LocationStock.create({
+        locationId: body.locationId,
+        itemId: item.id,
+        openingStock: body.openingStock,
+      });
+      return item;
     });
-    await this.prisma.client.orm.public.LocationStock.create({
-      locationId: body.locationId,
-      itemId: item.id,
-      openingStock: body.openingStock,
-    });
-    return item;
   }
 
   async createMovement(userId: string, body: CreateMovementDto) {
@@ -92,7 +97,14 @@ export class InventoryService {
     } else if (actor.role === 'shop_attendant') {
       throw new ForbiddenException('Shop attendants can only record a sale');
     }
-    const scope = await this.scope(actor.companyId);
+    return this.prisma.client.transaction(async (tx) => {
+      await this.lockItem(tx, actor.companyId, body.itemId);
+      return this.recordMovement(tx, actor, body);
+    });
+  }
+
+  private async recordMovement(tx: InventoryTransaction, actor: Actor, body: CreateMovementDto) {
+    const scope = await this.scope(actor.companyId, tx, body.itemId);
     const item = scope.items.find((candidate) => candidate.id === body.itemId);
     if (!item) throw new NotFoundException('Inventory item not found');
     const locationId = body.type === StockMovementType.SALE ? actor.locationId! : body.locationId;
@@ -118,7 +130,7 @@ export class InventoryService {
       }
     }
 
-    return this.prisma.client.orm.public.StockMovement.create({
+    return tx.orm.public.StockMovement.create({
       itemId: body.itemId,
       locationId,
       destinationLocationId: destinationId,
@@ -135,7 +147,18 @@ export class InventoryService {
     if (actor.role === 'shop_attendant') {
       throw new ForbiddenException('Shop attendants cannot remove stock movements');
     }
-    const scope = await this.scope(actor.companyId);
+    // The first read only identifies the item to lock. Re-read the ledger after
+    // acquiring that lock, since another request may have removed this movement.
+    const target = await this.prisma.client.orm.public.StockMovement.first({ id });
+    if (!target) throw new NotFoundException('Stock movement not found');
+    return this.prisma.client.transaction(async (tx) => {
+      await this.lockItem(tx, actor.companyId, target.itemId);
+      return this.removeMovement(tx, actor, id, target.itemId);
+    });
+  }
+
+  private async removeMovement(tx: InventoryTransaction, actor: Actor, id: string, itemId: string) {
+    const scope = await this.scope(actor.companyId, tx, itemId);
     const movement = scope.movements.find((candidate) => candidate.id === id);
     if (!movement) throw new NotFoundException('Stock movement not found');
 
@@ -147,8 +170,22 @@ export class InventoryService {
       if (negative) throw new ConflictException('Later movements depend on this stock');
     }
 
-    await this.prisma.client.orm.public.StockMovement.where({ id }).delete();
+    await tx.orm.public.StockMovement.where({ id }).delete();
     return { id };
+  }
+
+  private async lockItem(tx: InventoryTransaction, companyId: string, itemId: string) {
+    // Every stock mutation locks the same item, including transfers and deletes.
+    // One row covers both ends of a transfer and locations without an opening
+    // balance. Different items can still be changed concurrently.
+    const raw = this.prisma.client.raw;
+    await tx.execute(raw.sql`SET TRANSACTION ISOLATION LEVEL READ COMMITTED`.affectedCount().build());
+    const rows = await tx.query(raw.sql`
+      SELECT id FROM public.inventory_items
+      WHERE id = ${itemId}::uuid AND company_id = ${companyId}::uuid
+      FOR UPDATE
+    `.returnsRow({ id: 'pg/uuid@1' }).build());
+    if (rows.length === 0) throw new NotFoundException('Inventory item not found');
   }
 
   private async actor(userId: string): Promise<Actor> {
@@ -162,16 +199,17 @@ export class InventoryService {
     };
   }
 
-  private async scope(companyId: string) {
+  private async scope(companyId: string, client: InventoryClient = this.prisma.client, itemId?: string) {
+    const itemQuery = client.orm.public.InventoryItem.where({ companyId });
     const [items, locations] = await Promise.all([
-      this.prisma.client.orm.public.InventoryItem.where({ companyId }).all(),
-      this.prisma.client.orm.public.Location.where({ companyId }).all(),
+      (itemId ? itemQuery.where({ id: itemId }) : itemQuery).all(),
+      client.orm.public.Location.where({ companyId }).all(),
     ]);
     const itemIds = new Set(items.map((item) => item.id));
     const locationIds = new Set(locations.map((location) => location.id));
     const [stocks, movements] = await Promise.all([
-      this.prisma.client.orm.public.LocationStock.all(),
-      this.prisma.client.orm.public.StockMovement.all(),
+      itemIds.size ? client.orm.public.LocationStock.where((stock) => stock.itemId.in([...itemIds])).all() : [],
+      itemIds.size ? client.orm.public.StockMovement.where((movement) => movement.itemId.in([...itemIds])).all() : [],
     ]);
     return {
       items: items as ItemRecord[],

@@ -9,6 +9,7 @@
     "start:dev": "nest start --watch",
     "start:prod": "node dist/main.js",
     "test": "vitest run",
+    "test:integration": "node test/run-integration.mjs",
     "contract:emit": "prisma contract emit",
     "db:migrate": "prisma db migrate",
     "db:seed": "npm run build && node dist/prisma/seed.js",

@@ -15,7 +15,7 @@ The product's visual direction, component rules, and logo brief live in the [UI 
 - Transfers that leave one place and arrive at another, plus purchases, returns, and damage
 - Shop attendant accounts assigned to one shop, with a sale that reduces only that shop
 - Current, low, fast, slow and dead-stock reports for 7, 30 or 90 days
-- Server-side validation that prevents outbound movements from taking stock below zero
+- Transactional stock checks that prevent simultaneous outbound movements from taking stock below zero
 - Responsive React UI with loading, empty and error states
 
 ## Run locally
@@ -53,6 +53,21 @@ closing at a place = opening
 ```
 
 The API owns this calculation. The React client renders the resulting snapshot and never maintains a second stock total.
+
+Every movement creation or deletion locks its inventory item with `SELECT FOR UPDATE` inside a PostgreSQL transaction. The API reads the ledger after acquiring the lock, checks the resulting balance, and writes before releasing it. Two sales of four units against a balance of five produce one sale and one `409 Conflict`. Transfers and deletions share the same lock, including both ends of a transfer. Different items can change concurrently; operations on the same item wait even when they involve different locations.
+
+The transaction explicitly uses Read Committed isolation so a request that waited for the lock sees the preceding request's committed movements. This follows PostgreSQL's [guidance for application consistency checks](https://www.postgresql.org/docs/17/applevel-consistency.html). New stock mutation paths must use the same locking rule. Item creation and its opening balance also commit or roll back together.
+
+## Tests
+
+```bash
+npm run api:test
+docker compose up -d
+npm run api:test:integration
+npm run api:build
+```
+
+The integration runner creates a uniquely named database inside the local Compose PostgreSQL service, applies migrations, runs the tests, and removes that database afterward. It overrides database connection variables for the test process. The tests cover competing sales and transfers, deletion races, rollback, company access boundaries, and attendant restrictions using separate connection pools. They hold an item lock until both competing requests are waiting in PostgreSQL before releasing it.
 
 ## Deploy with Render and Supabase
 

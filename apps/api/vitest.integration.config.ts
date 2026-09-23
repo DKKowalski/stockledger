@@ -3,5 +3,10 @@ import tsconfigPaths from 'vite-tsconfig-paths';
 
 export default defineConfig({
   plugins: [tsconfigPaths()],
-  test: { globals: true, include: ['src/**/*.spec.ts'] },
+  test: {
+    include: ['test/**/*.integration.spec.ts'],
+    testTimeout: 15_000,
+    hookTimeout: 15_000,
+    fileParallelism: false,
+  },
 });
