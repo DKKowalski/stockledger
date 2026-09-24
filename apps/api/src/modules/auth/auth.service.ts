@@ -3,8 +3,10 @@ import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import type { Varchar } from '@prisma/orm-postgres/target/codec-types';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { ChangePasswordDto } from './dto/change-password.dto.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import { LoginDto } from './dto/login.dto.js';
+import { UpdateProfileDto } from './dto/update-profile.dto.js';
 import type { UserRole } from './auth.types.js';
 
 @Injectable()
@@ -34,6 +36,42 @@ export class AuthService {
     const user = await this.prisma.client.orm.public.User.first({ id: userId });
     if (!user) throw new UnauthorizedException('Account no longer exists');
     return this.publicUser(user);
+  }
+
+  async updateProfile(userId: string, body: UpdateProfileDto) {
+    const user = await this.account(userId);
+    const fullName = body.fullName.trim();
+    const email = body.email.trim().toLowerCase();
+    if (!fullName) throw new BadRequestException('Enter your full name');
+
+    const existing = await this.prisma.client.orm.public.User.first({
+      email: email as Varchar<255>,
+    });
+    if (existing && existing.id !== user.id) {
+      throw new ConflictException('An account with this email already exists');
+    }
+
+    await this.prisma.client.orm.public.User.where({ id: user.id }).update({
+      fullName: fullName as Varchar<120>,
+      email: email as Varchar<255>,
+    });
+    return this.profile(user.id);
+  }
+
+  async changePassword(userId: string, body: ChangePasswordDto) {
+    const user = await this.account(userId);
+    if (!(await argon2.verify(user.passwordHash, body.currentPassword))) {
+      throw new BadRequestException('Current password is incorrect');
+    }
+    if (await argon2.verify(user.passwordHash, body.newPassword)) {
+      throw new BadRequestException('Choose a password you have not used for this account');
+    }
+
+    const passwordHash = await argon2.hash(body.newPassword, { type: argon2.argon2id });
+    await this.prisma.client.orm.public.User.where({ id: user.id }).update({
+      passwordHash: passwordHash as Varchar<255>,
+    });
+    return { changed: true };
   }
 
   async listUsers(userId: string) {

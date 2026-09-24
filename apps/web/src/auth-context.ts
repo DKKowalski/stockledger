@@ -7,6 +7,8 @@ export type AuthState = {
   restoring: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => void;
+  updateProfile: (body: { fullName: string; email: string }) => Promise<User>;
+  changePassword: (body: { currentPassword: string; newPassword: string }) => Promise<void>;
 };
 
 export const AuthContext = createContext<AuthState | null>(null);

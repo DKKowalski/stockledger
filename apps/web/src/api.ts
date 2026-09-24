@@ -30,6 +30,10 @@ export const api = {
   login: (body: { email: string; password: string }) =>
     request<LoginResponse>('/auth/login', { method: 'POST', body: JSON.stringify(body) }),
   profile: (accessToken: string) => request<User>('/auth/me', undefined, accessToken),
+  updateProfile: (accessToken: string, body: { fullName: string; email: string }) =>
+    request<User>('/auth/me', { method: 'PATCH', body: JSON.stringify(body) }, accessToken),
+  changePassword: (accessToken: string, body: { currentPassword: string; newPassword: string }) =>
+    request<{ changed: true }>('/auth/me/password', { method: 'PATCH', body: JSON.stringify(body) }, accessToken),
   users: (accessToken: string) => request<User[]>('/auth/users', undefined, accessToken),
   addUser: (accessToken: string, body: { fullName: string; email: string; password: string; role: Exclude<UserRole, 'administrator'>; locationId?: string }) =>
     request<User>('/auth/users', { method: 'POST', body: JSON.stringify(body) }, accessToken),

@@ -11,7 +11,8 @@ describe('AuthService', () => {
   const shopId = '32000000-0000-4000-8000-000000000002';
   const first = vi.fn();
   const all = vi.fn();
-  const where = vi.fn(() => ({ all }));
+  const update = vi.fn();
+  const where = vi.fn(() => ({ all, update }));
   const create = vi.fn();
   const locationFirst = vi.fn();
   const signAsync = vi.fn();
@@ -226,5 +227,76 @@ describe('AuthService', () => {
       role: 'inventory_manager',
     })).rejects.toBeInstanceOf(ConflictException);
     expect(create).not.toHaveBeenCalled();
+  });
+
+  it('updates the signed-in account profile and normalizes its values', async () => {
+    const current = {
+      ...administrator,
+      fullName: 'Eric Mensah',
+      email: 'admin@stockledger.app',
+      passwordHash,
+      createdAt: '2026-09-16T00:00:00.000Z',
+    };
+    const updated = { ...current, fullName: 'Eric K. Mensah', email: 'eric@stockledger.app' };
+    first
+      .mockResolvedValueOnce(current)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(updated);
+
+    const result = await service.updateProfile(current.id, {
+      fullName: ' Eric K. Mensah ',
+      email: ' ERIC@stockledger.app ',
+    });
+
+    expect(where).toHaveBeenCalledWith({ id: current.id });
+    expect(update).toHaveBeenCalledWith({
+      fullName: 'Eric K. Mensah',
+      email: 'eric@stockledger.app',
+    });
+    expect(result.fullName).toBe('Eric K. Mensah');
+    expect(result.email).toBe('eric@stockledger.app');
+    expect(result).not.toHaveProperty('passwordHash');
+  });
+
+  it('rejects an email already used by another account', async () => {
+    first
+      .mockResolvedValueOnce({ ...administrator, email: 'admin@stockledger.app' })
+      .mockResolvedValueOnce({ id: '41000000-0000-4000-8000-000000000009' });
+
+    await expect(service.updateProfile(administrator.id, {
+      fullName: 'Eric Mensah',
+      email: 'ama@stockledger.app',
+    })).rejects.toBeInstanceOf(ConflictException);
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('changes a password only after verifying the current password', async () => {
+    first.mockResolvedValue({ ...administrator, passwordHash });
+
+    await expect(service.changePassword(administrator.id, {
+      currentPassword: 'incorrect-password',
+      newPassword: 'FreshPassword123!',
+    })).rejects.toThrow('Current password is incorrect');
+    expect(update).not.toHaveBeenCalled();
+
+    const result = await service.changePassword(administrator.id, {
+      currentPassword: 'StockLedger123!',
+      newPassword: 'FreshPassword123!',
+    });
+
+    const saved = update.mock.calls[0][0] as { passwordHash: string };
+    expect(saved.passwordHash).not.toBe('FreshPassword123!');
+    await expect(argon2.verify(saved.passwordHash, 'FreshPassword123!')).resolves.toBe(true);
+    expect(result).toEqual({ changed: true });
+  });
+
+  it('rejects reusing the current password', async () => {
+    first.mockResolvedValue({ ...administrator, passwordHash });
+
+    await expect(service.changePassword(administrator.id, {
+      currentPassword: 'StockLedger123!',
+      newPassword: 'StockLedger123!',
+    })).rejects.toThrow('Choose a password you have not used for this account');
+    expect(update).not.toHaveBeenCalled();
   });
 });

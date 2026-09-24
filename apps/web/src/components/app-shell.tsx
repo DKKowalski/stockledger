@@ -1,4 +1,4 @@
-import { LogOut, X, type LucideIcon } from 'lucide-react';
+import { LogOut, Settings, UserRound, X, type LucideIcon } from 'lucide-react';
 import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useInventoryStore } from '../app/inventory-store';
@@ -24,10 +24,13 @@ export function AppShell({ navigation }: { navigation: readonly NavigationItem[]
           {navigation.map(([to, label, Icon, motion]) => <NavLink key={to} to={to} end={to === '/'} onClick={() => setMenuOpen(false)} className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
             <Icon className="nav-icon" data-motion={motion} size={18} /><span>{label}</span>
           </NavLink>)}
+          <NavLink to="/account" onClick={() => setMenuOpen(false)} className={({ isActive }) => `nav-link mobile-account-link ${isActive ? 'active' : ''}`}>
+            <UserRound size={18} /><span>Account settings</span>
+          </NavLink>
           <button className="mobile-signout" onClick={signOut}><LogOut size={18} /><span>Sign out</span></button>
         </nav>
         <div className="navbar-account">
-          <div className="topbar-user"><span className="avatar">{initials}</span><span className="topbar-user-copy"><b>{user?.fullName}</b><small>{user ? roleLabel[user.role] : ''}</small></span></div>
+          <NavLink aria-label="Account settings" title="Account settings" to="/account" className={({ isActive }) => `topbar-user ${isActive ? 'active' : ''}`}><span className="avatar">{initials}</span><span className="topbar-user-copy"><b>{user?.fullName}</b><small>{user ? roleLabel[user.role] : ''}</small></span><Settings className="account-settings-icon" size={14} /></NavLink>
           <button className="signout-button" aria-label="Sign out" title="Sign out" onClick={signOut}><LogOut size={17} /></button>
         </div>
         <button className="menu-button" aria-label={menuOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={menuOpen} aria-controls="primary-navigation" onClick={() => setMenuOpen((open) => !open)}><MenuMorphIcon open={menuOpen} /></button>

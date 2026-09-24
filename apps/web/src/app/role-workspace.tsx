@@ -1,6 +1,7 @@
 import { ArrowLeftRight, ChartColumn, LayoutDashboard, MapPin, Package, ShoppingBag, Users } from 'lucide-react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { useAuth } from '../auth-context';
+import { AccountSettingsPage } from '../features/account/account-settings-page';
 import { PlacesPage } from '../features/admin/places-page';
 import { TeamPage } from '../features/admin/team-page';
 import { OperationsDashboardPage, ShopDashboardPage } from '../features/dashboard/dashboard-pages';
@@ -55,6 +56,7 @@ function AdministratorWorkspace() {
     <Route path="reports" element={<OperationsReportsPage />} />
     <Route path="places" element={<PlacesPage />} />
     <Route path="team" element={<TeamPage />} />
+    <Route path="account" element={<AccountSettingsPage />} />
     <Route path="*" element={<Navigate to="/" replace />} />
   </Route></Routes>;
 }
@@ -65,6 +67,7 @@ function ManagerWorkspace() {
     <Route path="items" element={<ManagerItemsPage />} />
     <Route path="movements" element={<MovementsPage />} />
     <Route path="reports" element={<OperationsReportsPage />} />
+    <Route path="account" element={<AccountSettingsPage />} />
     <Route path="*" element={<Navigate to="/" replace />} />
   </Route></Routes>;
 }
@@ -75,6 +78,7 @@ function ShopWorkspace() {
     <Route path="sell" element={<ShopSalesPage />} />
     <Route path="items" element={<ShopCatalogPage />} />
     <Route path="reports" element={<ShopReportsPage />} />
+    <Route path="account" element={<AccountSettingsPage />} />
     <Route path="*" element={<Navigate to="/" replace />} />
   </Route></Routes>;
 }
