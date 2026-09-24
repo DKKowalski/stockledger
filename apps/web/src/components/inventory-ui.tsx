@@ -1,8 +1,9 @@
-import { PackageOpen, type LucideIcon } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useInventoryStore } from '../app/inventory-store';
 import { money } from '../lib/presentation';
 import type { Position } from '../types';
+import { EmptyInventoryIcon } from './animated-icons';
 import { StockLedgerMark } from './stockledger-mark';
 import { SelectControl } from './ui/select-control';
 
@@ -19,7 +20,7 @@ export function PageState({ children }: { children: ReactNode }) {
 }
 
 export function EmptyState({ text }: { text: string }) {
-  return <div className="empty"><PackageOpen /><p>{text}</p></div>;
+  return <div className="empty"><EmptyInventoryIcon /><p>{text}</p></div>;
 }
 
 export function Kpi({ icon: Icon, label, value, note, tone = '' }: { icon: LucideIcon; label: string; value: string; note: string; tone?: string }) {

@@ -11,26 +11,26 @@ import { ShopSalesPage } from '../features/sales/shop-sales-page';
 import { AppShell, type NavigationItem } from '../components/app-shell';
 
 const administratorNavigation = [
-  ['/', 'Overview', LayoutDashboard],
-  ['/items', 'Items', Package],
-  ['/movements', 'Movements', ArrowLeftRight],
-  ['/reports', 'Reports', ChartColumn],
-  ['/places', 'Places', MapPin],
-  ['/team', 'Team', Users],
+  ['/', 'Overview', LayoutDashboard, 'overview'],
+  ['/items', 'Items', Package, 'items'],
+  ['/movements', 'Movements', ArrowLeftRight, 'movement'],
+  ['/reports', 'Reports', ChartColumn, 'reports'],
+  ['/places', 'Places', MapPin, 'places'],
+  ['/team', 'Team', Users, 'team'],
 ] as const satisfies readonly NavigationItem[];
 
 const managerNavigation = [
-  ['/', 'Overview', LayoutDashboard],
-  ['/items', 'Items', Package],
-  ['/movements', 'Movements', ArrowLeftRight],
-  ['/reports', 'Reports', ChartColumn],
+  ['/', 'Overview', LayoutDashboard, 'overview'],
+  ['/items', 'Items', Package, 'items'],
+  ['/movements', 'Movements', ArrowLeftRight, 'movement'],
+  ['/reports', 'Reports', ChartColumn, 'reports'],
 ] as const satisfies readonly NavigationItem[];
 
 const attendantNavigation = [
-  ['/', 'Overview', LayoutDashboard],
-  ['/sell', 'Sell', ShoppingBag],
-  ['/items', 'Catalog', Package],
-  ['/reports', 'Reports', ChartColumn],
+  ['/', 'Overview', LayoutDashboard, 'overview'],
+  ['/sell', 'Sell', ShoppingBag, 'sell'],
+  ['/items', 'Catalog', Package, 'items'],
+  ['/reports', 'Reports', ChartColumn, 'reports'],
 ] as const satisfies readonly NavigationItem[];
 
 export function RoleWorkspace() {
