@@ -123,7 +123,7 @@ h1, h2, .brand, .login-brand, .mobile-login-brand { font-family: var(--font-disp
 .button:disabled, .icon-button:disabled { opacity: .48; cursor: not-allowed; transform: none; }
 .inventory-sync-button { min-width: 119px; padding-inline: 12px 15px; color: #303426; border-color: #d5d8c8; background: #f6f7ee; }
 .inventory-sync-label { min-width: 61px; text-align: left; }
-.inventory-sync-button.is-loading { opacity: 1; cursor: wait; color: #4f543d; border-color: #cbd09f; background: #eef0d8; }
+.inventory-sync-button.is-loading { opacity: 1; cursor: default; color: #4f543d; border-color: #cbd09f; background: #eef0d8; }
 .ledger-sync-icon { flex: 0 0 auto; color: var(--olive-dark); overflow: hidden; }
 .ledger-sync-cell { fill: currentColor; }
 .ledger-sync-line, .ledger-sync-scan { fill: none; stroke: currentColor; stroke-linecap: round; vector-effect: non-scaling-stroke; }
