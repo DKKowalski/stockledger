@@ -6,11 +6,15 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import type { Request } from 'express';
+import { PrismaService } from '../../prisma/prisma.service.js';
 import type { AccessTokenPayload, AuthenticatedRequest } from './auth.types.js';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
-  constructor(private readonly jwt: JwtService) {}
+  constructor(
+    private readonly jwt: JwtService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   async canActivate(context: ExecutionContext) {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
@@ -19,7 +23,10 @@ export class AuthGuard implements CanActivate {
     if (!token) throw new UnauthorizedException('Sign in to continue');
 
     try {
-      request.user = await this.jwt.verifyAsync<AccessTokenPayload>(token);
+      const payload = await this.jwt.verifyAsync<AccessTokenPayload>(token);
+      const user = await this.prisma.client.orm.public.User.first({ id: payload.sub });
+      if (!user || user.isActive === false) throw new Error('Account unavailable');
+      request.user = payload;
       return true;
     } catch {
       throw new UnauthorizedException('Your session has expired');

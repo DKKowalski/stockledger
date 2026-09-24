@@ -1,0 +1,170 @@
+[
+  {
+    "id": "column.public.users.is_active",
+    "label": "Add column \"is_active\" to \"users\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "is_active",
+        "table": "users"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"is_active\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "users",
+          "is_active"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"is_active\"",
+        "sql": "ALTER TABLE \"public\".\"users\" ADD COLUMN \"is_active\" bool DEFAULT true NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"is_active\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "users",
+          "is_active"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.users.password_reset_expires_at",
+    "label": "Add column \"password_reset_expires_at\" to \"users\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "password_reset_expires_at",
+        "table": "users"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"password_reset_expires_at\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "users",
+          "password_reset_expires_at"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"password_reset_expires_at\"",
+        "sql": "ALTER TABLE \"public\".\"users\" ADD COLUMN \"password_reset_expires_at\" timestamptz"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"password_reset_expires_at\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "users",
+          "password_reset_expires_at"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.users.password_reset_token_hash",
+    "label": "Add column \"password_reset_token_hash\" to \"users\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "password_reset_token_hash",
+        "table": "users"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"password_reset_token_hash\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "users",
+          "password_reset_token_hash"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"password_reset_token_hash\"",
+        "sql": "ALTER TABLE \"public\".\"users\" ADD COLUMN \"password_reset_token_hash\" character varying(64)"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"password_reset_token_hash\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "users",
+          "password_reset_token_hash"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.users.users_password_reset_token_hash_key",
+    "label": "Add unique constraint on \"users\" (password_reset_token_hash)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "users_password_reset_token_hash_key",
+        "table": "users"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"users_password_reset_token_hash_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "users_password_reset_token_hash_key",
+          "public",
+          "\"public\".\"users\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"users_password_reset_token_hash_key\"",
+        "sql": "ALTER TABLE \"public\".\"users\" ADD CONSTRAINT \"users_password_reset_token_hash_key\" UNIQUE (\"password_reset_token_hash\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"users_password_reset_token_hash_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "users_password_reset_token_hash_key",
+          "public",
+          "\"public\".\"users\""
+        ]
+      }
+    ]
+  }
+]

@@ -1,12 +1,17 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
+import { createHash, randomBytes } from 'node:crypto';
 import type { Varchar } from '@prisma/orm-postgres/target/codec-types';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { ChangePasswordDto } from './dto/change-password.dto.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import { LoginDto } from './dto/login.dto.js';
+import { ResetPasswordDto } from './dto/reset-password.dto.js';
+import { SetAccountStatusDto } from './dto/set-account-status.dto.js';
 import { UpdateProfileDto } from './dto/update-profile.dto.js';
+import { PasswordResetMailer } from './password-reset-mailer.js';
 import type { UserRole } from './auth.types.js';
 
 @Injectable()
@@ -14,6 +19,8 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
+    private readonly config: ConfigService,
+    private readonly passwordResetMailer: PasswordResetMailer,
   ) {}
 
   async login(credentials: LoginDto) {
@@ -24,6 +31,9 @@ export class AuthService {
 
     if (!user || !(await argon2.verify(user.passwordHash, credentials.password))) {
       throw new UnauthorizedException('Invalid email or password');
+    }
+    if (user.isActive === false) {
+      throw new ForbiddenException('This account has been deactivated. Contact your administrator.');
     }
 
     return {
@@ -60,6 +70,7 @@ export class AuthService {
 
   async changePassword(userId: string, body: ChangePasswordDto) {
     const user = await this.account(userId);
+    this.assertAdministrator(user.role);
     if (!(await argon2.verify(user.passwordHash, body.currentPassword))) {
       throw new BadRequestException('Current password is incorrect');
     }
@@ -70,6 +81,90 @@ export class AuthService {
     const passwordHash = await argon2.hash(body.newPassword, { type: argon2.argon2id });
     await this.prisma.client.orm.public.User.where({ id: user.id }).update({
       passwordHash: passwordHash as Varchar<255>,
+    });
+    return { changed: true };
+  }
+
+  async setAccountStatus(userId: string, targetUserId: string, body: SetAccountStatusDto) {
+    const actor = await this.account(userId);
+    this.assertAdministrator(actor.role);
+    const target = await this.companyUser(actor.companyId, targetUserId);
+    if (target.role === 'administrator') {
+      throw new BadRequestException('Administrator accounts cannot be deactivated here');
+    }
+
+    await this.prisma.client.orm.public.User.where({ id: target.id }).update({
+      isActive: body.isActive,
+      ...(body.isActive ? {} : {
+        passwordResetTokenHash: null,
+        passwordResetExpiresAt: null,
+      }),
+    });
+    return this.publicUser({ ...target, isActive: body.isActive });
+  }
+
+  async requestPasswordReset(userId: string, targetUserId: string) {
+    const actor = await this.account(userId);
+    this.assertAdministrator(actor.role);
+    const target = await this.companyUser(actor.companyId, targetUserId);
+    if (target.role === 'administrator') {
+      throw new BadRequestException('Administrators change their password from account settings');
+    }
+    if (target.isActive === false) {
+      throw new BadRequestException('Activate this account before sending a password reset');
+    }
+
+    const token = randomBytes(32).toString('hex');
+    const tokenHash = this.hashResetToken(token);
+    const expiresInMinutes = this.config.getOrThrow<number>('auth.passwordResetTtlMinutes');
+    const expiresAt = new Date(Date.now() + expiresInMinutes * 60_000).toISOString();
+    await this.prisma.client.orm.public.User.where({ id: target.id }).update({
+      passwordResetTokenHash: tokenHash as Varchar<64>,
+      passwordResetExpiresAt: expiresAt,
+    });
+
+    try {
+      const webOrigin = this.config.getOrThrow<string>('app.webOrigin').replace(/\/$/, '');
+      await this.passwordResetMailer.send({
+        email: target.email,
+        fullName: target.fullName,
+        resetUrl: `${webOrigin}/reset-password?token=${token}`,
+        expiresInMinutes,
+      });
+    } catch (error) {
+      await this.prisma.client.orm.public.User.where({
+        id: target.id,
+        passwordResetTokenHash: tokenHash as Varchar<64>,
+      }).update({
+        passwordResetTokenHash: null,
+        passwordResetExpiresAt: null,
+      });
+      throw error;
+    }
+
+    return { sent: true };
+  }
+
+  async resetPassword(body: ResetPasswordDto) {
+    const tokenHash = this.hashResetToken(body.token);
+    const user = await this.prisma.client.orm.public.User.first({
+      passwordResetTokenHash: tokenHash as Varchar<64>,
+    });
+    if (!user || user.isActive === false || !user.passwordResetExpiresAt || new Date(user.passwordResetExpiresAt).getTime() <= Date.now()) {
+      throw new BadRequestException('This reset link is invalid or has expired');
+    }
+    if (await argon2.verify(user.passwordHash, body.newPassword)) {
+      throw new BadRequestException('Choose a password you have not used for this account');
+    }
+
+    const passwordHash = await argon2.hash(body.newPassword, { type: argon2.argon2id });
+    await this.prisma.client.orm.public.User.where({
+      id: user.id,
+      passwordResetTokenHash: tokenHash as Varchar<64>,
+    }).update({
+      passwordHash: passwordHash as Varchar<255>,
+      passwordResetTokenHash: null,
+      passwordResetExpiresAt: null,
     });
     return { changed: true };
   }
@@ -107,8 +202,18 @@ export class AuthService {
 
   private async account(userId: string) {
     const user = await this.prisma.client.orm.public.User.first({ id: userId });
-    if (!user) throw new UnauthorizedException('Account no longer exists');
+    if (!user || user.isActive === false) throw new UnauthorizedException('Account is not available');
     return user;
+  }
+
+  private async companyUser(companyId: string, userId: string) {
+    const user = await this.prisma.client.orm.public.User.first({ id: userId, companyId });
+    if (!user) throw new NotFoundException('Account not found');
+    return user;
+  }
+
+  private hashResetToken(token: string) {
+    return createHash('sha256').update(token).digest('hex');
   }
 
   private async assignedLocation(companyId: string, body: CreateUserDto) {
@@ -136,6 +241,7 @@ export class AuthService {
     fullName: string;
     email: string;
     role: string;
+    isActive?: boolean;
     createdAt: string;
   }) {
     return {
@@ -145,6 +251,7 @@ export class AuthService {
       fullName: user.fullName,
       email: user.email,
       role: user.role,
+      isActive: user.isActive ?? true,
       createdAt: user.createdAt,
     };
   }

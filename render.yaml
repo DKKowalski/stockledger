@@ -25,6 +25,12 @@ services:
         generateValue: true
       - key: JWT_ACCESS_TTL_SECONDS
         value: 28800
+      - key: PASSWORD_RESET_TTL_MINUTES
+        value: 30
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
 
   - type: web
     name: stockledger-dkk-web

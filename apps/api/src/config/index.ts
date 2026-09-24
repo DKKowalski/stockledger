@@ -7,5 +7,10 @@ export default () => ({
   auth: {
     jwtSecret: process.env.JWT_SECRET,
     accessTokenTtlSeconds: Number(process.env.JWT_ACCESS_TTL_SECONDS ?? 28_800),
+    passwordResetTtlMinutes: Number(process.env.PASSWORD_RESET_TTL_MINUTES ?? 30),
+  },
+  email: {
+    resendApiKey: process.env.RESEND_API_KEY,
+    from: process.env.EMAIL_FROM,
   },
 });

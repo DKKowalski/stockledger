@@ -4,8 +4,16 @@ import { RoleWorkspace } from './app/role-workspace';
 import { useAuth } from './auth-context';
 import { StockLedgerMark } from './components/stockledger-mark';
 import { LoginPage } from './features/auth/login-page';
+import { ResetPasswordPage } from './features/auth/reset-password-page';
 
 export function App() {
+  return <Routes>
+    <Route path="/reset-password" element={<ResetPasswordPage />} />
+    <Route path="*" element={<AuthenticatedApp />} />
+  </Routes>;
+}
+
+function AuthenticatedApp() {
   const { accessToken, restoring, user } = useAuth();
 
   if (restoring || (accessToken && !user)) return <AppLoader />;

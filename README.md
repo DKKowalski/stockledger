@@ -9,6 +9,8 @@ The product's visual direction, component rules, and logo brief live in the [UI 
 - Inventory dashboard with closing stock, stock value, low-stock, damage and dead-stock summaries
 - Email and password login backed by Argon2 password hashing and expiring JWT sessions
 - Administrator accounts can add inventory managers, who can record stock but cannot manage people
+- Administrators can activate or deactivate staff accounts and send expiring password-reset links
+- Inventory managers and shop attendants change passwords only through an administrator-issued reset link
 - Protected API routes and session restoration after a browser refresh
 - Item master with reorder levels, unit cost, and an opening balance at one place
 - Warehouses and shops that each hold their own stock
@@ -88,3 +90,5 @@ Create the Supabase project first. In **Connect**, copy the **Session pooler** U
 For local migration work, copy Supabase's direct connection URL into `DIRECT_DATABASE_URL`. The API runtime continues to use `DATABASE_URL`.
 
 In Render, choose **New > Blueprint**, connect `DKKowalski/stockledger`, and apply `render.yaml`. Render generates `JWT_SECRET`; do not enter one manually.
+
+Password-reset email uses the Resend HTTP API. Add `RESEND_API_KEY` and `EMAIL_FROM` to the API service in Render. `EMAIL_FROM` must use a sender address verified in Resend, for example `StockLedger <accounts@example.com>`. Reset links expire after 30 minutes by default; change `PASSWORD_RESET_TTL_MINUTES` only if the account policy changes.

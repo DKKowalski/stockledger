@@ -5,6 +5,7 @@ import { PrismaModule } from '../../prisma/prisma.module.js';
 import { AuthController } from './auth.controller.js';
 import { AuthGuard } from './auth.guard.js';
 import { AuthService } from './auth.service.js';
+import { PasswordResetMailer } from './password-reset-mailer.js';
 
 @Module({
   imports: [
@@ -20,7 +21,7 @@ import { AuthService } from './auth.service.js';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, AuthGuard],
+  providers: [AuthService, AuthGuard, PasswordResetMailer],
   exports: [JwtModule, AuthGuard],
 })
 export class AuthModule {}

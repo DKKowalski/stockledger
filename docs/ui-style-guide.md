@@ -1,7 +1,7 @@
 # StockLedger UI and brand style guide
 
 Status: active
-Last updated: 16 September 2026
+Last updated: 24 September 2026
 
 This document is the visual source of truth for StockLedger. Use it before changing product UI, creating marketing material, or drawing the final logo.
 
@@ -105,7 +105,7 @@ Rounded corners should soften the industrial system, not turn every object into 
 
 ### Navigation
 
-Use a white top bar. Inactive destinations are compact icon controls. The active destination expands into a black label. Keep the account block quiet and right-aligned.
+Use a white top bar. Inactive destinations are compact icon controls. The active destination expands into a black label. Keep the account block quiet and right-aligned. Clicking the avatar opens one compact menu for profile settings and sign out; do not place a separate sign-out icon beside it.
 
 ### Panels
 

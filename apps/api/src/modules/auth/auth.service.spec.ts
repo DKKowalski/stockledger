@@ -1,9 +1,12 @@
 import { BadRequestException, ConflictException, ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
+import { createHash } from 'node:crypto';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { AuthService } from './auth.service.js';
+import { PasswordResetMailer } from './password-reset-mailer.js';
 
 describe('AuthService', () => {
   let passwordHash: string;
@@ -16,11 +19,18 @@ describe('AuthService', () => {
   const create = vi.fn();
   const locationFirst = vi.fn();
   const signAsync = vi.fn();
+  const getOrThrow = vi.fn((key: string) => ({
+    'auth.passwordResetTtlMinutes': 30,
+    'app.webOrigin': 'https://stockledger.example',
+  })[key]);
+  const sendResetEmail = vi.fn();
   const prisma = {
     client: { orm: { public: { User: { first, where, create }, Location: { first: locationFirst } } } },
   } as unknown as PrismaService;
   const jwt = { signAsync } as unknown as JwtService;
-  const service = new AuthService(prisma, jwt);
+  const config = { getOrThrow } as unknown as ConfigService;
+  const passwordResetMailer = { send: sendResetEmail } as unknown as PasswordResetMailer;
+  const service = new AuthService(prisma, jwt, config, passwordResetMailer);
 
   beforeAll(async () => {
     passwordHash = await argon2.hash('StockLedger123!');
@@ -62,6 +72,7 @@ describe('AuthService', () => {
         fullName: 'Eric Mensah',
         email: 'admin@stockledger.app',
         role: 'administrator',
+        isActive: true,
         createdAt: '2026-09-16T00:00:00.000Z',
       },
     });
@@ -84,6 +95,15 @@ describe('AuthService', () => {
       email: 'unknown@stockledger.app',
       password: 'incorrect-password',
     })).rejects.toThrow('Invalid email or password');
+  });
+
+  it('rejects a deactivated account even when its password is correct', async () => {
+    first.mockResolvedValue({ passwordHash, isActive: false });
+
+    await expect(service.login({
+      email: 'ama@stockledger.app',
+      password: 'StockLedger123!',
+    })).rejects.toThrow('This account has been deactivated');
   });
 
   const administrator = {
@@ -175,6 +195,7 @@ describe('AuthService', () => {
       fullName: 'Ama Boateng',
       email: 'ama@stockledger.app',
       role: 'inventory_manager',
+      isActive: true,
       createdAt: '2026-09-22T00:00:00.000Z',
     });
   });
@@ -297,6 +318,94 @@ describe('AuthService', () => {
       currentPassword: 'StockLedger123!',
       newPassword: 'StockLedger123!',
     })).rejects.toThrow('Choose a password you have not used for this account');
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('does not let staff change passwords directly', async () => {
+    first.mockResolvedValue({ ...administrator, role: 'inventory_manager', passwordHash });
+
+    await expect(service.changePassword(administrator.id, {
+      currentPassword: 'StockLedger123!',
+      newPassword: 'FreshPassword123!',
+    })).rejects.toBeInstanceOf(ForbiddenException);
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('lets an administrator deactivate a staff account and clears pending resets', async () => {
+    const staff = {
+      ...administrator,
+      id: '41000000-0000-4000-8000-000000000002',
+      fullName: 'Ama Boateng',
+      email: 'ama@stockledger.app',
+      role: 'inventory_manager' as const,
+      isActive: true,
+      createdAt: '2026-09-22T00:00:00.000Z',
+    };
+    first.mockResolvedValueOnce(administrator).mockResolvedValueOnce(staff);
+
+    const result = await service.setAccountStatus(administrator.id, staff.id, { isActive: false });
+
+    expect(update).toHaveBeenCalledWith({
+      isActive: false,
+      passwordResetTokenHash: null,
+      passwordResetExpiresAt: null,
+    });
+    expect(result.isActive).toBe(false);
+  });
+
+  it('sends a one-time reset link without storing the raw token', async () => {
+    const staff = {
+      ...administrator,
+      id: '41000000-0000-4000-8000-000000000002',
+      fullName: 'Ama Boateng',
+      email: 'ama@stockledger.app',
+      role: 'inventory_manager' as const,
+      isActive: true,
+    };
+    first.mockResolvedValueOnce(administrator).mockResolvedValueOnce(staff);
+    sendResetEmail.mockResolvedValue(undefined);
+
+    await expect(service.requestPasswordReset(administrator.id, staff.id)).resolves.toEqual({ sent: true });
+
+    const email = sendResetEmail.mock.calls[0][0] as { resetUrl: string; email: string };
+    const token = new URL(email.resetUrl).searchParams.get('token')!;
+    const saved = update.mock.calls[0][0] as { passwordResetTokenHash: string; passwordResetExpiresAt: string };
+    expect(email.email).toBe(staff.email);
+    expect(token).toHaveLength(64);
+    expect(saved.passwordResetTokenHash).toBe(createHash('sha256').update(token).digest('hex'));
+    expect(saved.passwordResetTokenHash).not.toBe(token);
+    expect(new Date(saved.passwordResetExpiresAt).getTime()).toBeGreaterThan(Date.now());
+  });
+
+  it('uses a valid reset token once and stores the replacement password hash', async () => {
+    const token = 'a'.repeat(64);
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    first.mockResolvedValue({
+      ...administrator,
+      passwordHash,
+      isActive: true,
+      passwordResetExpiresAt: new Date(Date.now() + 60_000).toISOString(),
+    });
+
+    await expect(service.resetPassword({ token, newPassword: 'FreshPassword123!' })).resolves.toEqual({ changed: true });
+
+    expect(first).toHaveBeenCalledWith({ passwordResetTokenHash: tokenHash });
+    const saved = update.mock.calls[0][0] as { passwordHash: string; passwordResetTokenHash: null; passwordResetExpiresAt: null };
+    await expect(argon2.verify(saved.passwordHash, 'FreshPassword123!')).resolves.toBe(true);
+    expect(saved.passwordResetTokenHash).toBeNull();
+    expect(saved.passwordResetExpiresAt).toBeNull();
+  });
+
+  it('rejects an expired reset token', async () => {
+    first.mockResolvedValue({
+      ...administrator,
+      passwordHash,
+      isActive: true,
+      passwordResetExpiresAt: new Date(Date.now() - 60_000).toISOString(),
+    });
+
+    await expect(service.resetPassword({ token: 'b'.repeat(64), newPassword: 'FreshPassword123!' }))
+      .rejects.toThrow('This reset link is invalid or has expired');
     expect(update).not.toHaveBeenCalled();
   });
 });

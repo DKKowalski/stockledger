@@ -1,4 +1,5 @@
-import { ArrowUpRight, Eye, EyeOff, Users } from 'lucide-react';
+import { Menu } from '@base-ui/react/menu';
+import { ArrowUpRight, Eye, EyeOff, Mail, MoreHorizontal, UserRoundCheck, UserRoundX, Users } from 'lucide-react';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { ApiError, api } from '../../api';
 import { useInventoryStore } from '../../app/inventory-store';
@@ -15,9 +16,11 @@ export function TeamPage() {
   const [people, setPeople] = useState<User[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [listError, setListError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [busyUserId, setBusyUserId] = useState<string | null>(null);
   const [form, setForm] = useState({ fullName: '', email: '', password: '', role: 'inventory_manager' as 'inventory_manager' | 'shop_attendant', locationId: '' });
   const shops = snapshot?.locations.filter((place) => place.type === 'shop') ?? [];
 
@@ -66,6 +69,38 @@ export function TeamPage() {
     }
   };
 
+  const sendPasswordReset = async (person: User) => {
+    if (!accessToken) return;
+    setBusyUserId(person.id);
+    setActionError(null);
+    try {
+      await api.sendPasswordReset(accessToken, person.id);
+      notify(`A 30-minute reset link was sent to ${person.email}.`, 'Reset email sent');
+    } catch (caught) {
+      if (caught instanceof ApiError && caught.status === 401) signOut();
+      else setActionError(caught instanceof Error ? caught.message : 'Could not send the password reset');
+    } finally {
+      setBusyUserId(null);
+    }
+  };
+
+  const setAccountStatus = async (person: User) => {
+    if (!accessToken) return;
+    const nextStatus = !person.isActive;
+    setBusyUserId(person.id);
+    setActionError(null);
+    try {
+      const updated = await api.setUserStatus(accessToken, person.id, nextStatus);
+      setPeople((current) => current?.map((entry) => entry.id === updated.id ? updated : entry) ?? null);
+      notify(`${updated.fullName} ${updated.isActive ? 'can sign in again' : 'can no longer sign in'}.`, updated.isActive ? 'Account activated' : 'Account deactivated');
+    } catch (caught) {
+      if (caught instanceof ApiError && caught.status === 401) signOut();
+      else setActionError(caught instanceof Error ? caught.message : 'Could not update this account');
+    } finally {
+      setBusyUserId(null);
+    }
+  };
+
   return <>
     <PageHeader title="Team" subtitle="Add inventory managers and shop attendants." />
     <Panel title="Add a person" subtitle="Managers work across places. Each shop attendant belongs to one shop.">
@@ -80,10 +115,26 @@ export function TeamPage() {
       </form>
     </Panel>
     <Panel title={`People (${people?.length ?? 0})`} className="spaced">
+      {actionError && <div className="form-error team-action-error" role="alert">{actionError}</div>}
       {loading && !people ? <div className="empty"><StockLedgerMark animated size={32} /><p>Loading accounts</p></div>
         : listError && !people ? <div className="empty"><p>{listError}</p><button className="button secondary" onClick={() => void load()}>Try again</button></div>
-          : people?.length ? <div className="table-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Place</th><th className="num">Joined</th></tr></thead><tbody>{people.map((person) => <tr key={person.id}><td><b>{person.fullName}</b></td><td>{person.email}</td><td>{roleLabel[person.role]}</td><td>{snapshot?.locations.find((place) => place.id === person.locationId)?.name ?? 'All places'}</td><td className="num">{joinedOn(person.createdAt)}</td></tr>)}</tbody></table></div>
+          : people?.length ? <div className="table-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Place</th><th>Status</th><th className="num">Joined</th><th><span className="sr-only">Account actions</span></th></tr></thead><tbody>{people.map((person) => <tr className={person.isActive ? '' : 'inactive-account-row'} key={person.id}><td><b>{person.fullName}</b></td><td>{person.email}</td><td>{roleLabel[person.role]}</td><td>{snapshot?.locations.find((place) => place.id === person.locationId)?.name ?? 'All places'}</td><td><span className={`account-status ${person.isActive ? 'active' : 'inactive'}`}><i />{person.isActive ? 'Active' : 'Inactive'}</span></td><td className="num">{joinedOn(person.createdAt)}</td><td className="num">{person.role === 'administrator' ? <span className="account-owner-label">Owner</span> : <PersonActionsMenu person={person} busy={busyUserId === person.id} onReset={() => void sendPasswordReset(person)} onStatusChange={() => void setAccountStatus(person)} />}</td></tr>)}</tbody></table></div>
             : <div className="empty"><Users size={22} /><p>No accounts yet.</p></div>}
     </Panel>
   </>;
+}
+
+function PersonActionsMenu({ person, busy, onReset, onStatusChange }: { person: User; busy: boolean; onReset: () => void; onStatusChange: () => void }) {
+  return <Menu.Root>
+    <Menu.Trigger className="row-menu-trigger" aria-label={`Manage ${person.fullName}`} disabled={busy}><MoreHorizontal size={18} /></Menu.Trigger>
+    <Menu.Portal>
+      <Menu.Positioner className="account-menu-positioner" align="end" side="bottom" sideOffset={6}>
+        <Menu.Popup className="account-menu-popup row-actions-popup">
+          <Menu.Item className="account-menu-item" disabled={!person.isActive} onClick={onReset}><Mail size={17} /><span>Send password reset</span></Menu.Item>
+          <div className="account-menu-separator" />
+          <Menu.Item className={`account-menu-item ${person.isActive ? 'danger' : ''}`} onClick={onStatusChange}>{person.isActive ? <UserRoundX size={17} /> : <UserRoundCheck size={17} />}<span>{person.isActive ? 'Deactivate account' : 'Activate account'}</span></Menu.Item>
+        </Menu.Popup>
+      </Menu.Positioner>
+    </Menu.Portal>
+  </Menu.Root>;
 }

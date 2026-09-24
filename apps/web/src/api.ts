@@ -34,9 +34,15 @@ export const api = {
     request<User>('/auth/me', { method: 'PATCH', body: JSON.stringify(body) }, accessToken),
   changePassword: (accessToken: string, body: { currentPassword: string; newPassword: string }) =>
     request<{ changed: true }>('/auth/me/password', { method: 'PATCH', body: JSON.stringify(body) }, accessToken),
+  resetPassword: (body: { token: string; newPassword: string }) =>
+    request<{ changed: true }>('/auth/password/reset', { method: 'POST', body: JSON.stringify(body) }),
   users: (accessToken: string) => request<User[]>('/auth/users', undefined, accessToken),
   addUser: (accessToken: string, body: { fullName: string; email: string; password: string; role: Exclude<UserRole, 'administrator'>; locationId?: string }) =>
     request<User>('/auth/users', { method: 'POST', body: JSON.stringify(body) }, accessToken),
+  setUserStatus: (accessToken: string, userId: string, isActive: boolean) =>
+    request<User>(`/auth/users/${userId}/status`, { method: 'PATCH', body: JSON.stringify({ isActive }) }, accessToken),
+  sendPasswordReset: (accessToken: string, userId: string) =>
+    request<{ sent: true }>(`/auth/users/${userId}/password-reset`, { method: 'POST' }, accessToken),
   snapshot: (accessToken: string, days: number, locationId?: string | null) =>
     request<Snapshot>(`/inventory/snapshot?days=${days}${locationId ? `&locationId=${locationId}` : ''}`, undefined, accessToken),
   addLocation: (accessToken: string, body: { name: string; type: LocationType }) =>

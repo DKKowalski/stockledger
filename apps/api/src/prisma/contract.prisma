@@ -56,15 +56,18 @@ model Location {
 }
 
 model User {
-  id           Uuid                       @id @default(uuid())
-  companyId    Uuid                       @map("company_id")
-  locationId   Uuid?                      @map("location_id")
-  fullName     VarChar(120)               @map("full_name")
-  email        VarChar(255)               @unique
-  passwordHash VarChar(255)               @map("password_hash")
-  role         UserRole                   @default(inventory_manager)
-  createdAt    TimestamptzString          @default(now()) @map("created_at")
-  updatedAt    temporal.updatedAtString() @map("updated_at")
+  id                     Uuid                       @id @default(uuid())
+  companyId              Uuid                       @map("company_id")
+  locationId             Uuid?                      @map("location_id")
+  fullName               VarChar(120)               @map("full_name")
+  email                  VarChar(255)               @unique
+  passwordHash           VarChar(255)               @map("password_hash")
+  role                   UserRole                   @default(inventory_manager)
+  isActive               Boolean                    @default(true) @map("is_active")
+  passwordResetTokenHash VarChar(64)?               @unique @map("password_reset_token_hash")
+  passwordResetExpiresAt TimestamptzString?         @map("password_reset_expires_at")
+  createdAt              TimestamptzString          @default(now()) @map("created_at")
+  updatedAt              temporal.updatedAtString() @map("updated_at")
 
   company  Company   @relation(
     fields: [companyId],

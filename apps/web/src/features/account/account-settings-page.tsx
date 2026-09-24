@@ -88,7 +88,7 @@ export function AccountSettingsPage() {
           </form>
         </Panel>
 
-        <Panel title="Password" subtitle="Confirm your current password before choosing a new one." className="spaced">
+        {user.role === 'administrator' ? <Panel title="Password" subtitle="Confirm your current password before choosing a new one." className="spaced">
           <form className="account-form" onSubmit={(event) => void submitPassword(event)}>
             {passwordError && <div className="form-error" role="alert">{passwordError}</div>}
             <div className="account-password-fields">
@@ -98,7 +98,9 @@ export function AccountSettingsPage() {
             </div>
             <div className="account-form-actions"><span className="password-requirement"><KeyRound size={14} />At least 8 characters</span><button className="button" disabled={savingPassword}>{savingPassword ? <><StockLedgerMark animated size={20} />Updating</> : <>Update password<ArrowUpRight size={16} /></>}</button></div>
           </form>
-        </Panel>
+        </Panel> : <Panel title="Sign-in security" subtitle="Your administrator manages password recovery." className="spaced">
+          <div className="managed-security-note"><ShieldCheck size={22} /><div><h3>Need a new password?</h3><p>Ask your administrator to send a secure reset link to {user.email}. The link expires after 30 minutes.</p></div></div>
+        </Panel>}
       </div>
     </div>
   </>;

@@ -724,6 +724,13 @@
                   "kind": "scalar"
                 }
               },
+              "isActive": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/bool@1",
+                  "kind": "scalar"
+                }
+              },
               "locationId": {
                 "nullable": true,
                 "type": {
@@ -738,6 +745,23 @@
                   "kind": "scalar",
                   "typeParams": {
                     "length": 255
+                  }
+                }
+              },
+              "passwordResetExpiresAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "passwordResetTokenHash": {
+                "nullable": true,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 64
                   }
                 }
               },
@@ -813,11 +837,20 @@
                 "id": {
                   "column": "id"
                 },
+                "isActive": {
+                  "column": "is_active"
+                },
                 "locationId": {
                   "column": "location_id"
                 },
                 "passwordHash": {
                   "column": "password_hash"
+                },
+                "passwordResetExpiresAt": {
+                  "column": "password_reset_expires_at"
+                },
+                "passwordResetTokenHash": {
+                  "column": "password_reset_token_hash"
                 },
                 "role": {
                   "column": "role"
@@ -1510,6 +1543,15 @@
                   "nativeType": "uuid",
                   "nullable": false
                 },
+                "is_active": {
+                  "codecId": "pg/bool@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": true
+                  },
+                  "nativeType": "bool",
+                  "nullable": false
+                },
                 "location_id": {
                   "codecId": "pg/uuid@1",
                   "nativeType": "uuid",
@@ -1521,6 +1563,19 @@
                   "nullable": false,
                   "typeParams": {
                     "length": 255
+                  }
+                },
+                "password_reset_expires_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": true
+                },
+                "password_reset_token_hash": {
+                  "codecId": "sql/varchar@1",
+                  "nativeType": "character varying",
+                  "nullable": true,
+                  "typeParams": {
+                    "length": 64
                   }
                 },
                 "role": {
@@ -1610,6 +1665,11 @@
                   "columns": [
                     "email"
                   ]
+                },
+                {
+                  "columns": [
+                    "password_reset_token_hash"
+                  ]
                 }
               ]
             }
@@ -1647,7 +1707,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "7bb8a0ed60364a679593978242cb0aa1f27f9b3f55cf32b5511df887efcd4981"
+    "storageHash": "4f48bf1227195da8260ed816c3e42a4dd388868007d92c4c572768ffe36ff896"
   },
   "execution": {
     "executionHash": "a5c0df357ad692205cc2ebd15ee9b91f11720c1dfc0f9406e4e6f34f0729648f",

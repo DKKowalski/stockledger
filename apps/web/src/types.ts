@@ -8,6 +8,7 @@ export type User = {
   fullName: string;
   email: string;
   role: UserRole;
+  isActive: boolean;
   createdAt: string;
 };
 export type LoginResponse = { accessToken: string; user: User };
