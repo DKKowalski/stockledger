@@ -1,4 +1,5 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { toast } from 'sonner';
 import { ApiError, api } from '../api';
 import { useAuth } from '../auth-context';
 import type { Snapshot } from '../types';
@@ -13,9 +14,6 @@ type InventoryStore = {
   locationId: string | null;
   setLocationId: (locationId: string | null) => void;
   refresh: () => Promise<void>;
-  notice: { id: number; title: string; message: string; visible: boolean } | null;
-  dismissNotice: () => void;
-  notify: (message: string, title?: string) => void;
   mutate: (action: () => Promise<unknown>, successMessage: string) => Promise<void>;
 };
 
@@ -37,9 +35,6 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [days, setDays] = useState(30);
   const [locationId, setLocationId] = useState<string | null>(user?.role === 'shop_attendant' ? user.locationId : null);
-  const [notice, setNotice] = useState<InventoryStore['notice']>(null);
-  const noticeId = useRef(0);
-  const noticeTimer = useRef<number | null>(null);
 
   if (!accessToken) throw new Error('InventoryProvider requires an authenticated session');
 
@@ -78,46 +73,29 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
     return () => { cancelled = true; };
   }, [accessToken, days, locationId, handleError]);
 
-  const dismissNotice = useCallback(() => {
-    if (noticeTimer.current) window.clearTimeout(noticeTimer.current);
-    setNotice((current) => current ? { ...current, visible: false } : null);
-    noticeTimer.current = window.setTimeout(() => setNotice(null), 180);
-  }, []);
-
-  const notify = useCallback((message: string, title = 'Inventory updated') => {
-    if (noticeTimer.current) window.clearTimeout(noticeTimer.current);
-    const id = ++noticeId.current;
-    setNotice({ id, title, message, visible: true });
-    noticeTimer.current = window.setTimeout(() => {
-      setNotice((current) => current?.id === id ? { ...current, visible: false } : current);
-      noticeTimer.current = window.setTimeout(() => {
-        setNotice((current) => current?.id === id ? null : current);
-      }, 180);
-    }, 3200);
-  }, []);
-
-  useEffect(() => () => {
-    if (noticeTimer.current) window.clearTimeout(noticeTimer.current);
-  }, []);
-
   const mutate = useCallback(async (action: () => Promise<unknown>, successMessage: string) => {
     setBusy(true);
     setError(null);
     try {
       await action();
       setSnapshot(await api.snapshot(accessToken, days, locationId));
-      notify(successMessage);
+      toast.success('Inventory updated', { description: successMessage });
     } catch (caught) {
-      handleError(caught, 'Request failed');
+      if (caught instanceof ApiError && caught.status === 401) {
+        toast.error('Session expired', { description: 'Sign in again to continue.' });
+        signOut();
+      } else {
+        toast.error('Request failed', { description: caught instanceof Error ? caught.message : 'The inventory could not be updated.' });
+      }
       throw caught;
     } finally {
       setBusy(false);
     }
-  }, [accessToken, days, locationId, handleError, notify]);
+  }, [accessToken, days, locationId, signOut]);
 
   const store = useMemo(
-    () => ({ snapshot, loading, busy, error, days, setDays, locationId, setLocationId, refresh, notice, dismissNotice, notify, mutate }),
-    [snapshot, loading, busy, error, days, locationId, refresh, notice, dismissNotice, notify, mutate],
+    () => ({ snapshot, loading, busy, error, days, setDays, locationId, setLocationId, refresh, mutate }),
+    [snapshot, loading, busy, error, days, locationId, refresh, mutate],
   );
 
   return <InventoryStoreContext.Provider value={store}>{children}</InventoryStoreContext.Provider>;

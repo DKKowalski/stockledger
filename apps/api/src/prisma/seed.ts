@@ -43,9 +43,15 @@ async function seed() {
   const passwordHash = await argon2.hash(DEMO_PASSWORD, { type: argon2.argon2id });
 
   await db.transaction(async (tx) => {
+    const demoCompany = {
+      name: varchar<120>('StockLedger Demo'),
+      businessType: varchar<40>('mixed'),
+      inventorySource: varchar<40>('another_system'),
+      onboardingCompletedAt: new Date().toISOString(),
+    };
     await tx.orm.public.Company.upsert({
-      create: { id: COMPANY_ID, name: varchar<120>('StockLedger Demo') },
-      update: { name: varchar<120>('StockLedger Demo') },
+      create: { id: COMPANY_ID, ...demoCompany },
+      update: demoCompany,
     });
 
     for (const [id, name, type] of [

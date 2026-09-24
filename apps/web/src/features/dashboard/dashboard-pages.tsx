@@ -6,6 +6,7 @@ import { EmptyState, Kpi, LocationFilter, PageHeader, PageState, Panel } from '.
 import { LedgerSyncIcon } from '../../components/ledger-sync-icon';
 import { formatDate, money, movementMeta } from '../../lib/presentation';
 import type { Movement, Position, Snapshot } from '../../types';
+import { OwnerSetupChecklist } from '../onboarding/owner-setup-checklist';
 
 export function OperationsDashboardPage() {
   const { snapshot, refresh, loading } = useInventoryStore();
@@ -17,6 +18,7 @@ export function OperationsDashboardPage() {
     movements={snapshot.movements}
     periodDays={snapshot.periodDays}
     summary={snapshot.summary}
+    setup={<OwnerSetupChecklist />}
   />}</PageState>;
 }
 
@@ -62,7 +64,7 @@ function InventorySyncButton({ loading, refresh }: { loading: boolean; refresh: 
   </button>;
 }
 
-function DashboardBody({ title, subtitle, actions, positions, movements, periodDays, summary }: {
+function DashboardBody({ title, subtitle, actions, positions, movements, periodDays, summary, setup }: {
   title: string;
   subtitle: string;
   actions: ReactNode;
@@ -70,9 +72,11 @@ function DashboardBody({ title, subtitle, actions, positions, movements, periodD
   movements: Movement[];
   periodDays: number;
   summary: Snapshot['summary'];
+  setup?: ReactNode;
 }) {
   return <>
     <PageHeader title={title} subtitle={subtitle} actions={actions} />
+    {setup}
     <section className="kpi-grid">
       <Kpi icon={Warehouse} label="Closing stock" value={summary.closingUnits.toLocaleString()} note={`${money(summary.stockValueCents)} at cost`} />
       <Kpi icon={TriangleAlert} label="Low stock items" value={String(summary.lowStockItems)} note="At or below reorder level" tone="warning" />

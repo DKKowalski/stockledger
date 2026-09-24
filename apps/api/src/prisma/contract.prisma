@@ -25,10 +25,13 @@ enum LocationType {
 }
 
 model Company {
-  id        Uuid                       @id @default(uuid())
-  name      VarChar(120)
-  createdAt TimestamptzString          @default(now()) @map("created_at")
-  updatedAt temporal.updatedAtString() @map("updated_at")
+  id                    Uuid                       @id @default(uuid())
+  name                  VarChar(120)
+  businessType          VarChar(40)?               @map("business_type")
+  inventorySource       VarChar(40)?               @map("inventory_source")
+  onboardingCompletedAt TimestamptzString?         @map("onboarding_completed_at")
+  createdAt             TimestamptzString          @default(now()) @map("created_at")
+  updatedAt             temporal.updatedAtString() @map("updated_at")
 
   @@rls
   @@map("companies")

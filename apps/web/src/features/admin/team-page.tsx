@@ -1,6 +1,7 @@
 import { Menu } from '@base-ui/react/menu';
 import { ArrowUpRight, Eye, EyeOff, Mail, MoreHorizontal, UserRoundCheck, UserRoundX, Users } from 'lucide-react';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { toast } from 'sonner';
 import { ApiError, api } from '../../api';
 import { useInventoryStore } from '../../app/inventory-store';
 import { useAuth } from '../../auth-context';
@@ -12,7 +13,7 @@ import type { User } from '../../types';
 
 export function TeamPage() {
   const { accessToken, signOut } = useAuth();
-  const { notify, snapshot } = useInventoryStore();
+  const { snapshot } = useInventoryStore();
   const [people, setPeople] = useState<User[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [listError, setListError] = useState<string | null>(null);
@@ -58,7 +59,7 @@ export function TeamPage() {
       });
       setPeople((current) => [...(current ?? []).filter((person) => person.id !== created.id), created]
         .sort((left, right) => left.fullName.localeCompare(right.fullName) || left.email.localeCompare(right.email)));
-      notify(`${created.fullName} can sign in with the password you chose.`, 'Account created');
+      toast.success('Account created', { description: `${created.fullName} can sign in with the password you chose.` });
       setForm({ fullName: '', email: '', password: '', role: 'inventory_manager', locationId: '' });
       setShowPassword(false);
     } catch (caught) {
@@ -75,7 +76,7 @@ export function TeamPage() {
     setActionError(null);
     try {
       await api.sendPasswordReset(accessToken, person.id);
-      notify(`A 30-minute reset link was sent to ${person.email}.`, 'Reset email sent');
+      toast.success('Reset email sent', { description: `A 30-minute reset link was sent to ${person.email}.` });
     } catch (caught) {
       if (caught instanceof ApiError && caught.status === 401) signOut();
       else setActionError(caught instanceof Error ? caught.message : 'Could not send the password reset');
@@ -92,7 +93,7 @@ export function TeamPage() {
     try {
       const updated = await api.setUserStatus(accessToken, person.id, nextStatus);
       setPeople((current) => current?.map((entry) => entry.id === updated.id ? updated : entry) ?? null);
-      notify(`${updated.fullName} ${updated.isActive ? 'can sign in again' : 'can no longer sign in'}.`, updated.isActive ? 'Account activated' : 'Account deactivated');
+      toast.success(updated.isActive ? 'Account activated' : 'Account deactivated', { description: `${updated.fullName} ${updated.isActive ? 'can sign in again' : 'can no longer sign in'}.` });
     } catch (caught) {
       if (caught instanceof ApiError && caught.status === 401) signOut();
       else setActionError(caught instanceof Error ? caught.message : 'Could not update this account');

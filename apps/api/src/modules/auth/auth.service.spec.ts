@@ -17,6 +17,10 @@ describe('AuthService', () => {
   const update = vi.fn();
   const where = vi.fn(() => ({ all, update }));
   const create = vi.fn();
+  const companyCreate = vi.fn();
+  const transaction = vi.fn(async (callback: (tx: unknown) => Promise<unknown>) => callback({
+    orm: { public: { Company: { create: companyCreate }, User: { create } } },
+  }));
   const locationFirst = vi.fn();
   const signAsync = vi.fn();
   const getOrThrow = vi.fn((key: string) => ({
@@ -25,7 +29,7 @@ describe('AuthService', () => {
   })[key]);
   const sendResetEmail = vi.fn();
   const prisma = {
-    client: { orm: { public: { User: { first, where, create }, Location: { first: locationFirst } } } },
+    client: { transaction, orm: { public: { User: { first, where, create }, Location: { first: locationFirst } } } },
   } as unknown as PrismaService;
   const jwt = { signAsync } as unknown as JwtService;
   const config = { getOrThrow } as unknown as ConfigService;
@@ -104,6 +108,53 @@ describe('AuthService', () => {
       email: 'ama@stockledger.app',
       password: 'StockLedger123!',
     })).rejects.toThrow('This account has been deactivated');
+  });
+
+  it('creates a business and its owner in one transaction', async () => {
+    first.mockResolvedValue(null);
+    companyCreate.mockResolvedValue({ id: companyId, name: 'Mensah Trading' });
+    create.mockImplementation(async (data: {
+      companyId: string;
+      fullName: string;
+      email: string;
+      passwordHash: string;
+      role: string;
+      locationId: null;
+    }) => ({
+      id: '41000000-0000-4000-8000-000000000010',
+      ...data,
+      createdAt: '2026-09-24T00:00:00.000Z',
+    }));
+    signAsync.mockResolvedValue('owner-token');
+
+    const result = await service.registerOwner({
+      fullName: ' Ama Mensah ',
+      businessName: ' Mensah Trading ',
+      email: ' AMA@MENSAH.COM ',
+      password: 'StockLedger123!',
+    });
+
+    expect(transaction).toHaveBeenCalledOnce();
+    expect(companyCreate).toHaveBeenCalledWith({ name: 'Mensah Trading' });
+    const saved = create.mock.calls[0][0] as { email: string; passwordHash: string; companyId: string; role: string };
+    expect(saved.email).toBe('ama@mensah.com');
+    expect(saved.companyId).toBe(companyId);
+    expect(saved.role).toBe('administrator');
+    await expect(argon2.verify(saved.passwordHash, 'StockLedger123!')).resolves.toBe(true);
+    expect(result.accessToken).toBe('owner-token');
+    expect(result.user).not.toHaveProperty('passwordHash');
+  });
+
+  it('does not register an owner with an email already in use', async () => {
+    first.mockResolvedValue({ id: '41000000-0000-4000-8000-000000000009' });
+
+    await expect(service.registerOwner({
+      fullName: 'Ama Mensah',
+      businessName: 'Mensah Trading',
+      email: 'ama@mensah.com',
+      password: 'StockLedger123!',
+    })).rejects.toBeInstanceOf(ConflictException);
+    expect(transaction).not.toHaveBeenCalled();
   });
 
   const administrator = {

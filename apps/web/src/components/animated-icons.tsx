@@ -46,3 +46,24 @@ export function EmptyInventoryIcon({ className, size = 38 }: IconProps) {
     <path className="empty-inventory-slot" d="M16.5 12.15 23 15.3" />
   </svg>;
 }
+
+export function SpreadsheetImportIcon({ className, size = 20, state = 'idle' }: IconProps & { state?: 'idle' | 'reading' | 'complete' }) {
+  return <svg
+    aria-hidden="true"
+    className={['spreadsheet-import-icon', `is-${state}`, className].filter(Boolean).join(' ')}
+    fill="none"
+    height={size}
+    viewBox="0 0 24 24"
+    width={size}
+  >
+    <path className="spreadsheet-page" d="M5 2.75h9.5L19 7.3v13.95H5z" />
+    <path className="spreadsheet-fold" d="M14.5 2.75V7.3H19" />
+    <g className="spreadsheet-rows">
+      <path d="M8 10.25h8" />
+      <path d="M8 13.5h8" />
+      <path d="M8 16.75h5" />
+    </g>
+    <path className="spreadsheet-scan" d="M7 8.75h10" />
+    <path className="spreadsheet-check" d="m9 15.25 2.05 2.05L15.5 12.7" />
+  </svg>;
+}

@@ -8,6 +8,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { ChangePasswordDto } from './dto/change-password.dto.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import { LoginDto } from './dto/login.dto.js';
+import { RegisterOwnerDto } from './dto/register-owner.dto.js';
 import { ResetPasswordDto } from './dto/reset-password.dto.js';
 import { SetAccountStatusDto } from './dto/set-account-status.dto.js';
 import { UpdateProfileDto } from './dto/update-profile.dto.js';
@@ -22,6 +23,34 @@ export class AuthService {
     private readonly config: ConfigService,
     private readonly passwordResetMailer: PasswordResetMailer,
   ) {}
+
+  async registerOwner(body: RegisterOwnerDto) {
+    const email = body.email.trim().toLowerCase();
+    const existing = await this.prisma.client.orm.public.User.first({
+      email: email as Varchar<255>,
+    });
+    if (existing) throw new ConflictException('An account with this email already exists');
+
+    const passwordHash = await argon2.hash(body.password, { type: argon2.argon2id });
+    const user = await this.prisma.client.transaction(async (tx) => {
+      const company = await tx.orm.public.Company.create({
+        name: body.businessName.trim() as Varchar<120>,
+      });
+      return tx.orm.public.User.create({
+        companyId: company.id,
+        locationId: null,
+        fullName: body.fullName.trim() as Varchar<120>,
+        email: email as Varchar<255>,
+        passwordHash: passwordHash as Varchar<255>,
+        role: 'administrator',
+      });
+    });
+
+    return {
+      accessToken: await this.jwt.signAsync({ sub: user.id, role: user.role }),
+      user: this.publicUser(user),
+    };
+  }
 
   async login(credentials: LoginDto) {
     const email = credentials.email.trim().toLowerCase();

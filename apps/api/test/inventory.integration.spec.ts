@@ -319,6 +319,60 @@ describe('inventory transactions with PostgreSQL', () => {
     expect(await db.orm.public.InventoryItem.where({ companyId: f.company.id }).all()).toHaveLength(1);
   });
 
+  it('imports a spreadsheet catalog and its opening balances together', async () => {
+    const f = await fixture();
+    const result = await service.importItems(f.admin.id, {
+      locationId: f.warehouse.id,
+      rows: [
+        { sku: ' bulk-1 ', name: 'Imported rice', category: 'Grocery', unit: 'bag', reorderLevel: 10, unitCostCents: 1250, sellingPriceCents: 1800, openingStock: 24 },
+        { sku: 'BULK-2', name: 'Imported oil', category: 'Grocery', unit: 'bottle', reorderLevel: 8, unitCostCents: 700, openingStock: 16 },
+      ],
+    });
+    expect(result).toEqual({ imported: 2 });
+    const snapshot = await service.snapshot(f.admin.id, 30, f.warehouse.id);
+    expect(snapshot.positions.find((position) => position.item.sku === 'BULK-1')).toMatchObject({
+      closing: 24,
+      item: { name: 'Imported rice', sellingPriceCents: 1800 },
+    });
+    expect(snapshot.positions.find((position) => position.item.sku === 'BULK-2')).toMatchObject({
+      closing: 16,
+      item: { name: 'Imported oil', sellingPriceCents: null },
+    });
+  });
+
+  it('rejects duplicate spreadsheet SKUs before writing any rows', async () => {
+    const f = await fixture();
+    await expect(service.importItems(f.admin.id, {
+      locationId: f.warehouse.id,
+      rows: [
+        { sku: 'DUPLICATE', name: 'First', category: 'Test', unit: 'pcs', reorderLevel: 0, unitCostCents: 10, openingStock: 1 },
+        { sku: 'duplicate', name: 'Second', category: 'Test', unit: 'pcs', reorderLevel: 0, unitCostCents: 10, openingStock: 1 },
+      ],
+    })).rejects.toBeInstanceOf(ConflictException);
+    expect(await db.orm.public.InventoryItem.where({ companyId: f.company.id }).all()).toHaveLength(1);
+  });
+
+  it('keeps spreadsheet import under administrator control', async () => {
+    const f = await fixture();
+    await expect(service.importItems(f.attendant.id, {
+      locationId: f.shop.id,
+      rows: [{ sku: 'STAFF-BULK', name: 'Staff item', category: 'Test', unit: 'pcs', reorderLevel: 0, unitCostCents: 10, openingStock: 1 }],
+    })).rejects.toBeInstanceOf(ForbiddenException);
+    expect(await db.orm.public.InventoryItem.where({ companyId: f.company.id }).all()).toHaveLength(1);
+  });
+
+  it('rolls back the whole spreadsheet when an opening balance fails', async () => {
+    const f = await fixture();
+    await expect(service.importItems(f.admin.id, {
+      locationId: f.warehouse.id,
+      rows: [
+        { sku: 'ROLLBACK-BULK-1', name: 'Valid first row', category: 'Test', unit: 'pcs', reorderLevel: 0, unitCostCents: 10, openingStock: 1 },
+        { sku: 'ROLLBACK-BULK-2', name: 'Invalid second row', category: 'Test', unit: 'pcs', reorderLevel: 0, unitCostCents: 10, openingStock: -1 },
+      ],
+    })).rejects.toThrow();
+    expect(await db.orm.public.InventoryItem.where({ companyId: f.company.id }).all()).toHaveLength(1);
+  });
+
   it('lets a different item change while another item is locked', async () => {
     const lockedFixture = await fixture();
     const f = await fixture();

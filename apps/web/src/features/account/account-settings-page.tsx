@@ -1,5 +1,6 @@
 import { ArrowUpRight, CalendarDays, Eye, EyeOff, KeyRound, MapPin, ShieldCheck, UserRound } from 'lucide-react';
 import { useId, useState, type FormEvent } from 'react';
+import { toast } from 'sonner';
 import { ApiError } from '../../api';
 import { useInventoryStore } from '../../app/inventory-store';
 import { useAuth } from '../../auth-context';
@@ -11,7 +12,7 @@ import { joinedOn, roleLabel } from '../../lib/presentation';
 
 export function AccountSettingsPage() {
   const { user, updateProfile, changePassword, signOut } = useAuth();
-  const { notify, snapshot } = useInventoryStore();
+  const { snapshot } = useInventoryStore();
   const [profile, setProfile] = useState({ fullName: user?.fullName ?? '', email: user?.email ?? '' });
   const [passwords, setPasswords] = useState({ current: '', next: '', confirm: '' });
   const [profileError, setProfileError] = useState<string | null>(null);
@@ -31,7 +32,7 @@ export function AccountSettingsPage() {
     try {
       const saved = await updateProfile(profile);
       setProfile({ fullName: saved.fullName, email: saved.email });
-      notify('Your name and email were saved.', 'Profile updated');
+      toast.success('Profile updated', { description: 'Your name and email were saved.' });
     } catch (caught) {
       if (caught instanceof ApiError && caught.status === 401) signOut();
       else setProfileError(caught instanceof Error ? caught.message : 'Could not update your profile');
@@ -51,7 +52,7 @@ export function AccountSettingsPage() {
     try {
       await changePassword({ currentPassword: passwords.current, newPassword: passwords.next });
       setPasswords({ current: '', next: '', confirm: '' });
-      notify('Use your new password the next time you sign in.', 'Password changed');
+      toast.success('Password changed', { description: 'Use your new password the next time you sign in.' });
     } catch (caught) {
       if (caught instanceof ApiError && caught.status === 401) signOut();
       else setPasswordError(caught instanceof Error ? caught.message : 'Could not change your password');

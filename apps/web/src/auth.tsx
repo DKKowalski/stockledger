@@ -48,6 +48,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(session.user);
   }, []);
 
+  const registerOwner = useCallback(async (body: { fullName: string; businessName: string; email: string; password: string }) => {
+    const session: LoginResponse = await api.registerOwner(body);
+    localStorage.setItem(TOKEN_KEY, session.accessToken);
+    setAccessToken(session.accessToken);
+    setUser(session.user);
+    setRestoring(false);
+  }, []);
+
   const updateProfile = useCallback(async (body: { fullName: string; email: string }) => {
     if (!accessToken) throw new Error('Sign in to update your profile');
     const profile = await api.updateProfile(accessToken, body);
@@ -61,8 +69,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [accessToken]);
 
   const value = useMemo(
-    () => ({ accessToken, user, restoring, signIn, signOut, updateProfile, changePassword }),
-    [accessToken, user, restoring, signIn, signOut, updateProfile, changePassword],
+    () => ({ accessToken, user, restoring, signIn, registerOwner, signOut, updateProfile, changePassword }),
+    [accessToken, user, restoring, signIn, registerOwner, signOut, updateProfile, changePassword],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

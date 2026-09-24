@@ -24,6 +24,8 @@ The primary reference is [Logistics & Fleet Management Dashboard UI by Ronas IT]
 
 The secondary reference is [Warehouse Inventory Dashboard UI by Ksenia Mizgina](https://dribbble.com/shots/25702575-Warehouse-Inventory-Dashboard-UI-Logistics-Stock-Management). It supports the use of pale industrial neutrals, strong black typography, thin dividers, and small amounts of cooler color in data visualization.
 
+The marketing layout reference is [AI SaaS Landing Page Design by Mahid](https://dribbble.com/shots/27644229-AI-SaaS-Landing-Page-Design). Borrow its generous pacing, product-led hero, three-panel workflow explanation, asymmetric section headings, sticky navigation, and restrained scroll reveals. Keep StockLedger's palette, copy, screenshots, and inventory-specific iconography. Do not copy its violet branding, AI content, or page composition literally.
+
 Borrow the visual logic, not the layouts or marks.
 
 ### Keep
@@ -43,6 +45,7 @@ Borrow the visual logic, not the layouts or marks.
 - Cute warehouse illustrations
 - Generic blue SaaS styling
 - Animation that delays frequent operational work
+- Generic warehouse mascots, box robots, or clip-art characters
 
 ## Color system
 
@@ -126,9 +129,29 @@ Inputs and selects share height, border, radius, and focus ring. A select uses o
 
 On desktop, use the split-screen login with an inset warehouse photograph on the left and the form on a light surface on the right. Place the brand at the top of the photograph and limit the bottom copy to one short headline and one supporting sentence. Add a dark gradient behind the copy for contrast. Do not place charts, metrics, testimonials, or floating cards over the image.
 
+### Marketing site
+
+- Lead with a real StockLedger screen rather than an abstract illustration or invented dashboard.
+- Use large areas of warm neutral space and let one olive field break the page rhythm.
+- Explain the inventory workflow through three soft panels: receive, move, and sell.
+- Keep the navigation sticky, solid, and visually quiet.
+- Reveal below-the-fold sections once as they enter the viewport using opacity and no more than `8px` of vertical movement.
+- Keep reveal transitions at or below `280ms`, stagger adjacent panels by no more than `45ms`, and remove movement for reduced-motion users.
+- Avoid fake customer logos, unsupported claims, invented performance numbers, and decorative floating statistic cards.
+
 ### Tables
 
 Keep headers light and small. Use horizontal rules instead of boxed cells. Align numeric columns right and use color only for status or signed quantities.
+
+### Toasts
+
+Use the StockLedger-themed Sonner toaster for short success, error, warning, and information messages. Put the action result in the title and supporting detail in the description. Keep retryable page-loading failures inline because they need to remain visible.
+
+- Position toasts at the bottom right on desktop and 16px from both sides on mobile.
+- Allow Sonner to manage stacking, pause behavior, swipe dismissal, and announcements.
+- Show at most four toasts and dismiss ordinary messages after 3.6 seconds.
+- Use olive for success, muted red for errors, and restrained shadows reserved for floating UI.
+- Do not show a loading toast when the initiating button already has a loading state.
 
 ## Data visualization
 
@@ -151,6 +174,17 @@ Motion should confirm an action or explain a change.
 - Respect `prefers-reduced-motion`
 
 Do not animate controls used repeatedly with the keyboard. Do not use bounce in operational screens.
+
+### Tally mascot
+
+Tally is StockLedger's setup guide. Its shape comes from stacked ledger sheets and the folded corner in the product mark. Use it during owner onboarding, incomplete setup, selected empty states, and rare milestones.
+
+- Keep Tally in a dedicated edge panel or supporting area. It must not sit between the user and a form control.
+- Idle movement uses long pauses, a slight vertical shift, and an occasional blink.
+- Tally only presents guidance after the user clicks or taps it.
+- Do not make Tally follow the pointer, cross the screen, play sound, or interrupt a task.
+- Remove positional movement when `prefers-reduced-motion` is enabled.
+- Do not introduce other character styles. Tally is the sole product mascot.
 
 ## Iconography
 

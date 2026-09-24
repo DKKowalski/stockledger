@@ -13,6 +13,7 @@ import { buildSnapshot, type ItemRecord, type LocationRecord, type MovementRecor
 import { CreateItemDto } from './dto/create-item.dto.js';
 import { CreateLocationDto } from './dto/create-location.dto.js';
 import { CreateMovementDto } from './dto/create-movement.dto.js';
+import { ImportItemsDto } from './dto/import-items.dto.js';
 import { UpdateSellingPriceDto } from './dto/update-selling-price.dto.js';
 import { MOVEMENT_SIGN, StockMovementType } from './inventory.types.js';
 
@@ -87,6 +88,41 @@ export class InventoryService {
         openingStock: body.openingStock,
       });
       return item;
+    });
+  }
+
+  async importItems(userId: string, body: ImportItemsDto) {
+    const actor = await this.actor(userId);
+    this.assertAdministrator(actor);
+    const scope = await this.scope(actor.companyId);
+    this.knownLocation(scope.locations, body.locationId);
+
+    const rows = body.rows.map((row) => ({ ...row, sku: row.sku.trim().toUpperCase() }));
+    const duplicateInFile = rows.find((row, index) => rows.findIndex((candidate) => candidate.sku === row.sku) !== index);
+    if (duplicateInFile) throw new ConflictException(`SKU ${duplicateInFile.sku} appears more than once in the spreadsheet`);
+    const existingSkus = new Set(scope.items.map((item) => item.sku.toUpperCase()));
+    const existing = rows.find((row) => existingSkus.has(row.sku));
+    if (existing) throw new ConflictException(`SKU ${existing.sku} already exists`);
+
+    return this.prisma.client.transaction(async (tx) => {
+      for (const row of rows) {
+        const item = await tx.orm.public.InventoryItem.create({
+          companyId: actor.companyId,
+          sku: row.sku as Varchar<40>,
+          name: row.name.trim() as Varchar<120>,
+          category: row.category.trim() as Varchar<80>,
+          unit: row.unit.trim() as Varchar<20>,
+          reorderLevel: row.reorderLevel,
+          unitCostCents: row.unitCostCents,
+          sellingPriceCents: row.sellingPriceCents ?? null,
+        });
+        await tx.orm.public.LocationStock.create({
+          locationId: body.locationId,
+          itemId: item.id,
+          openingStock: row.openingStock,
+        });
+      }
+      return { imported: rows.length };
     });
   }
 

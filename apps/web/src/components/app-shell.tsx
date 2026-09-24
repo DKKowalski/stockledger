@@ -1,16 +1,16 @@
-import { X, type LucideIcon } from 'lucide-react';
+import { type LucideIcon } from 'lucide-react';
 import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useInventoryStore } from '../app/inventory-store';
 import { AccountMenu } from './account-menu';
-import { MenuMorphIcon, SuccessMark } from './animated-icons';
+import { MenuMorphIcon } from './animated-icons';
 import { StockLedgerMark } from './stockledger-mark';
 
 export type NavigationMotion = 'overview' | 'items' | 'movement' | 'reports' | 'places' | 'team' | 'sell';
 export type NavigationItem = readonly [path: string, label: string, icon: LucideIcon, motion: NavigationMotion];
 
 export function AppShell({ navigation }: { navigation: readonly NavigationItem[] }) {
-  const { error, refresh, notice, dismissNotice } = useInventoryStore();
+  const { error, refresh } = useInventoryStore();
   const [menuOpen, setMenuOpen] = useState(false);
 
   return <div className="app-shell">
@@ -32,11 +32,6 @@ export function AppShell({ navigation }: { navigation: readonly NavigationItem[]
     <div className="shell-content">
       {error && <div className="error-banner" role="alert"><span>{error}</span><button onClick={() => void refresh()}>Try again</button></div>}
       <main className="page"><Outlet /></main>
-      {notice && <div className={`toast ${notice.visible ? 'visible' : ''}`} key={notice.id} role="status" aria-live="polite">
-        <SuccessMark className="toast-icon" />
-        <div><b>{notice.title}</b><span>{notice.message}</span></div>
-        <button aria-label="Dismiss notification" onClick={dismissNotice}><X size={16} /></button>
-      </div>}
     </div>
   </div>;
 }

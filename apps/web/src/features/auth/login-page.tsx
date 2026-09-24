@@ -1,5 +1,6 @@
 import { ArrowUpRight, ChevronRight, Eye, EyeOff } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../auth-context';
 import { StockLedgerMark } from '../../components/stockledger-mark';
 import { InputControl } from '../../components/ui/input-control';
@@ -35,12 +36,12 @@ export function LoginPage() {
     <section className="login-visual" aria-label="StockLedger product overview">
       <div className="login-image">
         <img alt="" aria-hidden="true" src="/images/login-warehouse.jpg" />
-        <div className="login-brand"><span className="brand-mark"><StockLedgerMark /></span>StockLedger</div>
+        <Link className="login-brand" to="/"><span className="brand-mark"><StockLedgerMark /></span>StockLedger</Link>
         <div className="login-visual-copy"><h1>Every item accounted for.</h1><p>Know what came in, what went out, and what remains.</p></div>
       </div>
     </section>
     <section className="login-form-pane">
-      <div className="mobile-login-brand"><span className="brand-mark"><StockLedgerMark /></span>StockLedger</div>
+      <Link className="mobile-login-brand" to="/"><span className="brand-mark"><StockLedgerMark /></span>StockLedger</Link>
       <div className="login-form-wrap">
         <div className="login-heading"><h2>Welcome back</h2><p>Sign in to open your inventory workspace.</p></div>
         <form className="login-form" onSubmit={(event) => void submit(event)}>
@@ -53,6 +54,7 @@ export function LoginPage() {
           <button className="button login-submit" disabled={submitting}>{submitting ? <><StockLedgerMark animated size={20} />Signing in</> : <>Sign in<ArrowUpRight size={17} /></>}</button>
         </form>
         <button className="demo-login" type="button" onClick={useDemo}><span><b>Preview the demo workspace</b><small>Fill in the seeded administrator account</small></span><ChevronRight size={18} /></button>
+        <p className="signup-signin">New to StockLedger? <Link to="/signup">Create your workspace</Link></p>
       </div>
       <p className="login-footnote">Protected with encrypted passwords and expiring sessions.</p>
     </section>

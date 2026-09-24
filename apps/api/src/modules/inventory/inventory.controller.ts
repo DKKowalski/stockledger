@@ -4,6 +4,7 @@ import type { AuthenticatedRequest } from '../auth/auth.types.js';
 import { CreateItemDto } from './dto/create-item.dto.js';
 import { CreateLocationDto } from './dto/create-location.dto.js';
 import { CreateMovementDto } from './dto/create-movement.dto.js';
+import { ImportItemsDto } from './dto/import-items.dto.js';
 import { SnapshotQueryDto } from './dto/snapshot-query.dto.js';
 import { UpdateSellingPriceDto } from './dto/update-selling-price.dto.js';
 import { InventoryService } from './inventory.service.js';
@@ -26,6 +27,11 @@ export class InventoryController {
   @Post('items')
   createItem(@Req() request: AuthenticatedRequest, @Body() body: CreateItemDto) {
     return this.inventory.createItem(request.user.sub, body);
+  }
+
+  @Post('items/import')
+  importItems(@Req() request: AuthenticatedRequest, @Body() body: ImportItemsDto) {
+    return this.inventory.importItems(request.user.sub, body);
   }
 
   @Post('movements')

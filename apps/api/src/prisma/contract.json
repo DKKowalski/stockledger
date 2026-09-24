@@ -96,6 +96,16 @@
         "models": {
           "Company": {
             "fields": {
+              "businessType": {
+                "nullable": true,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 40
+                  }
+                }
+              },
               "createdAt": {
                 "nullable": false,
                 "type": {
@@ -110,6 +120,16 @@
                   "kind": "scalar"
                 }
               },
+              "inventorySource": {
+                "nullable": true,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 40
+                  }
+                }
+              },
               "name": {
                 "nullable": false,
                 "type": {
@@ -118,6 +138,13 @@
                   "typeParams": {
                     "length": 120
                   }
+                }
+              },
+              "onboardingCompletedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
                 }
               },
               "updatedAt": {
@@ -131,14 +158,23 @@
             "relations": {},
             "storage": {
               "fields": {
+                "businessType": {
+                  "column": "business_type"
+                },
                 "createdAt": {
                   "column": "created_at"
                 },
                 "id": {
                   "column": "id"
                 },
+                "inventorySource": {
+                  "column": "inventory_source"
+                },
                 "name": {
                   "column": "name"
+                },
+                "onboardingCompletedAt": {
+                  "column": "onboarding_completed_at"
                 },
                 "updatedAt": {
                   "column": "updated_at"
@@ -906,6 +942,14 @@
           "table": {
             "companies": {
               "columns": {
+                "business_type": {
+                  "codecId": "sql/varchar@1",
+                  "nativeType": "character varying",
+                  "nullable": true,
+                  "typeParams": {
+                    "length": 40
+                  }
+                },
                 "created_at": {
                   "codecId": "pg/timestamptz-string@1",
                   "default": {
@@ -920,6 +964,14 @@
                   "nativeType": "uuid",
                   "nullable": false
                 },
+                "inventory_source": {
+                  "codecId": "sql/varchar@1",
+                  "nativeType": "character varying",
+                  "nullable": true,
+                  "typeParams": {
+                    "length": 40
+                  }
+                },
                 "name": {
                   "codecId": "sql/varchar@1",
                   "nativeType": "character varying",
@@ -927,6 +979,11 @@
                   "typeParams": {
                     "length": 120
                   }
+                },
+                "onboarding_completed_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": true
                 },
                 "updated_at": {
                   "codecId": "pg/timestamptz-string@1",
@@ -1707,7 +1764,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "4f48bf1227195da8260ed816c3e42a4dd388868007d92c4c572768ffe36ff896"
+    "storageHash": "c350df09a975ceba80862f4ea14af9c48a699d85d7267df93381c23b49a0dbfe"
   },
   "execution": {
     "executionHash": "a5c0df357ad692205cc2ebd15ee9b91f11720c1dfc0f9406e4e6f34f0729648f",

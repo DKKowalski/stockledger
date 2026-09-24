@@ -12,7 +12,12 @@ The product's visual direction, component rules, and logo brief live in the [UI 
 - Administrators can activate or deactivate staff accounts and send expiring password-reset links
 - Inventory managers and shop attendants change passwords only through an administrator-issued reset link
 - Protected API routes and session restoration after a browser refresh
+- Public business-owner registration that creates the company and administrator atomically
+- Resumable owner onboarding with business type, first stock location, and inventory-source setup
+- A database-derived launch checklist for the first item, movement, and teammate
+- Tally, an interactive SVG setup guide with reduced-motion support
 - Item master with reorder levels, unit cost, and an opening balance at one place
+- Atomic Excel and CSV catalog import with row validation, preview, and a downloadable template
 - Warehouses and shops that each hold their own stock
 - Transfers that leave one place and arrive at another, plus purchases, returns, and damage
 - Shop attendant accounts assigned to one shop, with a sale that reduces only that shop

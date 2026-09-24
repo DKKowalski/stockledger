@@ -1,4 +1,4 @@
-import type { LocationType, LoginResponse, MovementType, Place, Snapshot, User, UserRole } from './types';
+import type { BusinessType, InventorySource, LocationType, LoginResponse, MovementType, OnboardingStatus, Place, Snapshot, User, UserRole } from './types';
 
 const base = (import.meta.env.VITE_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 
@@ -27,6 +27,8 @@ async function request<T>(path: string, init?: RequestInit, accessToken?: string
 }
 
 export const api = {
+  registerOwner: (body: { fullName: string; businessName: string; email: string; password: string }) =>
+    request<LoginResponse>('/auth/register', { method: 'POST', body: JSON.stringify(body) }),
   login: (body: { email: string; password: string }) =>
     request<LoginResponse>('/auth/login', { method: 'POST', body: JSON.stringify(body) }),
   profile: (accessToken: string) => request<User>('/auth/me', undefined, accessToken),
@@ -43,12 +45,22 @@ export const api = {
     request<User>(`/auth/users/${userId}/status`, { method: 'PATCH', body: JSON.stringify({ isActive }) }, accessToken),
   sendPasswordReset: (accessToken: string, userId: string) =>
     request<{ sent: true }>(`/auth/users/${userId}/password-reset`, { method: 'POST' }, accessToken),
+  onboardingStatus: (accessToken: string) =>
+    request<OnboardingStatus>('/onboarding', undefined, accessToken),
+  setBusinessType: (accessToken: string, businessType: BusinessType) =>
+    request<OnboardingStatus>('/onboarding/business-type', { method: 'PATCH', body: JSON.stringify({ businessType }) }, accessToken),
+  setInventorySource: (accessToken: string, inventorySource: InventorySource) =>
+    request<OnboardingStatus>('/onboarding/inventory-source', { method: 'PATCH', body: JSON.stringify({ inventorySource }) }, accessToken),
+  completeOnboarding: (accessToken: string) =>
+    request<OnboardingStatus>('/onboarding/complete', { method: 'POST' }, accessToken),
   snapshot: (accessToken: string, days: number, locationId?: string | null) =>
     request<Snapshot>(`/inventory/snapshot?days=${days}${locationId ? `&locationId=${locationId}` : ''}`, undefined, accessToken),
   addLocation: (accessToken: string, body: { name: string; type: LocationType }) =>
     request<Place>('/inventory/locations', { method: 'POST', body: JSON.stringify(body) }, accessToken),
   addItem: (accessToken: string, body: Record<string, string | number>) =>
     request('/inventory/items', { method: 'POST', body: JSON.stringify(body) }, accessToken),
+  importItems: (accessToken: string, body: { locationId: string; rows: Array<Record<string, string | number>> }) =>
+    request<{ imported: number }>('/inventory/items/import', { method: 'POST', body: JSON.stringify(body) }, accessToken),
   updateSellingPrice: (accessToken: string, itemId: string, sellingPriceCents: number) =>
     request(`/inventory/items/${itemId}/selling-price`, { method: 'PATCH', body: JSON.stringify({ sellingPriceCents }) }, accessToken),
   addMovement: (accessToken: string, body: { itemId: string; locationId: string; destinationLocationId?: string; type: MovementType; quantity: number; movementDate: string; reference?: string; note?: string; expectedUnitPriceCents?: number }) =>

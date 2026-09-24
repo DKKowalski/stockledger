@@ -5,6 +5,7 @@ import type { AuthenticatedRequest } from './auth.types.js';
 import { ChangePasswordDto } from './dto/change-password.dto.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import { LoginDto } from './dto/login.dto.js';
+import { RegisterOwnerDto } from './dto/register-owner.dto.js';
 import { ResetPasswordDto } from './dto/reset-password.dto.js';
 import { SetAccountStatusDto } from './dto/set-account-status.dto.js';
 import { UpdateProfileDto } from './dto/update-profile.dto.js';
@@ -17,6 +18,11 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   login(@Body() body: LoginDto) {
     return this.auth.login(body);
+  }
+
+  @Post('register')
+  register(@Body() body: RegisterOwnerDto) {
+    return this.auth.registerOwner(body);
   }
 
   @Post('password/reset')

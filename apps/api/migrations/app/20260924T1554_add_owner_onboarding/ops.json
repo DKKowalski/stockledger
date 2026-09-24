@@ -1,0 +1,128 @@
+[
+  {
+    "id": "column.public.companies.business_type",
+    "label": "Add column \"business_type\" to \"companies\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "business_type",
+        "table": "companies"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"business_type\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "companies",
+          "business_type"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"business_type\"",
+        "sql": "ALTER TABLE \"public\".\"companies\" ADD COLUMN \"business_type\" character varying(40)"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"business_type\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "companies",
+          "business_type"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.companies.inventory_source",
+    "label": "Add column \"inventory_source\" to \"companies\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "inventory_source",
+        "table": "companies"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"inventory_source\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "companies",
+          "inventory_source"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"inventory_source\"",
+        "sql": "ALTER TABLE \"public\".\"companies\" ADD COLUMN \"inventory_source\" character varying(40)"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"inventory_source\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "companies",
+          "inventory_source"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.companies.onboarding_completed_at",
+    "label": "Add column \"onboarding_completed_at\" to \"companies\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "onboarding_completed_at",
+        "table": "companies"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"onboarding_completed_at\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "companies",
+          "onboarding_completed_at"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"onboarding_completed_at\"",
+        "sql": "ALTER TABLE \"public\".\"companies\" ADD COLUMN \"onboarding_completed_at\" timestamptz"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"onboarding_completed_at\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "companies",
+          "onboarding_completed_at"
+        ]
+      }
+    ]
+  }
+]

@@ -12,6 +12,19 @@ export type User = {
   createdAt: string;
 };
 export type LoginResponse = { accessToken: string; user: User };
+export type BusinessType = 'retail' | 'wholesale' | 'warehouse' | 'mixed';
+export type InventorySource = 'spreadsheet' | 'another_system' | 'paper' | 'starting_fresh';
+export type OnboardingStatus = {
+  company: {
+    id: string;
+    name: string;
+    businessType: BusinessType | null;
+    inventorySource: InventorySource | null;
+  };
+  completed: boolean;
+  completedAt: string | null;
+  counts: { locations: number; items: number; movements: number; teammates: number };
+};
 export type Item = {
   id: string; sku: string; name: string; category: string; unit: string;
   reorderLevel: number; unitCostCents: number; sellingPriceCents: number | null;
