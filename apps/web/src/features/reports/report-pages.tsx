@@ -50,7 +50,12 @@ function filterRows(positions: Position[], tab: ReportTab) {
 }
 
 function PeriodFilter({ days, setDays }: { days: number; setDays: (days: number) => void }) {
-  return <SelectControl aria-label="Reporting period" value={days} onChange={(event) => setDays(Number(event.target.value))}><option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="90">Last 90 days</option></SelectControl>;
+  return <SelectControl
+    aria-label="Reporting period"
+    onValueChange={(value) => setDays(Number(value))}
+    options={[{ value: '7', label: 'Last 7 days' }, { value: '30', label: 'Last 30 days' }, { value: '90', label: 'Last 90 days' }]}
+    value={String(days)}
+  />;
 }
 
 function ReportTabs({ tab, setTab, positions }: { tab: ReportTab; setTab: (tab: ReportTab) => void; positions: Position[] }) {

@@ -1,9 +1,12 @@
-import { ChevronDown, PackageOpen, type LucideIcon } from 'lucide-react';
-import type { ComponentProps, ReactNode } from 'react';
+import { PackageOpen, type LucideIcon } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { useInventoryStore } from '../app/inventory-store';
 import { money } from '../lib/presentation';
 import type { Position } from '../types';
 import { StockLedgerMark } from './stockledger-mark';
+import { SelectControl } from './ui/select-control';
+
+export { SelectControl } from './ui/select-control';
 
 export function PageHeader({ title, subtitle, actions }: { title: string; subtitle: string; actions?: ReactNode }) {
   return <div className="page-header"><div><h1>{title}</h1><p>{subtitle}</p></div>{actions && <div className="actions">{actions}</div>}</div>;
@@ -31,17 +34,15 @@ export function Panel({ title, subtitle, className = '', children }: { title: st
   return <section className={`panel ${className}`}><div className="panel-header"><h2>{title}</h2>{subtitle && <p>{subtitle}</p>}</div>{children}</section>;
 }
 
-export function SelectControl({ children, ...props }: ComponentProps<'select'>) {
-  return <span className="select-control"><select {...props}>{children}</select><ChevronDown aria-hidden="true" size={15} strokeWidth={1.8} /></span>;
-}
-
 export function LocationFilter() {
   const { snapshot, locationId, setLocationId } = useInventoryStore();
   if (!snapshot) return null;
-  return <SelectControl aria-label="Place" value={locationId ?? ''} onChange={(event) => setLocationId(event.target.value || null)}>
-    <option value="">All places</option>
-    {snapshot.locations.map((place) => <option key={place.id} value={place.id}>{place.name}</option>)}
-  </SelectControl>;
+  return <SelectControl
+    aria-label="Place"
+    onValueChange={(value) => setLocationId(value || null)}
+    options={[{ value: '', label: 'All places' }, ...snapshot.locations.map((place) => ({ value: place.id, label: place.name }))]}
+    value={locationId ?? ''}
+  />;
 }
 
 export function StockTable({ positions, compact = false }: { positions: Position[]; compact?: boolean }) {

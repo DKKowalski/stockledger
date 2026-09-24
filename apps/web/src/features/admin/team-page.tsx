@@ -5,6 +5,7 @@ import { useInventoryStore } from '../../app/inventory-store';
 import { useAuth } from '../../auth-context';
 import { PageHeader, Panel, SelectControl } from '../../components/inventory-ui';
 import { StockLedgerMark } from '../../components/stockledger-mark';
+import { InputControl } from '../../components/ui/input-control';
 import { joinedOn, roleLabel } from '../../lib/presentation';
 import type { User } from '../../types';
 
@@ -70,11 +71,11 @@ export function TeamPage() {
     <Panel title="Add a person" subtitle="Managers work across places. Each shop attendant belongs to one shop.">
       <form className="form-grid team-form" onSubmit={(event) => void submit(event)}>
         {formError && <div className="form-error" role="alert">{formError}</div>}
-        <label><span>Full name</span><input autoComplete="name" required maxLength={120} value={form.fullName} onChange={(event) => setForm({ ...form, fullName: event.target.value })} /></label>
-        <label><span>Email address</span><input autoComplete="off" inputMode="email" required type="email" maxLength={255} value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} /></label>
-        <label><span>Role</span><SelectControl value={form.role} onChange={(event) => setForm({ ...form, role: event.target.value as typeof form.role, locationId: '' })}><option value="inventory_manager">Inventory manager</option><option value="shop_attendant">Shop attendant</option></SelectControl></label>
-        {form.role === 'shop_attendant' && <label><span>Shop</span><SelectControl required value={form.locationId} onChange={(event) => setForm({ ...form, locationId: event.target.value })}><option value="">Select shop</option>{shops.map((shop) => <option key={shop.id} value={shop.id}>{shop.name}</option>)}</SelectControl></label>}
-        <label><span>Password</span><span className="password-field"><input autoComplete="new-password" minLength={8} maxLength={128} placeholder="At least 8 characters" required type={showPassword ? 'text' : 'password'} value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} /><button type="button" aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword((visible) => !visible)}>{showPassword ? <EyeOff size={16} /> : <Eye size={16} />}</button></span></label>
+        <label><span>Full name</span><InputControl autoComplete="name" required maxLength={120} value={form.fullName} onValueChange={(fullName) => setForm({ ...form, fullName })} /></label>
+        <label><span>Email address</span><InputControl autoComplete="off" inputMode="email" required type="email" maxLength={255} value={form.email} onValueChange={(email) => setForm({ ...form, email })} /></label>
+        <label><span>Role</span><SelectControl aria-label="Role" value={form.role} onValueChange={(role) => setForm({ ...form, role: role as typeof form.role, locationId: '' })} options={[{ value: 'inventory_manager', label: 'Inventory manager' }, { value: 'shop_attendant', label: 'Shop attendant' }]} /></label>
+        {form.role === 'shop_attendant' && <label><span>Shop</span><SelectControl aria-label="Shop" required value={form.locationId} onValueChange={(locationId) => setForm({ ...form, locationId })} options={[{ value: '', label: 'Select shop' }, ...shops.map((shop) => ({ value: shop.id, label: shop.name }))]} /></label>}
+        <label><span>Password</span><span className="password-field"><InputControl autoComplete="new-password" minLength={8} maxLength={128} placeholder="At least 8 characters" required type={showPassword ? 'text' : 'password'} value={form.password} onValueChange={(password) => setForm({ ...form, password })} /><button type="button" aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword((visible) => !visible)}>{showPassword ? <EyeOff size={16} /> : <Eye size={16} />}</button></span></label>
         <button className="button" disabled={submitting}>{submitting ? <><StockLedgerMark animated size={20} />Adding</> : <>Add person<ArrowUpRight size={16} /></>}</button>
       </form>
     </Panel>

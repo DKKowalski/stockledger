@@ -1,9 +1,11 @@
-import { ArrowUpRight, Info } from 'lucide-react';
+import { ArrowUpRight } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { api } from '../../api';
 import { useInventoryStore } from '../../app/inventory-store';
 import { useAuth } from '../../auth-context';
 import { EmptyState, PageHeader, PageState, Panel, SelectControl } from '../../components/inventory-ui';
+import { InfoTooltip } from '../../components/ui/info-tooltip';
+import { InputControl } from '../../components/ui/input-control';
 import { formatDate, money } from '../../lib/presentation';
 
 export function ShopSalesPage() {
@@ -32,9 +34,9 @@ export function ShopSalesPage() {
     <PageHeader title="Sell" subtitle={shop ? `A sale reduces stock at ${shop.name} only.` : 'A sale reduces stock at your shop only.'} />
     <Panel title="Record a sale" subtitle="Pick an item that is on the shelf.">
       {stocked.length ? <form className="form-grid sell-form" onSubmit={(event) => void submit(event).catch(() => {})}>
-        <label><span>Item</span><SelectControl aria-label="Item" required value={form.itemId} onChange={(event) => setForm({ itemId: event.target.value, quantity: '' })}><option value="">Select item</option>{stocked.map((position) => <option key={position.item.id} value={position.item.id}>{position.item.name}</option>)}</SelectControl></label>
-        <label><span className="label-row"><span>Quantity</span><span className="info-tooltip"><button type="button" aria-label="Stock on hand" aria-describedby="sale-quantity-hint"><Info size={14} /></button><span id="sale-quantity-hint" role="tooltip">{selected ? `${selected.closing} ${selected.item.unit} on hand` : 'Choose an item to see what is on hand'}</span></span></span><input type="number" min="1" max={selected?.closing} required value={form.quantity} onChange={(event) => setForm({ ...form, quantity: event.target.value })} /></label>
-        <label><span>Unit price</span><input readOnly value={unitPriceCents == null ? 'Not set' : money(unitPriceCents)} /></label>
+        <label><span>Item</span><SelectControl aria-label="Item" required value={form.itemId} onValueChange={(itemId) => setForm({ itemId, quantity: '' })} options={[{ value: '', label: 'Select item' }, ...stocked.map((position) => ({ value: position.item.id, label: position.item.name }))]} /></label>
+        <label><span className="label-row"><span>Quantity</span><InfoTooltip label="Stock on hand">{selected ? `${selected.closing} ${selected.item.unit} on hand` : 'Choose an item to see what is on hand'}</InfoTooltip></span><InputControl type="number" min="1" max={selected?.closing} required value={form.quantity} onValueChange={(quantity) => setForm({ ...form, quantity })} /></label>
+        <label><span>Unit price</span><InputControl readOnly value={unitPriceCents == null ? 'Not set' : money(unitPriceCents)} /></label>
         <label><span>Total</span><output className="sale-total" aria-live="polite">{totalCents == null ? '—' : money(totalCents)}</output></label>
         <button className="button" disabled={busy || !selected || unitPriceCents == null}>Sell<ArrowUpRight size={16} /></button>
         {selected && unitPriceCents == null && <p className="price-hint" role="status">Ask an administrator to set a selling price for this item.</p>}

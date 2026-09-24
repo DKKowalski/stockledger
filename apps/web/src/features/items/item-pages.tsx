@@ -4,6 +4,7 @@ import { api } from '../../api';
 import { useInventoryStore } from '../../app/inventory-store';
 import { useAuth } from '../../auth-context';
 import { EmptyState, PageHeader, PageState, Panel, SelectControl } from '../../components/inventory-ui';
+import { InputControl } from '../../components/ui/input-control';
 import { money } from '../../lib/presentation';
 
 export function AdminItemsPage() {
@@ -51,12 +52,12 @@ function AddItemPanel() {
     setForm({ sku: '', name: '', category: '', unit: 'pcs', reorderLevel: '10', unitCost: '0', sellingPrice: '', openingStock: '0', locationId: '' });
   };
   return <Panel title="Add item" subtitle="Opening stock lands at the place you choose"><form className="form-grid item-form" onSubmit={(event) => void submit(event).catch(() => {})}>
-    {(['sku', 'name', 'category', 'unit'] as const).map((key) => <label key={key}><span>{key === 'sku' ? 'SKU' : key[0].toUpperCase() + key.slice(1)}</span><input required={key === 'sku' || key === 'name'} value={form[key]} onChange={(event) => change(key, event.target.value)} /></label>)}
-    <label><span>Reorder level</span><input type="number" min="0" required value={form.reorderLevel} onChange={(event) => change('reorderLevel', event.target.value)} /></label>
-    <label><span>Unit cost</span><input type="number" min="0" step="0.01" required value={form.unitCost} onChange={(event) => change('unitCost', event.target.value)} /></label>
-    <label><span>Selling price (optional)</span><input type="number" min="0" max="21474836.47" step="0.01" placeholder="Not set" value={form.sellingPrice} onChange={(event) => change('sellingPrice', event.target.value)} /></label>
-    <label><span>Opening place</span><SelectControl required value={form.locationId} onChange={(event) => change('locationId', event.target.value)}><option value="">Select place</option>{snapshot?.locations.map((place) => <option key={place.id} value={place.id}>{place.name}</option>)}</SelectControl></label>
-    <label><span>Opening stock</span><input type="number" min="0" required value={form.openingStock} onChange={(event) => change('openingStock', event.target.value)} /></label>
+    {(['sku', 'name', 'category', 'unit'] as const).map((key) => <label key={key}><span>{key === 'sku' ? 'SKU' : key[0].toUpperCase() + key.slice(1)}</span><InputControl required={key === 'sku' || key === 'name'} value={form[key]} onValueChange={(value) => change(key, value)} /></label>)}
+    <label><span>Reorder level</span><InputControl type="number" min="0" required value={form.reorderLevel} onValueChange={(value) => change('reorderLevel', value)} /></label>
+    <label><span>Unit cost</span><InputControl type="number" min="0" step="0.01" required value={form.unitCost} onValueChange={(value) => change('unitCost', value)} /></label>
+    <label><span>Selling price (optional)</span><InputControl type="number" min="0" max="21474836.47" step="0.01" placeholder="Not set" value={form.sellingPrice} onValueChange={(value) => change('sellingPrice', value)} /></label>
+    <label><span>Opening place</span><SelectControl aria-label="Opening place" required value={form.locationId} onValueChange={(value) => change('locationId', value)} options={[{ value: '', label: 'Select place' }, ...(snapshot?.locations.map((place) => ({ value: place.id, label: place.name })) ?? [])]} /></label>
+    <label><span>Opening stock</span><InputControl type="number" min="0" required value={form.openingStock} onValueChange={(value) => change('openingStock', value)} /></label>
     <button className="button" disabled={busy || !snapshot?.locations.length}>Add item<ArrowUpRight size={16} /></button>
   </form></Panel>;
 }
@@ -76,8 +77,8 @@ function SellingPricesPanel() {
     setPrice('');
   };
   return <Panel title="Selling prices" subtitle="One price per item across all shops. Past sales keep their original price." className="spaced"><form className="form-grid place-form" onSubmit={(event) => void submit(event).catch(() => {})}>
-    <label><span>Item</span><SelectControl aria-label="Item" required value={itemId} disabled={busy} onChange={(event) => { const item = catalog.find((candidate) => candidate.id === event.target.value); setItemId(event.target.value); setPrice(item?.sellingPriceCents == null ? '' : (item.sellingPriceCents / 100).toFixed(2)); }}><option value="">Select item</option>{catalog.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.sellingPriceCents == null ? 'Not set' : money(item.sellingPriceCents)}</option>)}</SelectControl></label>
-    <label><span>Selling price</span><input type="number" min="0" max="21474836.47" step="0.01" required disabled={busy || !selected} value={price} onChange={(event) => setPrice(event.target.value)} /></label>
+    <label><span>Item</span><SelectControl aria-label="Item" required value={itemId} disabled={busy} onValueChange={(value) => { const item = catalog.find((candidate) => candidate.id === value); setItemId(value); setPrice(item?.sellingPriceCents == null ? '' : (item.sellingPriceCents / 100).toFixed(2)); }} options={[{ value: '', label: 'Select item' }, ...catalog.map((item) => ({ value: item.id, label: <>{item.name} · {item.sellingPriceCents == null ? 'Not set' : money(item.sellingPriceCents)}</> }))]} /></label>
+    <label><span>Selling price</span><InputControl type="number" min="0" max="21474836.47" step="0.01" required disabled={busy || !selected} value={price} onValueChange={setPrice} /></label>
     <button className="button" disabled={busy || !selected || price === ''}>Save price<Check size={16} /></button>
   </form></Panel>;
 }
