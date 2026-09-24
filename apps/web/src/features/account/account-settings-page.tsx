@@ -6,6 +6,7 @@ import { useAuth } from '../../auth-context';
 import { PageHeader, Panel } from '../../components/inventory-ui';
 import { StockLedgerMark } from '../../components/stockledger-mark';
 import { InputControl } from '../../components/ui/input-control';
+import { UserAvatar } from '../../components/user-avatar';
 import { joinedOn, roleLabel } from '../../lib/presentation';
 
 export function AccountSettingsPage() {
@@ -20,7 +21,6 @@ export function AccountSettingsPage() {
 
   if (!user) return null;
 
-  const initials = user.fullName.split(' ').map((part) => part[0]).slice(0, 2).join('');
   const assignedPlace = snapshot?.locations.find((place) => place.id === user.locationId)?.name ?? 'All places';
   const profileChanged = profile.fullName.trim() !== user.fullName || profile.email.trim().toLowerCase() !== user.email;
 
@@ -65,7 +65,7 @@ export function AccountSettingsPage() {
     <div className="account-settings-layout">
       <aside className="panel account-summary">
         <div className="account-identity">
-          <span className="account-avatar">{initials}</span>
+          <UserAvatar name={user.fullName} size="large" />
           <div><h2>{user.fullName}</h2><p>{user.email}</p></div>
         </div>
         <dl className="account-facts">

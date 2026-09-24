@@ -6,6 +6,7 @@ import { useAuth } from '../auth-context';
 import { roleLabel } from '../lib/presentation';
 import { MenuMorphIcon, SuccessMark } from './animated-icons';
 import { StockLedgerMark } from './stockledger-mark';
+import { UserAvatar } from './user-avatar';
 
 export type NavigationMotion = 'overview' | 'items' | 'movement' | 'reports' | 'places' | 'team' | 'sell';
 export type NavigationItem = readonly [path: string, label: string, icon: LucideIcon, motion: NavigationMotion];
@@ -14,7 +15,6 @@ export function AppShell({ navigation }: { navigation: readonly NavigationItem[]
   const { error, refresh, notice, dismissNotice } = useInventoryStore();
   const { user, signOut } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
-  const initials = user?.fullName.split(' ').map((part) => part[0]).slice(0, 2).join('') ?? 'SL';
 
   return <div className="app-shell">
     <header className="topbar">
@@ -30,7 +30,7 @@ export function AppShell({ navigation }: { navigation: readonly NavigationItem[]
           <button className="mobile-signout" onClick={signOut}><LogOut size={18} /><span>Sign out</span></button>
         </nav>
         <div className="navbar-account">
-          <NavLink aria-label="Account settings" title="Account settings" to="/account" className={({ isActive }) => `topbar-user ${isActive ? 'active' : ''}`}><span className="avatar">{initials}</span><span className="topbar-user-copy"><b>{user?.fullName}</b><small>{user ? roleLabel[user.role] : ''}</small></span><Settings className="account-settings-icon" size={14} /></NavLink>
+          <NavLink aria-label="Account settings" title="Account settings" to="/account" className={({ isActive }) => `topbar-user ${isActive ? 'active' : ''}`}><UserAvatar name={user?.fullName ?? 'StockLedger'} /><span className="topbar-user-copy"><b>{user?.fullName}</b><small>{user ? roleLabel[user.role] : ''}</small></span><Settings className="account-settings-icon" size={14} /></NavLink>
           <button className="signout-button" aria-label="Sign out" title="Sign out" onClick={signOut}><LogOut size={17} /></button>
         </div>
         <button className="menu-button" aria-label={menuOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={menuOpen} aria-controls="primary-navigation" onClick={() => setMenuOpen((open) => !open)}><MenuMorphIcon open={menuOpen} /></button>
