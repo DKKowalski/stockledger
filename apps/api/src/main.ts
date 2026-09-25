@@ -9,7 +9,7 @@ async function bootstrap() {
   app.enableCors({
     origin: config.getOrThrow<string>('app.webOrigin'),
     credentials: true,
-    exposedHeaders: ['Content-Disposition'],
+    exposedHeaders: ['Content-Disposition', 'X-Request-Id'],
   });
   app.enableShutdownHooks();
   await app.listen(config.getOrThrow<number>('app.port'), '0.0.0.0');

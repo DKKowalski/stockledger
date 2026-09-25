@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import postgres from '@prisma/orm-postgres/runtime';
 import type { Varchar } from '@prisma/orm-postgres/target/codec-types';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -238,6 +238,67 @@ describe('inventory transactions with PostgreSQL', () => {
     expect((await service.snapshot(f.admin.id, f.company.id)).items.find((item) => item.id === f.item.id)?.sellingPriceCents).toBe(350);
   });
 
+  it('records purchase cost and supplier while updating weighted average cost', async () => {
+    const f = await fixture(5);
+    const supplier = await service.createSupplier(f.admin.id, f.company.id, {
+      name: 'Northern Foods', email: 'orders@northern.test',
+    });
+    const purchase = await service.createMovement(f.admin.id, f.company.id, {
+      itemId: f.item.id, locationId: f.warehouse.id, type: Type.PURCHASE,
+      quantity: 5, unitCostCents: 200, supplierId: supplier.id, movementDate,
+    });
+
+    expect(purchase).toMatchObject({ unitCostCents: 200, supplierId: supplier.id });
+    expect((await service.snapshot(f.admin.id, f.company.id)).items.find((entry) => entry.id === f.item.id)?.unitCostCents).toBe(150);
+  });
+
+  it('records a physical count as a protected adjustment', async () => {
+    const f = await fixture(5);
+    const count = await service.createStockCount(f.admin.id, f.company.id, {
+      itemId: f.item.id, locationId: f.warehouse.id, countedQuantity: 3,
+      countedAt: movementDate, note: 'Two units missing',
+    });
+    const snapshot = await service.snapshot(f.admin.id, f.company.id, 30, f.warehouse.id);
+    const adjustment = snapshot.movements.find((entry) => entry.stockCountId === count.id);
+
+    expect(count).toMatchObject({ expectedQuantity: 5, countedQuantity: 3, varianceQuantity: -2 });
+    expect(adjustment).toMatchObject({ type: Type.ADJUSTMENT_OUT, quantity: 2, unitCostCents: 100 });
+    expect(snapshot.positions[0]?.closing).toBe(3);
+    await expect(service.deleteMovement(f.admin.id, f.company.id, adjustment!.id)).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('links customer returns to the original sale and subtracts them from profit', async () => {
+    const f = await fixture(5);
+    await transfer(f, 5);
+    const sale = await service.createMovement(f.attendant.id, f.company.id, {
+      itemId: f.item.id, locationId: f.shop.id, type: Type.SALE, quantity: 3, movementDate,
+    });
+    const returned = await service.createMovement(f.admin.id, f.company.id, {
+      itemId: f.item.id, locationId: f.shop.id, type: Type.RETURN_IN, quantity: 1,
+      relatedMovementId: sale.id, movementDate,
+    });
+    const report = await service.profitability(f.admin.id, f.company.id, 30);
+
+    expect(returned).toMatchObject({ relatedMovementId: sale.id, unitPriceCents: 175, unitCostCents: 100 });
+    expect(report.summary).toMatchObject({ netSalesCents: 350, cogsCents: 200, grossProfitCents: 150, unitsSold: 3, unitsReturned: 1 });
+    await expect(service.createMovement(f.admin.id, f.company.id, {
+      itemId: f.item.id, locationId: f.shop.id, type: Type.RETURN_IN, quantity: 3,
+      relatedMovementId: sale.id, movementDate,
+    })).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('archives only zero-stock items and keeps archived items out of balances', async () => {
+    const f = await fixture(2);
+    await expect(service.updateItem(f.admin.id, f.company.id, f.item.id, { isActive: false }))
+      .rejects.toBeInstanceOf(ConflictException);
+    await service.createStockCount(f.admin.id, f.company.id, {
+      itemId: f.item.id, locationId: f.warehouse.id, countedQuantity: 0, countedAt: movementDate,
+    });
+    const archived = await service.updateItem(f.admin.id, f.company.id, f.item.id, { isActive: false });
+    expect(archived?.isActive).toBe(false);
+    expect((await service.snapshot(f.admin.id, f.company.id)).positions).toHaveLength(0);
+  });
+
   it('allows only one of two sales competing for the last units', async () => {
     const f = await fixture();
     await transfer(f, 5);
@@ -270,7 +331,7 @@ describe('inventory transactions with PostgreSQL', () => {
   it('prevents deleting two receipts when remaining stock depends on one', async () => {
     const f = await fixture(0);
     const receipt = {
-      itemId: f.item.id, locationId: f.warehouse.id, type: Type.PURCHASE, quantity: 5, movementDate,
+      itemId: f.item.id, locationId: f.warehouse.id, type: Type.PURCHASE, quantity: 5, unitCostCents: 100, movementDate,
     };
     const first = await service.createMovement(f.admin.id, f.company.id, receipt);
     const second = await service.createMovement(f.admin.id, f.company.id, receipt);
@@ -463,6 +524,26 @@ describe('inventory transactions with PostgreSQL', () => {
     expect(secondItems.map((item) => item.id)).toEqual([secondCompany.item.id]);
   });
 
+  it('applies tenant isolation to suppliers and stock counts', async () => {
+    const firstCompany = await fixture();
+    const secondCompany = await fixture();
+    const firstSupplier = await service.createSupplier(firstCompany.admin.id, firstCompany.company.id, { name: 'First supplier' });
+    await service.createSupplier(secondCompany.admin.id, secondCompany.company.id, { name: 'Second supplier' });
+    const firstCount = await service.createStockCount(firstCompany.admin.id, firstCompany.company.id, {
+      itemId: firstCompany.item.id, locationId: firstCompany.warehouse.id,
+      countedQuantity: 5, countedAt: movementDate,
+    });
+    await service.createStockCount(secondCompany.admin.id, secondCompany.company.id, {
+      itemId: secondCompany.item.id, locationId: secondCompany.warehouse.id,
+      countedQuantity: 5, countedAt: movementDate,
+    });
+
+    const suppliers = await asApplicationRole(firstCompany.company.id, (tx) => tx.orm.public.Supplier.all());
+    const counts = await asApplicationRole(firstCompany.company.id, (tx) => tx.orm.public.StockCount.all());
+    expect(suppliers.map((entry) => entry.id)).toEqual([firstSupplier.id]);
+    expect(counts.map((entry) => entry.id)).toEqual([firstCount.id]);
+  });
+
   it('rejects an application-role write for another company', async () => {
     const firstCompany = await fixture();
     const secondCompany = await fixture();
@@ -520,7 +601,7 @@ describe('inventory transactions with PostgreSQL', () => {
       rows: [{ sku: 'AUDIT-IMPORT', name: 'Audited item', category: 'Test', unit: 'pcs', reorderLevel: 0, unitCostCents: 10, openingStock: 2 }],
     });
     const receipt = await service.createMovement(f.admin.id, f.company.id, {
-      itemId: f.item.id, locationId: f.warehouse.id, type: Type.PURCHASE, quantity: 1, movementDate,
+      itemId: f.item.id, locationId: f.warehouse.id, type: Type.PURCHASE, quantity: 1, unitCostCents: 100, movementDate,
     });
     await service.deleteMovement(f.admin.id, f.company.id, receipt.id);
 

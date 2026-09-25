@@ -6,6 +6,7 @@ import { CompanySettingsProvider } from './app/company-settings-store';
 import { RoleWorkspace } from './app/role-workspace';
 import { useAuth } from './auth-context';
 import { StockLedgerMark } from './components/stockledger-mark';
+import { WorkspaceErrorState } from './components/workspace-error-state';
 import { LoginPage } from './features/auth/login-page';
 import { ForgotPasswordPage } from './features/auth/forgot-password-page';
 import { AcceptInvitationPage } from './features/auth/accept-invitation-page';
@@ -15,6 +16,7 @@ import { VerifyEmailPage } from './features/auth/verify-email-page';
 import { LandingPage } from './features/marketing/landing-page';
 import { OnboardingPage } from './features/onboarding/onboarding-page';
 import type { OnboardingStatus } from './types';
+import { workspaceError, type UserFacingError } from './lib/user-facing-error';
 
 export function App() {
   return <Routes>
@@ -48,7 +50,7 @@ function AuthenticatedApp() {
 function OwnerGate({ accessToken }: { accessToken: string }) {
   const { signOut } = useAuth();
   const [status, setStatus] = useState<OnboardingStatus | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<UserFacingError | null>(null);
 
   const load = async () => {
     try {
@@ -56,7 +58,7 @@ function OwnerGate({ accessToken }: { accessToken: string }) {
       setError(null);
     } catch (caught) {
       if (caught instanceof ApiError && caught.status === 401) signOut();
-      else setError(caught instanceof Error ? caught.message : 'Could not load business setup');
+      else setError(workspaceError(caught));
     }
   };
 
@@ -69,12 +71,12 @@ function OwnerGate({ accessToken }: { accessToken: string }) {
       .catch((caught: unknown) => {
         if (cancelled) return;
         if (caught instanceof ApiError && caught.status === 401) signOut();
-        else setError(caught instanceof Error ? caught.message : 'Could not load business setup');
+        else setError(workspaceError(caught));
       });
     return () => { cancelled = true; };
   }, [accessToken, signOut]);
 
-  if (error) return <main className="gate-error"><div><StockLedgerMark size={36} /><h1>We could not open your workspace.</h1><p>{error}</p><button className="button" onClick={() => { setError(null); void load(); }} type="button">Try again</button></div></main>;
+  if (error) return <WorkspaceErrorState error={error} onRetry={() => { setError(null); void load(); }} onSignOut={signOut} />;
   if (!status) return <AppLoader />;
 
   if (!status.completed) {

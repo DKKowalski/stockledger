@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { ApiError, api } from '../api';
 import { useAuth } from '../auth-context';
 import type { Snapshot } from '../types';
+import { safeErrorMessage } from '../lib/user-facing-error';
 
 type InventoryStore = {
   snapshot: Snapshot | null;
@@ -40,7 +41,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
 
   const handleError = useCallback((caught: unknown, fallback: string) => {
     if (caught instanceof ApiError && caught.status === 401) signOut();
-    setError(caught instanceof Error ? caught.message : fallback);
+    setError(safeErrorMessage(caught, fallback));
   }, [signOut]);
 
   const refresh = useCallback(async () => {
@@ -85,7 +86,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
         toast.error('Session expired', { description: 'Sign in again to continue.' });
         signOut();
       } else {
-        toast.error('Request failed', { description: caught instanceof Error ? caught.message : 'The inventory could not be updated.' });
+        toast.error('Could not update inventory', { description: safeErrorMessage(caught, 'The inventory could not be updated. Try again.') });
       }
       throw caught;
     } finally {

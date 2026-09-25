@@ -28,7 +28,7 @@ export function ShopDashboardPage() {
   const { money, calendarDate } = useCompanySettings();
   if (!snapshot) return <PageState><></></PageState>;
   const shop = snapshot.locations.find((place) => place.id === snapshot.locationId);
-  const sales = snapshot.movements.filter((movement) => movement.type === 'sale');
+  const sales = snapshot.periodMovements.filter((movement) => movement.type === 'sale');
   const revenue = sales.reduce((total, sale) => total + (sale.saleTotalCents ?? 0), 0);
   const unitsSold = sales.reduce((total, sale) => total + sale.quantity, 0);
   return <PageState>
@@ -104,8 +104,8 @@ function StockLevels({ positions }: { positions: Position[] }) {
   const rows = [...positions].sort((a, b) => b.closing - a.closing).slice(0, 5);
   const series = rows.map((position) => ({ position, values: [
     { key: 'opening', label: 'Opening', value: position.opening },
-    { key: 'in', label: 'Stock in', value: position.purchases + position.returnsIn + position.transferredIn },
-    { key: 'out', label: 'Stock out', value: position.transferredOut + position.returnsOut + position.damaged + position.sales },
+    { key: 'in', label: 'Stock in', value: position.purchases + position.returnsIn + position.transferredIn + position.adjustmentsIn },
+    { key: 'out', label: 'Stock out', value: position.transferredOut + position.returnsOut + position.damaged + position.sales + position.adjustmentsOut },
     { key: 'closing', label: 'Closing', value: position.closing },
   ] }));
   const max = Math.max(...series.flatMap(({ values }) => values.map(({ value }) => value)), 1);

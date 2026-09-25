@@ -283,6 +283,29 @@ export class AuthService {
     return { sent: true as const };
   }
 
+  async createPasswordResetLink(userId: string, companyId: string, targetUserId: string) {
+    const token = this.createOpaqueToken(companyId);
+    const expiresInMinutes = this.config.getOrThrow<number>('auth.passwordResetTtlMinutes');
+    const expiresAt = this.expiresAt(expiresInMinutes);
+    await this.prisma.withCompany(companyId, async (tx) => {
+      const actor = await this.account(tx, companyId, userId);
+      this.assertAdministrator(actor.role);
+      const target = await this.companyUser(tx, companyId, targetUserId);
+      if (target.role === 'administrator') throw new BadRequestException('Administrators change their password from account settings');
+      if (!target.isActive) throw new BadRequestException('Activate this account before creating a password reset link');
+      if (!target.invitationAcceptedAt) throw new BadRequestException('This person must accept their invitation first');
+      await tx.orm.public.User.where({ id: target.id, companyId }).update({
+        passwordResetTokenHash: this.hashToken(token) as Varchar<64>,
+        passwordResetExpiresAt: expiresAt,
+      });
+      await this.audit(tx, companyId, actor.id, 'account.password_reset_link_created', 'user', target.id, {});
+    });
+    return {
+      url: `${this.webOrigin()}/reset-password?token=${encodeURIComponent(token)}`,
+      expiresAt,
+    };
+  }
+
   async resetPassword(body: ResetPasswordDto) {
     const tokenHash = this.hashToken(body.token);
     const companyId = this.tryCompanyFromToken(body.token) ?? await this.companyForResetToken(tokenHash);
@@ -358,6 +381,9 @@ export class AuthService {
     if (await this.emailOwner(email)) throw new ConflictException('An account with this email already exists');
     const invitation = this.createOpaqueToken(companyId);
     const expiresInHours = this.config.getOrThrow<number>('auth.invitationTtlHours');
+    const expiresAt = this.expiresAt(expiresInHours * 60);
+    const invitationUrl = `${this.webOrigin()}/accept-invitation?token=${encodeURIComponent(invitation)}`;
+    const delivery = body.delivery ?? 'email';
     const unusablePassword = await argon2.hash(randomBytes(48).toString('hex'), { type: argon2.argon2id });
     const user = await this.prisma.withCompany(companyId, async (tx) => {
       const actor = await this.account(tx, companyId, userId);
@@ -371,28 +397,33 @@ export class AuthService {
         passwordHash: unusablePassword as Varchar<255>,
         role: body.role,
         invitationTokenHash: this.hashToken(invitation) as Varchar<64>,
-        invitationExpiresAt: this.expiresAt(expiresInHours * 60),
+        invitationExpiresAt: expiresAt,
       });
       return created;
     });
 
-    try {
-      await this.mailer.sendInvitation({
-        email: user.email,
-        fullName: user.fullName,
-        url: `${this.webOrigin()}/accept-invitation?token=${encodeURIComponent(invitation)}`,
-        expiresInHours,
-      });
-    } catch (error) {
-      await this.prisma.withCompany(companyId, async (tx) => {
-        await tx.orm.public.User.where({ id: user.id, companyId }).delete();
-      });
-      throw error;
+    if (delivery === 'email') {
+      try {
+        await this.mailer.sendInvitation({
+          email: user.email,
+          fullName: user.fullName,
+          url: invitationUrl,
+          expiresInHours,
+        });
+      } catch (error) {
+        await this.prisma.withCompany(companyId, async (tx) => {
+          await tx.orm.public.User.where({ id: user.id, companyId }).delete();
+        });
+        throw error;
+      }
     }
     await this.prisma.withCompany(companyId, async (tx) => {
-      await this.audit(tx, companyId, userId, 'account.invited', 'user', user.id, { role: user.role, locationId: user.locationId });
+      await this.audit(tx, companyId, userId, 'account.invited', 'user', user.id, { role: user.role, locationId: user.locationId, delivery });
     });
-    return this.publicUser(user);
+    return {
+      user: this.publicUser(user),
+      invitation: delivery === 'link' ? { url: invitationUrl, expiresAt } : null,
+    };
   }
 
   async resendInvitation(userId: string, companyId: string, targetUserId: string) {
@@ -433,6 +464,30 @@ export class AuthService {
       await this.audit(tx, companyId, userId, 'account.invitation_resent', 'user', target.id, {});
     });
     return { sent: true as const };
+  }
+
+  async createInvitationLink(userId: string, companyId: string, targetUserId: string) {
+    const invitation = this.createOpaqueToken(companyId);
+    const expiresInHours = this.config.getOrThrow<number>('auth.invitationTtlHours');
+    const expiresAt = this.expiresAt(expiresInHours * 60);
+    await this.prisma.withCompany(companyId, async (tx) => {
+      const actor = await this.account(tx, companyId, userId);
+      this.assertAdministrator(actor.role);
+      const target = await this.companyUser(tx, companyId, targetUserId);
+      if (target.role === 'administrator' || target.invitationAcceptedAt) {
+        throw new BadRequestException('This account has already completed setup');
+      }
+      if (!target.isActive) throw new BadRequestException('Activate this account before creating an invitation link');
+      await tx.orm.public.User.where({ id: target.id, companyId }).update({
+        invitationTokenHash: this.hashToken(invitation) as Varchar<64>,
+        invitationExpiresAt: expiresAt,
+      });
+      await this.audit(tx, companyId, actor.id, 'account.invitation_link_created', 'user', target.id, {});
+    });
+    return {
+      url: `${this.webOrigin()}/accept-invitation?token=${encodeURIComponent(invitation)}`,
+      expiresAt,
+    };
   }
 
   async acceptInvitation(body: AcceptInvitationDto) {

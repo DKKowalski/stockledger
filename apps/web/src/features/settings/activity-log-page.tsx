@@ -17,9 +17,11 @@ const activityCopy: Record<string, { title: string; description: (event: Activit
   'account.profile_updated': { title: 'Profile updated', description: (event) => event.metadata.emailChanged ? 'The account name and sign-in email were updated.' : 'The account name was updated.' },
   'account.password_changed': { title: 'Password changed', description: () => 'The owner changed their password from account settings.' },
   'account.password_reset_requested': { title: 'Staff reset link sent', description: () => 'An administrator sent a password reset link to a staff member.' },
+  'account.password_reset_link_created': { title: 'Staff reset link created', description: () => 'An administrator created a password reset link for private sharing.' },
   'account.password_reset': { title: 'Password reset completed', description: () => 'A new password was saved and existing sessions were revoked.' },
   'account.invited': { title: 'Staff member invited', description: (event) => `A ${roleName(event.metadata.role)} account was invited.` },
   'account.invitation_resent': { title: 'Invitation sent again', description: () => 'A fresh staff invitation link was sent.' },
+  'account.invitation_link_created': { title: 'Invitation link created', description: () => 'An administrator created an invitation link for private sharing.' },
   'account.invitation_accepted': { title: 'Invitation accepted', description: () => 'A staff member finished account setup.' },
   'account.activated': { title: 'Account activated', description: () => 'An administrator restored access to a staff account.' },
   'account.deactivated': { title: 'Account deactivated', description: () => 'An administrator removed access and revoked active sessions.' },
@@ -27,6 +29,10 @@ const activityCopy: Record<string, { title: string; description: (event: Activit
   'data.exported': { title: 'Business data exported', description: (event) => `${exportName(event.metadata.type)} was downloaded as a CSV file.` },
   'inventory.items_imported': { title: 'Inventory imported', description: (event) => `${numberValue(event.metadata.imported)} items were added from a spreadsheet.` },
   'inventory.selling_price_changed': { title: 'Selling price changed', description: () => 'An administrator updated an item selling price.' },
+  'inventory.item_updated': { title: 'Catalog item updated', description: (event) => event.metadata.isActive === false ? 'An inventory item was archived.' : 'An inventory item and its stock settings were updated.' },
+  'inventory.supplier_created': { title: 'Supplier added', description: (event) => `${textValue(event.metadata.name, 'A supplier')} was added to the supplier directory.` },
+  'inventory.supplier_updated': { title: 'Supplier updated', description: (event) => `${textValue(event.metadata.name, 'A supplier')} was updated.` },
+  'inventory.stock_counted': { title: 'Physical stock counted', description: (event) => `The count found a variance of ${signedNumber(event.metadata.varianceQuantity)} units.` },
   'inventory.movement_deleted': { title: 'Movement removed', description: (event) => `${numberValue(event.metadata.quantity)} units were removed from the movement ledger.` },
 };
 
@@ -118,6 +124,15 @@ function roleName(value: unknown) {
 
 function numberValue(value: unknown) {
   return typeof value === 'number' ? value : 0;
+}
+
+function signedNumber(value: unknown) {
+  const number = numberValue(value);
+  return number > 0 ? `+${number}` : String(number);
+}
+
+function textValue(value: unknown, fallback: string) {
+  return typeof value === 'string' && value.trim() ? value : fallback;
 }
 
 function sentenceCase(value: string) {

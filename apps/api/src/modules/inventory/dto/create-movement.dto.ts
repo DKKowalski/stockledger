@@ -42,6 +42,21 @@ export class CreateMovementDto {
   @Max(2147483647)
   expectedUnitPriceCents?: number;
 
+  @ValidateIf((body: CreateMovementDto) => body.type === StockMovementType.PURCHASE)
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(2147483647)
+  unitCostCents?: number;
+
+  @IsOptional()
+  @IsUUID()
+  supplierId?: string;
+
+  @ValidateIf((body: CreateMovementDto) => body.type === StockMovementType.RETURN_IN)
+  @IsUUID()
+  relatedMovementId?: string;
+
   @IsOptional()
   @IsString()
   @MaxLength(80)

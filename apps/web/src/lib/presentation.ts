@@ -22,10 +22,12 @@ export const placeLabel: Record<LocationType, string> = {
 export const movementMeta: Record<MovementType, { label: string; hint: string }> = {
   purchase: { label: 'Purchase', hint: 'Goods received into a place' },
   transfer: { label: 'Transfer', hint: 'Move stock from one place to another' },
-  return_in: { label: 'Return in', hint: 'Goods returned into a place' },
+  return_in: { label: 'Customer return', hint: 'Return stock against its original sale' },
   return_out: { label: 'Return to supplier', hint: 'Goods sent back to the supplier' },
   damage: { label: 'Damaged stock', hint: 'Stock written off as damaged' },
   sale: { label: 'Sale', hint: 'Goods sold at a shop' },
+  adjustment_in: { label: 'Count adjustment in', hint: 'Stock added after a physical count' },
+  adjustment_out: { label: 'Count adjustment out', hint: 'Stock removed after a physical count' },
 };
 
 export const formatMoney = (cents: number, currency: Currency) =>

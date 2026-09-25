@@ -7,6 +7,8 @@ enum StockMovementType {
   return_out = "return_out"
   damage = "damage"
   sale = "sale"
+  adjustment_in = "adjustment_in"
+  adjustment_out = "adjustment_out"
 }
 
 enum UserRole {
@@ -100,6 +102,7 @@ model InventoryItem {
   reorderLevel      Int                        @default(0) @map("reorder_level")
   unitCostCents     Int                        @default(0) @map("unit_cost_cents")
   sellingPriceCents Int?                       @map("selling_price_cents")
+  isActive          Boolean                    @default(true) @map("is_active")
   createdAt         TimestamptzString          @default(now()) @map("created_at")
   updatedAt         temporal.updatedAtString() @map("updated_at")
 
@@ -113,6 +116,26 @@ model InventoryItem {
   @@index([companyId])
   @@rls
   @@map("inventory_items")
+}
+
+model Supplier {
+  id        Uuid                       @id @default(uuid())
+  companyId Uuid                       @map("company_id")
+  name      VarChar(120)
+  email     VarChar(255)?
+  phone     VarChar(40)?
+  address   VarChar(300)?
+  isActive  Boolean                    @default(true) @map("is_active")
+  createdAt TimestamptzString          @default(now()) @map("created_at")
+  updatedAt temporal.updatedAtString() @map("updated_at")
+
+  company   Company                    @relation(fields:[companyId], references:[id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([companyId, name])
+  @@unique([companyId, id])
+  @@index([companyId])
+  @@rls
+  @@map("suppliers")
 }
 
 model LocationStock {
@@ -144,6 +167,10 @@ model StockMovement {
   type                  StockMovementType
   quantity              Int
   unitPriceCents        Int?              @map("unit_price_cents")
+  unitCostCents         Int?              @map("unit_cost_cents")
+  supplierId            Uuid?             @map("supplier_id")
+  relatedMovementId     Uuid?             @map("related_movement_id")
+  stockCountId          Uuid?             @map("stock_count_id")
   movementDate          DateString        @map("movement_date")
   reference             VarChar(80)?
   note                  VarChar(500)?
@@ -152,17 +179,59 @@ model StockMovement {
   item                  InventoryItem     @relation(fields:[companyId, itemId], references:[companyId, id], onDelete: Cascade, onUpdate: Cascade)
   location              Location          @relation("movement_source", fields:[companyId, locationId], references:[companyId, id], onDelete: Restrict, onUpdate: Cascade)
   destination           Location?         @relation("movement_destination", fields:[companyId, destinationLocationId], references:[companyId, id], onDelete: Restrict, onUpdate: Cascade)
+  supplier              Supplier?         @relation(fields:[companyId, supplierId], references:[companyId, id], onDelete: Restrict, onUpdate: Cascade)
+  relatedMovement       StockMovement?    @relation("movement_relation", fields:[companyId, relatedMovementId], references:[companyId, id], onDelete: Restrict, onUpdate: Cascade)
+  stockCount            StockCount?       @relation(fields:[companyId, stockCountId], references:[companyId, id], onDelete: Restrict, onUpdate: Cascade)
 
+  @@unique([companyId, id])
   @@check(expression: "quantity > 0", name: "stock_movement_quantity_positive")
-  @@check(expression: "unit_price_cents IS NULL OR (type = 'sale' AND unit_price_cents >= 0)", name: "stock_movement_sale_price_valid")
+  @@check(expression: "unit_price_cents IS NULL OR (type IN ('sale', 'return_in') AND unit_price_cents >= 0)", name: "stock_movement_sale_price_valid")
+  @@check(expression: "unit_cost_cents IS NULL OR unit_cost_cents >= 0", name: "stock_movement_unit_cost_nonnegative")
+  @@check(expression: "supplier_id IS NULL OR type = 'purchase'", name: "stock_movement_supplier_purchase_only")
+  @@check(expression: "related_movement_id IS NULL OR type = 'return_in'", name: "stock_movement_relation_return_only")
+  @@check(expression: "stock_count_id IS NULL OR type IN ('adjustment_in', 'adjustment_out')", name: "stock_movement_count_adjustment_only")
   @@check(expression: "destination_location_id IS NULL OR destination_location_id <> location_id", name: "stock_movement_destination_differs")
   @@index([companyId])
   @@index([itemId])
   @@index([locationId])
   @@index([destinationLocationId])
+  @@index([supplierId])
+  @@index([relatedMovementId])
+  @@index([stockCountId])
   @@index([movementDate])
   @@rls
   @@map("stock_movements")
+}
+
+model StockCount {
+  id               Uuid              @id @default(uuid())
+  companyId        Uuid              @map("company_id")
+  itemId           Uuid              @map("item_id")
+  locationId       Uuid              @map("location_id")
+  countedByUserId  Uuid              @map("counted_by_user_id")
+  expectedQuantity Int               @map("expected_quantity")
+  countedQuantity  Int               @map("counted_quantity")
+  varianceQuantity Int               @map("variance_quantity")
+  unitCostCents    Int               @map("unit_cost_cents")
+  countedAt        DateString        @map("counted_at")
+  note             VarChar(500)?
+  createdAt        TimestamptzString @default(now()) @map("created_at")
+
+  item             InventoryItem     @relation(fields:[companyId, itemId], references:[companyId, id], onDelete: Restrict, onUpdate: Cascade)
+  location         Location          @relation(fields:[companyId, locationId], references:[companyId, id], onDelete: Restrict, onUpdate: Cascade)
+  countedBy        User              @relation(fields:[companyId, countedByUserId], references:[companyId, id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([companyId, id])
+  @@check(expression: "expected_quantity >= 0", name: "stock_count_expected_nonnegative")
+  @@check(expression: "counted_quantity >= 0", name: "stock_count_counted_nonnegative")
+  @@check(expression: "variance_quantity = counted_quantity - expected_quantity", name: "stock_count_variance_matches")
+  @@check(expression: "unit_cost_cents >= 0", name: "stock_count_unit_cost_nonnegative")
+  @@index([companyId])
+  @@index([itemId])
+  @@index([locationId])
+  @@index([countedAt])
+  @@rls
+  @@map("stock_counts")
 }
 
 model RefreshSession {
@@ -233,6 +302,13 @@ policy_all inventory_item_tenant {
   withCheck = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
 }
 
+policy_all supplier_tenant {
+  target = Supplier
+  roles =[stockledger_app]
+  using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+  withCheck = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+}
+
 policy_all location_stock_tenant {
   target = LocationStock
   roles =[stockledger_app]
@@ -242,6 +318,13 @@ policy_all location_stock_tenant {
 
 policy_all stock_movement_tenant {
   target = StockMovement
+  roles =[stockledger_app]
+  using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+  withCheck = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+}
+
+policy_all stock_count_tenant {
+  target = StockCount
   roles =[stockledger_app]
   using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
   withCheck = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"

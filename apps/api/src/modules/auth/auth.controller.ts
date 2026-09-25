@@ -1,4 +1,4 @@
-import { Body, Controller, ForbiddenException, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Patch, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, Header, HttpCode, HttpStatus, Param, ParseUUIDPipe, Patch, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { minutes, Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
@@ -110,6 +110,7 @@ export class AuthController {
   }
 
   @Post('users')
+  @Header('Cache-Control', 'no-store')
   @UseGuards(AuthGuard)
   createUser(@Req() request: AuthenticatedRequest, @Body() body: CreateUserDto) {
     return this.auth.createUser(request.user.sub, request.user.companyId, body);
@@ -135,6 +136,17 @@ export class AuthController {
     return this.auth.requestPasswordReset(request.user.sub, request.user.companyId, targetUserId);
   }
 
+  @Post('users/:id/password-reset-link')
+  @Header('Cache-Control', 'no-store')
+  @Throttle({ default: { limit: 5, ttl: minutes(15), blockDuration: minutes(15) } })
+  @UseGuards(AuthGuard)
+  createPasswordResetLink(
+    @Req() request: AuthenticatedRequest,
+    @Param('id', new ParseUUIDPipe()) targetUserId: string,
+  ) {
+    return this.auth.createPasswordResetLink(request.user.sub, request.user.companyId, targetUserId);
+  }
+
   @Post('users/:id/invitation')
   @Throttle({ default: { limit: 5, ttl: minutes(15), blockDuration: minutes(15) } })
   @UseGuards(AuthGuard)
@@ -143,6 +155,17 @@ export class AuthController {
     @Param('id', new ParseUUIDPipe()) targetUserId: string,
   ) {
     return this.auth.resendInvitation(request.user.sub, request.user.companyId, targetUserId);
+  }
+
+  @Post('users/:id/invitation-link')
+  @Header('Cache-Control', 'no-store')
+  @Throttle({ default: { limit: 5, ttl: minutes(15), blockDuration: minutes(15) } })
+  @UseGuards(AuthGuard)
+  createInvitationLink(
+    @Req() request: AuthenticatedRequest,
+    @Param('id', new ParseUUIDPipe()) targetUserId: string,
+  ) {
+    return this.auth.createInvitationLink(request.user.sub, request.user.companyId, targetUserId);
   }
 
   private withRefreshCookie<T extends { refreshToken: string }>(response: Response, session: T) {

@@ -1,4 +1,4 @@
-import { ArrowLeftRight, ChartColumn, LayoutDashboard, MapPin, Package, ShoppingBag, Users } from 'lucide-react';
+import { ArrowLeftRight, ChartColumn, CircleDollarSign, LayoutDashboard, MapPin, Package, ShoppingBag, Users } from 'lucide-react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { useAuth } from '../auth-context';
 import { AccountSettingsPage } from '../features/account/account-settings-page';
@@ -12,6 +12,9 @@ import { AdminItemsPage, ManagerItemsPage, ShopCatalogPage } from '../features/i
 import { MovementsPage } from '../features/movements/movements-page';
 import { OperationsReportsPage, ShopReportsPage } from '../features/reports/report-pages';
 import { ShopSalesPage } from '../features/sales/shop-sales-page';
+import { ProfitabilityPage } from '../features/profitability/profitability-page';
+import { StockCountsPage } from '../features/stock-counts/stock-counts-page';
+import { SuppliersPage } from '../features/suppliers/suppliers-page';
 import { AppShell, type NavigationItem } from '../components/app-shell';
 
 const administratorNavigation = [
@@ -19,6 +22,7 @@ const administratorNavigation = [
   ['/items', 'Items', Package, 'items'],
   ['/movements', 'Movements', ArrowLeftRight, 'movement'],
   ['/reports', 'Reports', ChartColumn, 'reports'],
+  ['/profitability', 'Profit', CircleDollarSign, 'reports'],
   ['/places', 'Places', MapPin, 'places'],
   ['/team', 'Team', Users, 'team'],
 ] as const satisfies readonly NavigationItem[];
@@ -57,6 +61,9 @@ function AdministratorWorkspace() {
     <Route path="items" element={<AdminItemsPage />} />
     <Route path="movements" element={<MovementsPage />} />
     <Route path="reports" element={<OperationsReportsPage />} />
+    <Route path="profitability" element={<ProfitabilityPage />} />
+    <Route path="stock-counts" element={<StockCountsPage />} />
+    <Route path="suppliers" element={<SuppliersPage />} />
     <Route path="places" element={<PlacesPage />} />
     <Route path="team" element={<TeamPage />} />
     <Route path="account" element={<AccountSettingsPage />} />
@@ -73,6 +80,8 @@ function ManagerWorkspace() {
     <Route path="items" element={<ManagerItemsPage />} />
     <Route path="movements" element={<MovementsPage />} />
     <Route path="reports" element={<OperationsReportsPage />} />
+    <Route path="stock-counts" element={<StockCountsPage />} />
+    <Route path="suppliers" element={<SuppliersPage />} />
     <Route path="account" element={<AccountSettingsPage />} />
     <Route path="*" element={<Navigate to="/" replace />} />
   </Route></Routes>;

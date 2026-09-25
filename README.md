@@ -22,6 +22,12 @@ The product's visual direction, component rules, and logo brief live in the [UI 
 - Transfers that leave one place and arrive at another, plus purchases, returns, and damage
 - Shop attendant accounts assigned to one shop, with a sale that reduces only that shop
 - Administrator-controlled selling prices, separate from unit cost, with the charged price saved on each sale
+- Supplier directory and costed purchase receipts with moving weighted-average item costs
+- Physical stock counts that preserve the expected quantity, counted quantity, variance, reason, and resulting adjustment
+- Customer returns linked to their original sale, with over-return protection and historical price and cost snapshots
+- Catalog editing and safe item archiving, with duplicate item-code protection
+- In-app low-stock alerts derived from live balances at each place
+- Owner-only profitability reporting for net sales, cost of goods sold, gross profit, margin, and inventory losses
 - Current, low, fast, slow and dead-stock reports for 7, 30 or 90 days
 - Transactional stock checks that prevent simultaneous outbound movements from taking stock below zero
 - Responsive React UI with loading, empty and error states
@@ -108,5 +114,7 @@ For local migration work, copy Supabase's direct connection URL into `DIRECT_DAT
 In Render, choose **New > Blueprint**, connect `DKKowalski/stockledger`, and apply `render.yaml`. Render generates `JWT_SECRET`; do not enter one manually.
 
 Account email uses the Resend HTTP API. Add `RESEND_API_KEY` and `EMAIL_FROM` to the API service in Render. `EMAIL_FROM` must use a sender address verified in Resend, for example `StockLedger <accounts@example.com>`. Owner verification links last 24 hours, staff invitations last 72 hours, and password-reset links last 30 minutes by default.
+
+StockLedger owns the transactional sending domain. Individual businesses do not need to connect their own domains. Until a StockLedger domain is verified, an administrator can create a staff account with a copyable invitation link, or create a copyable password-reset link from the Team page. Each new link invalidates the previous link of the same type and should be shared through a private channel.
 
 Browser access tokens live only in React memory and expire after 15 minutes. A rotating 30-day token stays in a secure HTTP-only cookie. Render and the API must use HTTPS for the cross-origin cookie.

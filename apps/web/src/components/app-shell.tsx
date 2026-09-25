@@ -5,6 +5,7 @@ import { useInventoryStore } from '../app/inventory-store';
 import { AccountMenu } from './account-menu';
 import { MenuMorphIcon } from './animated-icons';
 import { StockLedgerMark } from './stockledger-mark';
+import { LowStockNotifications } from './low-stock-notifications';
 
 export type NavigationMotion = 'overview' | 'items' | 'movement' | 'reports' | 'places' | 'team' | 'sell';
 export type NavigationItem = readonly [path: string, label: string, icon: LucideIcon, motion: NavigationMotion];
@@ -23,6 +24,7 @@ export function AppShell({ navigation }: { navigation: readonly NavigationItem[]
           </NavLink>)}
         </nav>
         <div className="navbar-account">
+          <LowStockNotifications />
           <AccountMenu />
         </div>
         <button className="menu-button" aria-label={menuOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={menuOpen} aria-controls="primary-navigation" onClick={() => setMenuOpen((open) => !open)}><MenuMorphIcon open={menuOpen} /></button>

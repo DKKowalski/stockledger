@@ -13,6 +13,7 @@ const item: ItemRecord = {
   reorderLevel: 10,
   unitCostCents: 1250,
   sellingPriceCents: null,
+  isActive: true,
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
 };
@@ -30,6 +31,10 @@ const movement = (
   type,
   quantity,
   unitPriceCents: null,
+  unitCostCents: null,
+  supplierId: null,
+  relatedMovementId: null,
+  stockCountId: null,
   movementDate: '2026-09-10',
   reference: null,
   note: null,

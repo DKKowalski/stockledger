@@ -1,0 +1,1824 @@
+[
+  {
+    "id": "dropCheckConstraint.stock_movements.stock_movement_sale_price_valid_b98fe941",
+    "label": "Drop check constraint \"stock_movement_sale_price_valid_b98fe941\" on \"stock_movements\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "stock_movement_sale_price_valid_b98fe941",
+        "table": "stock_movements"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"stock_movement_sale_price_valid_b98fe941\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "stock_movement_sale_price_valid_b98fe941",
+          "public",
+          "\"public\".\"stock_movements\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop check constraint \"stock_movement_sale_price_valid_b98fe941\"",
+        "sql": "ALTER TABLE \"public\".\"stock_movements\" DROP CONSTRAINT \"stock_movement_sale_price_valid_b98fe941\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"stock_movement_sale_price_valid_b98fe941\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "stock_movement_sale_price_valid_b98fe941",
+          "public",
+          "\"public\".\"stock_movements\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropCheckConstraint.stock_movements.stock_movements_type_check_6b3e5aa1",
+    "label": "Drop check constraint \"stock_movements_type_check_6b3e5aa1\" on \"stock_movements\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "stock_movements_type_check_6b3e5aa1",
+        "table": "stock_movements"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"stock_movements_type_check_6b3e5aa1\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "stock_movements_type_check_6b3e5aa1",
+          "public",
+          "\"public\".\"stock_movements\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop check constraint \"stock_movements_type_check_6b3e5aa1\"",
+        "sql": "ALTER TABLE \"public\".\"stock_movements\" DROP CONSTRAINT \"stock_movements_type_check_6b3e5aa1\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"stock_movements_type_check_6b3e5aa1\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "stock_movements_type_check_6b3e5aa1",
+          "public",
+          "\"public\".\"stock_movements\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.stock_counts",
+    "label": "Create table \"stock_counts\"",
+    "summary": "Creates table \"stock_counts\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "stock_counts"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"stock_counts\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"stock_counts\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"stock_counts\"",
+        "sql": "CREATE TABLE \"public\".\"stock_counts\" (\n  \"company_id\" uuid NOT NULL,\n  \"counted_at\" date NOT NULL,\n  \"counted_by_user_id\" uuid NOT NULL,\n  \"counted_quantity\" int4 NOT NULL,\n  \"created_at\" timestamptz DEFAULT (now()) NOT NULL,\n  \"expected_quantity\" int4 NOT NULL,\n  \"id\" uuid NOT NULL,\n  \"item_id\" uuid NOT NULL,\n  \"location_id\" uuid NOT NULL,\n  \"note\" character varying(500),\n  \"unit_cost_cents\" int4 NOT NULL,\n  \"variance_quantity\" int4 NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"stock_count_counted_nonnegative_f149168a\" CHECK (counted_quantity >= 0),\n  CONSTRAINT \"stock_count_expected_nonnegative_b29d3415\" CHECK (expected_quantity >= 0),\n  CONSTRAINT \"stock_count_unit_cost_nonnegative_0e3258af\" CHECK (unit_cost_cents >= 0),\n  CONSTRAINT \"stock_count_variance_matches_0846da72\" CHECK (variance_quantity = counted_quantity - expected_quantity)\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"stock_counts\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"stock_counts\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.suppliers",
+    "label": "Create table \"suppliers\"",
+    "summary": "Creates table \"suppliers\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "suppliers"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"suppliers\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"suppliers\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"suppliers\"",
+        "sql": "CREATE TABLE \"public\".\"suppliers\" (\n  \"address\" character varying(300),\n  \"company_id\" uuid NOT NULL,\n  \"created_at\" timestamptz DEFAULT (now()) NOT NULL,\n  \"email\" character varying(255),\n  \"id\" uuid NOT NULL,\n  \"is_active\" bool DEFAULT true NOT NULL,\n  \"name\" character varying(120) NOT NULL,\n  \"phone\" character varying(40),\n  \"updated_at\" timestamptz NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"suppliers\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"suppliers\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.inventory_items.is_active",
+    "label": "Add column \"is_active\" to \"inventory_items\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "is_active",
+        "table": "inventory_items"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"is_active\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "inventory_items",
+          "is_active"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"is_active\"",
+        "sql": "ALTER TABLE \"public\".\"inventory_items\" ADD COLUMN \"is_active\" bool DEFAULT true NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"is_active\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "inventory_items",
+          "is_active"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.stock_movements.related_movement_id",
+    "label": "Add column \"related_movement_id\" to \"stock_movements\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "related_movement_id",
+        "table": "stock_movements"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"related_movement_id\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "stock_movements",
+          "related_movement_id"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"related_movement_id\"",
+        "sql": "ALTER TABLE \"public\".\"stock_movements\" ADD COLUMN \"related_movement_id\" uuid"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"related_movement_id\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "stock_movements",
+          "related_movement_id"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.stock_movements.stock_count_id",
+    "label": "Add column \"stock_count_id\" to \"stock_movements\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "stock_count_id",
+        "table": "stock_movements"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"stock_count_id\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "stock_movements",
+          "stock_count_id"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"stock_count_id\"",
+        "sql": "ALTER TABLE \"public\".\"stock_movements\" ADD COLUMN \"stock_count_id\" uuid"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"stock_count_id\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "stock_movements",
+          "stock_count_id"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.stock_movements.supplier_id",
+    "label": "Add column \"supplier_id\" to \"stock_movements\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "supplier_id",
+        "table": "stock_movements"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"supplier_id\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "stock_movements",
+          "supplier_id"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"supplier_id\"",
+        "sql": "ALTER TABLE \"public\".\"stock_movements\" ADD COLUMN \"supplier_id\" uuid"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"supplier_id\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "stock_movements",
+          "supplier_id"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.stock_movements.unit_cost_cents",
+    "label": "Add column \"unit_cost_cents\" to \"stock_movements\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "unit_cost_cents",
+        "table": "stock_movements"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"unit_cost_cents\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "stock_movements",
+          "unit_cost_cents"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"unit_cost_cents\"",
+        "sql": "ALTER TABLE \"public\".\"stock_movements\" ADD COLUMN \"unit_cost_cents\" int4"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"unit_cost_cents\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "stock_movements",
+          "unit_cost_cents"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.stock_counts.stock_counts_company_id_id_key",
+    "label": "Add unique constraint on \"stock_counts\" (company_id, id)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "stock_counts_company_id_id_key",
+        "table": "stock_counts"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"stock_counts_company_id_id_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "stock_counts_company_id_id_key",
+          "public",
+          "\"public\".\"stock_counts\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"stock_counts_company_id_id_key\"",
+        "sql": "ALTER TABLE \"public\".\"stock_counts\" ADD CONSTRAINT \"stock_counts_company_id_id_key\" UNIQUE (\"company_id\", \"id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"stock_counts_company_id_id_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "stock_counts_company_id_id_key",
+          "public",
+          "\"public\".\"stock_counts\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "checkConstraint.stock_movements.stock_movement_count_adjustment_only_dc5031ec",
+    "label": "Add check constraint \"stock_movement_count_adjustment_only_dc5031ec\" on \"stock_movements\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "stock_movement_count_adjustment_only_dc5031ec",
+        "table": "stock_movements"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"stock_movement_count_adjustment_only_dc5031ec\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "stock_movement_count_adjustment_only_dc5031ec",
+          "public",
+          "\"public\".\"stock_movements\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add check constraint \"stock_movement_count_adjustment_only_dc5031ec\"",
+        "sql": "ALTER TABLE \"public\".\"stock_movements\" ADD CONSTRAINT \"stock_movement_count_adjustment_only_dc5031ec\" CHECK (stock_count_id IS NULL OR type IN ('adjustment_in', 'adjustment_out'))"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"stock_movement_count_adjustment_only_dc5031ec\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "stock_movement_count_adjustment_only_dc5031ec",
+          "public",
+          "\"public\".\"stock_movements\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "checkConstraint.stock_movements.stock_movement_relation_return_only_e0e0fb05",
+    "label": "Add check constraint \"stock_movement_relation_return_only_e0e0fb05\" on \"stock_movements\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "stock_movement_relation_return_only_e0e0fb05",
+        "table": "stock_movements"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"stock_movement_relation_return_only_e0e0fb05\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "stock_movement_relation_return_only_e0e0fb05",
+          "public",
+          "\"public\".\"stock_movements\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add check constraint \"stock_movement_relation_return_only_e0e0fb05\"",
+        "sql": "ALTER TABLE \"public\".\"stock_movements\" ADD CONSTRAINT \"stock_movement_relation_return_only_e0e0fb05\" CHECK (related_movement_id IS NULL OR type = 'return_in')"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"stock_movement_relation_return_only_e0e0fb05\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "stock_movement_relation_return_only_e0e0fb05",
+          "public",
+          "\"public\".\"stock_movements\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "checkConstraint.stock_movements.stock_movement_sale_price_valid_252038cc",
+    "label": "Add check constraint \"stock_movement_sale_price_valid_252038cc\" on \"stock_movements\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "stock_movement_sale_price_valid_252038cc",
+        "table": "stock_movements"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"stock_movement_sale_price_valid_252038cc\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "stock_movement_sale_price_valid_252038cc",
+          "public",
+          "\"public\".\"stock_movements\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add check constraint \"stock_movement_sale_price_valid_252038cc\"",
+        "sql": "ALTER TABLE \"public\".\"stock_movements\" ADD CONSTRAINT \"stock_movement_sale_price_valid_252038cc\" CHECK (unit_price_cents IS NULL OR (type IN ('sale', 'return_in') AND unit_price_cents >= 0))"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"stock_movement_sale_price_valid_252038cc\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "stock_movement_sale_price_valid_252038cc",
+          "public",
+          "\"public\".\"stock_movements\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "checkConstraint.stock_movements.stock_movement_supplier_purchase_only_c3bb2d28",
+    "label": "Add check constraint \"stock_movement_supplier_purchase_only_c3bb2d28\" on \"stock_movements\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "stock_movement_supplier_purchase_only_c3bb2d28",
+        "table": "stock_movements"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"stock_movement_supplier_purchase_only_c3bb2d28\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "stock_movement_supplier_purchase_only_c3bb2d28",
+          "public",
+          "\"public\".\"stock_movements\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add check constraint \"stock_movement_supplier_purchase_only_c3bb2d28\"",
+        "sql": "ALTER TABLE \"public\".\"stock_movements\" ADD CONSTRAINT \"stock_movement_supplier_purchase_only_c3bb2d28\" CHECK (supplier_id IS NULL OR type = 'purchase')"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"stock_movement_supplier_purchase_only_c3bb2d28\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "stock_movement_supplier_purchase_only_c3bb2d28",
+          "public",
+          "\"public\".\"stock_movements\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "checkConstraint.stock_movements.stock_movement_unit_cost_nonnegative_e010375b",
+    "label": "Add check constraint \"stock_movement_unit_cost_nonnegative_e010375b\" on \"stock_movements\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "stock_movement_unit_cost_nonnegative_e010375b",
+        "table": "stock_movements"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"stock_movement_unit_cost_nonnegative_e010375b\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "stock_movement_unit_cost_nonnegative_e010375b",
+          "public",
+          "\"public\".\"stock_movements\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add check constraint \"stock_movement_unit_cost_nonnegative_e010375b\"",
+        "sql": "ALTER TABLE \"public\".\"stock_movements\" ADD CONSTRAINT \"stock_movement_unit_cost_nonnegative_e010375b\" CHECK (unit_cost_cents IS NULL OR unit_cost_cents >= 0)"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"stock_movement_unit_cost_nonnegative_e010375b\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "stock_movement_unit_cost_nonnegative_e010375b",
+          "public",
+          "\"public\".\"stock_movements\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "checkConstraint.stock_movements.stock_movements_type_check_e80a452a",
+    "label": "Add check constraint \"stock_movements_type_check_e80a452a\" on \"stock_movements\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "stock_movements_type_check_e80a452a",
+        "table": "stock_movements"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"stock_movements_type_check_e80a452a\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "stock_movements_type_check_e80a452a",
+          "public",
+          "\"public\".\"stock_movements\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add check constraint \"stock_movements_type_check_e80a452a\"",
+        "sql": "ALTER TABLE \"public\".\"stock_movements\" ADD CONSTRAINT \"stock_movements_type_check_e80a452a\" CHECK (\"type\" IN ('purchase', 'transfer', 'return_in', 'return_out', 'damage', 'sale', 'adjustment_in', 'adjustment_out'))"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"stock_movements_type_check_e80a452a\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "stock_movements_type_check_e80a452a",
+          "public",
+          "\"public\".\"stock_movements\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.stock_movements.stock_movements_company_id_id_key",
+    "label": "Add unique constraint on \"stock_movements\" (company_id, id)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "stock_movements_company_id_id_key",
+        "table": "stock_movements"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"stock_movements_company_id_id_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "stock_movements_company_id_id_key",
+          "public",
+          "\"public\".\"stock_movements\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"stock_movements_company_id_id_key\"",
+        "sql": "ALTER TABLE \"public\".\"stock_movements\" ADD CONSTRAINT \"stock_movements_company_id_id_key\" UNIQUE (\"company_id\", \"id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"stock_movements_company_id_id_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "stock_movements_company_id_id_key",
+          "public",
+          "\"public\".\"stock_movements\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.suppliers.suppliers_company_id_name_key",
+    "label": "Add unique constraint on \"suppliers\" (company_id, name)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "suppliers_company_id_name_key",
+        "table": "suppliers"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"suppliers_company_id_name_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "suppliers_company_id_name_key",
+          "public",
+          "\"public\".\"suppliers\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"suppliers_company_id_name_key\"",
+        "sql": "ALTER TABLE \"public\".\"suppliers\" ADD CONSTRAINT \"suppliers_company_id_name_key\" UNIQUE (\"company_id\", \"name\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"suppliers_company_id_name_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "suppliers_company_id_name_key",
+          "public",
+          "\"public\".\"suppliers\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.suppliers.suppliers_company_id_id_key",
+    "label": "Add unique constraint on \"suppliers\" (company_id, id)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "suppliers_company_id_id_key",
+        "table": "suppliers"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"suppliers_company_id_id_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "suppliers_company_id_id_key",
+          "public",
+          "\"public\".\"suppliers\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"suppliers_company_id_id_key\"",
+        "sql": "ALTER TABLE \"public\".\"suppliers\" ADD CONSTRAINT \"suppliers_company_id_id_key\" UNIQUE (\"company_id\", \"id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"suppliers_company_id_id_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "suppliers_company_id_id_key",
+          "public",
+          "\"public\".\"suppliers\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.stock_counts.stock_counts_company_id_counted_by_user_id_idx_5b58b57a",
+    "label": "Create index \"stock_counts_company_id_counted_by_user_id_idx_5b58b57a\" on \"stock_counts\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "stock_counts_company_id_counted_by_user_id_idx_5b58b57a",
+        "table": "stock_counts"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"stock_counts_company_id_counted_by_user_id_idx_5b58b57a\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"stock_counts_company_id_counted_by_user_id_idx_5b58b57a\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"stock_counts_company_id_counted_by_user_id_idx_5b58b57a\"",
+        "sql": "CREATE INDEX \"stock_counts_company_id_counted_by_user_id_idx_5b58b57a\" ON \"public\".\"stock_counts\" (\"company_id\", \"counted_by_user_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"stock_counts_company_id_counted_by_user_id_idx_5b58b57a\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"stock_counts_company_id_counted_by_user_id_idx_5b58b57a\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.stock_counts.stock_counts_company_id_idx_1303a718",
+    "label": "Create index \"stock_counts_company_id_idx_1303a718\" on \"stock_counts\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "stock_counts_company_id_idx_1303a718",
+        "table": "stock_counts"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"stock_counts_company_id_idx_1303a718\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"stock_counts_company_id_idx_1303a718\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"stock_counts_company_id_idx_1303a718\"",
+        "sql": "CREATE INDEX \"stock_counts_company_id_idx_1303a718\" ON \"public\".\"stock_counts\" (\"company_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"stock_counts_company_id_idx_1303a718\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"stock_counts_company_id_idx_1303a718\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.stock_counts.stock_counts_company_id_item_id_idx_a27622c0",
+    "label": "Create index \"stock_counts_company_id_item_id_idx_a27622c0\" on \"stock_counts\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "stock_counts_company_id_item_id_idx_a27622c0",
+        "table": "stock_counts"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"stock_counts_company_id_item_id_idx_a27622c0\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"stock_counts_company_id_item_id_idx_a27622c0\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"stock_counts_company_id_item_id_idx_a27622c0\"",
+        "sql": "CREATE INDEX \"stock_counts_company_id_item_id_idx_a27622c0\" ON \"public\".\"stock_counts\" (\"company_id\", \"item_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"stock_counts_company_id_item_id_idx_a27622c0\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"stock_counts_company_id_item_id_idx_a27622c0\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.stock_counts.stock_counts_company_id_location_id_idx_a140a7ef",
+    "label": "Create index \"stock_counts_company_id_location_id_idx_a140a7ef\" on \"stock_counts\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "stock_counts_company_id_location_id_idx_a140a7ef",
+        "table": "stock_counts"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"stock_counts_company_id_location_id_idx_a140a7ef\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"stock_counts_company_id_location_id_idx_a140a7ef\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"stock_counts_company_id_location_id_idx_a140a7ef\"",
+        "sql": "CREATE INDEX \"stock_counts_company_id_location_id_idx_a140a7ef\" ON \"public\".\"stock_counts\" (\"company_id\", \"location_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"stock_counts_company_id_location_id_idx_a140a7ef\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"stock_counts_company_id_location_id_idx_a140a7ef\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.stock_counts.stock_counts_counted_at_idx_71d1fe77",
+    "label": "Create index \"stock_counts_counted_at_idx_71d1fe77\" on \"stock_counts\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "stock_counts_counted_at_idx_71d1fe77",
+        "table": "stock_counts"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"stock_counts_counted_at_idx_71d1fe77\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"stock_counts_counted_at_idx_71d1fe77\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"stock_counts_counted_at_idx_71d1fe77\"",
+        "sql": "CREATE INDEX \"stock_counts_counted_at_idx_71d1fe77\" ON \"public\".\"stock_counts\" (\"counted_at\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"stock_counts_counted_at_idx_71d1fe77\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"stock_counts_counted_at_idx_71d1fe77\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.stock_counts.stock_counts_item_id_idx_4b8ce5fb",
+    "label": "Create index \"stock_counts_item_id_idx_4b8ce5fb\" on \"stock_counts\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "stock_counts_item_id_idx_4b8ce5fb",
+        "table": "stock_counts"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"stock_counts_item_id_idx_4b8ce5fb\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"stock_counts_item_id_idx_4b8ce5fb\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"stock_counts_item_id_idx_4b8ce5fb\"",
+        "sql": "CREATE INDEX \"stock_counts_item_id_idx_4b8ce5fb\" ON \"public\".\"stock_counts\" (\"item_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"stock_counts_item_id_idx_4b8ce5fb\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"stock_counts_item_id_idx_4b8ce5fb\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.stock_counts.stock_counts_location_id_idx_6316b129",
+    "label": "Create index \"stock_counts_location_id_idx_6316b129\" on \"stock_counts\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "stock_counts_location_id_idx_6316b129",
+        "table": "stock_counts"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"stock_counts_location_id_idx_6316b129\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"stock_counts_location_id_idx_6316b129\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"stock_counts_location_id_idx_6316b129\"",
+        "sql": "CREATE INDEX \"stock_counts_location_id_idx_6316b129\" ON \"public\".\"stock_counts\" (\"location_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"stock_counts_location_id_idx_6316b129\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"stock_counts_location_id_idx_6316b129\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.stock_movements.stock_movements_company_id_related_movement_id_idx_5b843ea9",
+    "label": "Create index \"stock_movements_company_id_related_movement_id_idx_5b843ea9\" on \"stock_movements\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "stock_movements_company_id_related_movement_id_idx_5b843ea9",
+        "table": "stock_movements"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"stock_movements_company_id_related_movement_id_idx_5b843ea9\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"stock_movements_company_id_related_movement_id_idx_5b843ea9\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"stock_movements_company_id_related_movement_id_idx_5b843ea9\"",
+        "sql": "CREATE INDEX \"stock_movements_company_id_related_movement_id_idx_5b843ea9\" ON \"public\".\"stock_movements\" (\"company_id\", \"related_movement_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"stock_movements_company_id_related_movement_id_idx_5b843ea9\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"stock_movements_company_id_related_movement_id_idx_5b843ea9\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.stock_movements.stock_movements_company_id_stock_count_id_idx_4022f0af",
+    "label": "Create index \"stock_movements_company_id_stock_count_id_idx_4022f0af\" on \"stock_movements\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "stock_movements_company_id_stock_count_id_idx_4022f0af",
+        "table": "stock_movements"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"stock_movements_company_id_stock_count_id_idx_4022f0af\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"stock_movements_company_id_stock_count_id_idx_4022f0af\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"stock_movements_company_id_stock_count_id_idx_4022f0af\"",
+        "sql": "CREATE INDEX \"stock_movements_company_id_stock_count_id_idx_4022f0af\" ON \"public\".\"stock_movements\" (\"company_id\", \"stock_count_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"stock_movements_company_id_stock_count_id_idx_4022f0af\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"stock_movements_company_id_stock_count_id_idx_4022f0af\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.stock_movements.stock_movements_company_id_supplier_id_idx_c713a553",
+    "label": "Create index \"stock_movements_company_id_supplier_id_idx_c713a553\" on \"stock_movements\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "stock_movements_company_id_supplier_id_idx_c713a553",
+        "table": "stock_movements"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"stock_movements_company_id_supplier_id_idx_c713a553\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"stock_movements_company_id_supplier_id_idx_c713a553\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"stock_movements_company_id_supplier_id_idx_c713a553\"",
+        "sql": "CREATE INDEX \"stock_movements_company_id_supplier_id_idx_c713a553\" ON \"public\".\"stock_movements\" (\"company_id\", \"supplier_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"stock_movements_company_id_supplier_id_idx_c713a553\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"stock_movements_company_id_supplier_id_idx_c713a553\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.stock_movements.stock_movements_related_movement_id_idx_1d81e109",
+    "label": "Create index \"stock_movements_related_movement_id_idx_1d81e109\" on \"stock_movements\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "stock_movements_related_movement_id_idx_1d81e109",
+        "table": "stock_movements"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"stock_movements_related_movement_id_idx_1d81e109\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"stock_movements_related_movement_id_idx_1d81e109\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"stock_movements_related_movement_id_idx_1d81e109\"",
+        "sql": "CREATE INDEX \"stock_movements_related_movement_id_idx_1d81e109\" ON \"public\".\"stock_movements\" (\"related_movement_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"stock_movements_related_movement_id_idx_1d81e109\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"stock_movements_related_movement_id_idx_1d81e109\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.stock_movements.stock_movements_stock_count_id_idx_eae46c55",
+    "label": "Create index \"stock_movements_stock_count_id_idx_eae46c55\" on \"stock_movements\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "stock_movements_stock_count_id_idx_eae46c55",
+        "table": "stock_movements"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"stock_movements_stock_count_id_idx_eae46c55\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"stock_movements_stock_count_id_idx_eae46c55\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"stock_movements_stock_count_id_idx_eae46c55\"",
+        "sql": "CREATE INDEX \"stock_movements_stock_count_id_idx_eae46c55\" ON \"public\".\"stock_movements\" (\"stock_count_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"stock_movements_stock_count_id_idx_eae46c55\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"stock_movements_stock_count_id_idx_eae46c55\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.stock_movements.stock_movements_supplier_id_idx_c2f51ce2",
+    "label": "Create index \"stock_movements_supplier_id_idx_c2f51ce2\" on \"stock_movements\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "stock_movements_supplier_id_idx_c2f51ce2",
+        "table": "stock_movements"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"stock_movements_supplier_id_idx_c2f51ce2\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"stock_movements_supplier_id_idx_c2f51ce2\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"stock_movements_supplier_id_idx_c2f51ce2\"",
+        "sql": "CREATE INDEX \"stock_movements_supplier_id_idx_c2f51ce2\" ON \"public\".\"stock_movements\" (\"supplier_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"stock_movements_supplier_id_idx_c2f51ce2\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"stock_movements_supplier_id_idx_c2f51ce2\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.suppliers.suppliers_company_id_idx_1303a718",
+    "label": "Create index \"suppliers_company_id_idx_1303a718\" on \"suppliers\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "suppliers_company_id_idx_1303a718",
+        "table": "suppliers"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"suppliers_company_id_idx_1303a718\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"suppliers_company_id_idx_1303a718\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"suppliers_company_id_idx_1303a718\"",
+        "sql": "CREATE INDEX \"suppliers_company_id_idx_1303a718\" ON \"public\".\"suppliers\" (\"company_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"suppliers_company_id_idx_1303a718\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"suppliers_company_id_idx_1303a718\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.stock_counts.stock_counts_company_id_item_id_fkey",
+    "label": "Add foreign key \"stock_counts_company_id_item_id_fkey\" on \"stock_counts\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "stock_counts_company_id_item_id_fkey",
+        "table": "stock_counts"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"stock_counts_company_id_item_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "stock_counts_company_id_item_id_fkey",
+          "public",
+          "\"public\".\"stock_counts\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"stock_counts_company_id_item_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"stock_counts\"\nADD CONSTRAINT \"stock_counts_company_id_item_id_fkey\"\nFOREIGN KEY (\"company_id\", \"item_id\")\nREFERENCES \"public\".\"inventory_items\" (\"company_id\", \"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"stock_counts_company_id_item_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "stock_counts_company_id_item_id_fkey",
+          "public",
+          "\"public\".\"stock_counts\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.stock_counts.stock_counts_company_id_location_id_fkey",
+    "label": "Add foreign key \"stock_counts_company_id_location_id_fkey\" on \"stock_counts\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "stock_counts_company_id_location_id_fkey",
+        "table": "stock_counts"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"stock_counts_company_id_location_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "stock_counts_company_id_location_id_fkey",
+          "public",
+          "\"public\".\"stock_counts\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"stock_counts_company_id_location_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"stock_counts\"\nADD CONSTRAINT \"stock_counts_company_id_location_id_fkey\"\nFOREIGN KEY (\"company_id\", \"location_id\")\nREFERENCES \"public\".\"locations\" (\"company_id\", \"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"stock_counts_company_id_location_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "stock_counts_company_id_location_id_fkey",
+          "public",
+          "\"public\".\"stock_counts\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.stock_counts.stock_counts_company_id_counted_by_user_id_fkey",
+    "label": "Add foreign key \"stock_counts_company_id_counted_by_user_id_fkey\" on \"stock_counts\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "stock_counts_company_id_counted_by_user_id_fkey",
+        "table": "stock_counts"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"stock_counts_company_id_counted_by_user_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "stock_counts_company_id_counted_by_user_id_fkey",
+          "public",
+          "\"public\".\"stock_counts\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"stock_counts_company_id_counted_by_user_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"stock_counts\"\nADD CONSTRAINT \"stock_counts_company_id_counted_by_user_id_fkey\"\nFOREIGN KEY (\"company_id\", \"counted_by_user_id\")\nREFERENCES \"public\".\"users\" (\"company_id\", \"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"stock_counts_company_id_counted_by_user_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "stock_counts_company_id_counted_by_user_id_fkey",
+          "public",
+          "\"public\".\"stock_counts\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.stock_movements.stock_movements_company_id_related_movement_id_fkey",
+    "label": "Add foreign key \"stock_movements_company_id_related_movement_id_fkey\" on \"stock_movements\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "stock_movements_company_id_related_movement_id_fkey",
+        "table": "stock_movements"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"stock_movements_company_id_related_movement_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "stock_movements_company_id_related_movement_id_fkey",
+          "public",
+          "\"public\".\"stock_movements\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"stock_movements_company_id_related_movement_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"stock_movements\"\nADD CONSTRAINT \"stock_movements_company_id_related_movement_id_fkey\"\nFOREIGN KEY (\"company_id\", \"related_movement_id\")\nREFERENCES \"public\".\"stock_movements\" (\"company_id\", \"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"stock_movements_company_id_related_movement_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "stock_movements_company_id_related_movement_id_fkey",
+          "public",
+          "\"public\".\"stock_movements\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.stock_movements.stock_movements_company_id_stock_count_id_fkey",
+    "label": "Add foreign key \"stock_movements_company_id_stock_count_id_fkey\" on \"stock_movements\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "stock_movements_company_id_stock_count_id_fkey",
+        "table": "stock_movements"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"stock_movements_company_id_stock_count_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "stock_movements_company_id_stock_count_id_fkey",
+          "public",
+          "\"public\".\"stock_movements\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"stock_movements_company_id_stock_count_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"stock_movements\"\nADD CONSTRAINT \"stock_movements_company_id_stock_count_id_fkey\"\nFOREIGN KEY (\"company_id\", \"stock_count_id\")\nREFERENCES \"public\".\"stock_counts\" (\"company_id\", \"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"stock_movements_company_id_stock_count_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "stock_movements_company_id_stock_count_id_fkey",
+          "public",
+          "\"public\".\"stock_movements\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.suppliers.suppliers_company_id_fkey",
+    "label": "Add foreign key \"suppliers_company_id_fkey\" on \"suppliers\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "suppliers_company_id_fkey",
+        "table": "suppliers"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"suppliers_company_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "suppliers_company_id_fkey",
+          "public",
+          "\"public\".\"suppliers\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"suppliers_company_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"suppliers\"\nADD CONSTRAINT \"suppliers_company_id_fkey\"\nFOREIGN KEY (\"company_id\")\nREFERENCES \"public\".\"companies\" (\"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"suppliers_company_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "suppliers_company_id_fkey",
+          "public",
+          "\"public\".\"suppliers\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.stock_movements.stock_movements_company_id_supplier_id_fkey",
+    "label": "Add foreign key \"stock_movements_company_id_supplier_id_fkey\" on \"stock_movements\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "stock_movements_company_id_supplier_id_fkey",
+        "table": "stock_movements"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"stock_movements_company_id_supplier_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "stock_movements_company_id_supplier_id_fkey",
+          "public",
+          "\"public\".\"stock_movements\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"stock_movements_company_id_supplier_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"stock_movements\"\nADD CONSTRAINT \"stock_movements_company_id_supplier_id_fkey\"\nFOREIGN KEY (\"company_id\", \"supplier_id\")\nREFERENCES \"public\".\"suppliers\" (\"company_id\", \"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"stock_movements_company_id_supplier_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "stock_movements_company_id_supplier_id_fkey",
+          "public",
+          "\"public\".\"stock_movements\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "inventory_operations.grant_runtime_tables",
+    "label": "Grant the restricted API role access to inventory operation tables",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres"
+    },
+    "precheck": [
+      {
+        "description": "Runtime table permissions need to be granted",
+        "sql": "SELECT NOT (\n            has_table_privilege('stockledger_app', 'public.stock_counts', 'SELECT, INSERT, UPDATE, DELETE')\n            AND has_table_privilege('stockledger_app', 'public.suppliers', 'SELECT, INSERT, UPDATE, DELETE')\n          ) AS result"
+      }
+    ],
+    "execute": [
+      {
+        "description": "Grant runtime table permissions",
+        "sql": "GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE\n            public.stock_counts,\n            public.suppliers\n          TO stockledger_app"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "The restricted API role can use the inventory operation tables",
+        "sql": "SELECT\n            has_table_privilege('stockledger_app', 'public.stock_counts', 'SELECT, INSERT, UPDATE, DELETE')\n            AND has_table_privilege('stockledger_app', 'public.suppliers', 'SELECT, INSERT, UPDATE, DELETE')\n          AS result"
+      }
+    ]
+  },
+  {
+    "id": "rowLevelSecurity.public.stock_counts",
+    "label": "Enable row-level security on \"stock_counts\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rowLevelSecurity",
+        "name": "stock_counts"
+      }
+    },
+    "precheck": [
+      {
+        "description": "check RLS is not already enabled on \"stock_counts\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND NOT (\"c\".\"relrowsecurity\"))) AS \"result\"",
+        "params": [
+          "public",
+          "stock_counts"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "enable row-level security on \"stock_counts\"",
+        "sql": "ALTER TABLE \"public\".\"stock_counts\" ENABLE ROW LEVEL SECURITY"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify row-level security is enabled on \"stock_counts\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"c\".\"relrowsecurity\")) AS \"result\"",
+        "params": [
+          "public",
+          "stock_counts"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rowLevelSecurity.public.suppliers",
+    "label": "Enable row-level security on \"suppliers\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rowLevelSecurity",
+        "name": "suppliers"
+      }
+    },
+    "precheck": [
+      {
+        "description": "check RLS is not already enabled on \"suppliers\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND NOT (\"c\".\"relrowsecurity\"))) AS \"result\"",
+        "params": [
+          "public",
+          "suppliers"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "enable row-level security on \"suppliers\"",
+        "sql": "ALTER TABLE \"public\".\"suppliers\" ENABLE ROW LEVEL SECURITY"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify row-level security is enabled on \"suppliers\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"c\".\"relrowsecurity\")) AS \"result\"",
+        "params": [
+          "public",
+          "suppliers"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.stock_counts.stock_count_tenant_f6e81ebe",
+    "label": "Create RLS policy \"stock_count_tenant_f6e81ebe\" on \"stock_counts\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "stock_count_tenant_f6e81ebe",
+        "table": "stock_counts"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"stock_count_tenant_f6e81ebe\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "stock_counts",
+          "stock_count_tenant_f6e81ebe"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"stock_count_tenant_f6e81ebe\"",
+        "sql": "CREATE POLICY \"stock_count_tenant_f6e81ebe\" ON \"public\".\"stock_counts\" AS PERMISSIVE FOR ALL TO stockledger_app USING (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid) WITH CHECK (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"stock_count_tenant_f6e81ebe\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "stock_counts",
+          "stock_count_tenant_f6e81ebe"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.suppliers.supplier_tenant_f6e81ebe",
+    "label": "Create RLS policy \"supplier_tenant_f6e81ebe\" on \"suppliers\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "supplier_tenant_f6e81ebe",
+        "table": "suppliers"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"supplier_tenant_f6e81ebe\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "suppliers",
+          "supplier_tenant_f6e81ebe"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"supplier_tenant_f6e81ebe\"",
+        "sql": "CREATE POLICY \"supplier_tenant_f6e81ebe\" ON \"public\".\"suppliers\" AS PERMISSIVE FOR ALL TO stockledger_app USING (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid) WITH CHECK (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"supplier_tenant_f6e81ebe\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "suppliers",
+          "supplier_tenant_f6e81ebe"
+        ]
+      }
+    ]
+  }
+]

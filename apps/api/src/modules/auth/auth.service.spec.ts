@@ -188,8 +188,54 @@ describe('AuthService launch account flows', () => {
       email: 'kojo@example.com',
       url: expect.stringContaining('/accept-invitation?token='),
     }));
-    expect(result.setupPending).toBe(true);
+    expect(result.user.setupPending).toBe(true);
+    expect(result.invitation).toBeNull();
     expect(auditCreate).toHaveBeenCalledWith(expect.objectContaining({ action: 'account.invited' }));
+  });
+
+  it('creates staff with a copyable invitation link without sending email', async () => {
+    userFirst.mockResolvedValue(owner());
+    userCreate.mockImplementation(async (data) => ({
+      id: '41000000-0000-4000-8000-000000000002',
+      createdAt: '2026-09-25T00:00:00.000Z',
+      isActive: true,
+      invitationAcceptedAt: null,
+      ...data,
+    }));
+
+    const result = await service.createUser(ownerId, companyId, {
+      fullName: 'Kojo Owusu',
+      email: 'kojo@example.com',
+      role: 'inventory_manager',
+      delivery: 'link',
+    });
+
+    expect(result.invitation).toEqual({
+      url: expect.stringContaining('/accept-invitation?token='),
+      expiresAt: expect.any(String),
+    });
+    expect(sendInvitation).not.toHaveBeenCalled();
+    expect(auditCreate).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'account.invited',
+      metadata: expect.objectContaining({ delivery: 'link' }),
+    }));
+  });
+
+  it('creates a fresh manual invitation link for pending staff', async () => {
+    const targetId = '41000000-0000-4000-8000-000000000002';
+    userFirst.mockImplementation(async (query: { id: string }) => query.id === ownerId
+      ? owner()
+      : { ...owner(), id: targetId, role: 'inventory_manager', invitationAcceptedAt: null });
+
+    const result = await service.createInvitationLink(ownerId, companyId, targetId);
+
+    expect(result.url).toContain('/accept-invitation?token=');
+    expect(userUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      invitationTokenHash: expect.stringMatching(/^[0-9a-f]{64}$/),
+      invitationExpiresAt: expect.any(String),
+    }));
+    expect(auditCreate).toHaveBeenCalledWith(expect.objectContaining({ action: 'account.invitation_link_created' }));
+    expect(sendInvitation).not.toHaveBeenCalled();
   });
 
   it('accepts a valid staff invitation and stores the chosen password', async () => {
@@ -217,6 +263,23 @@ describe('AuthService launch account flows', () => {
     expect(sessionWhere).toHaveBeenCalledWith({ companyId, userId: '41000000-0000-4000-8000-000000000002' });
     expect(sessionDelete).toHaveBeenCalledOnce();
     expect(auditCreate).toHaveBeenCalledWith(expect.objectContaining({ action: 'account.deactivated' }));
+  });
+
+  it('creates a fresh manual password reset link for active staff', async () => {
+    const targetId = '41000000-0000-4000-8000-000000000002';
+    userFirst.mockImplementation(async (query: { id: string }) => query.id === ownerId
+      ? owner()
+      : { ...owner(), id: targetId, role: 'inventory_manager', invitationAcceptedAt: '2026-09-25T00:00:00.000Z' });
+
+    const result = await service.createPasswordResetLink(ownerId, companyId, targetId);
+
+    expect(result.url).toContain('/reset-password?token=');
+    expect(userUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      passwordResetTokenHash: expect.stringMatching(/^[0-9a-f]{64}$/),
+      passwordResetExpiresAt: expect.any(String),
+    }));
+    expect(auditCreate).toHaveBeenCalledWith(expect.objectContaining({ action: 'account.password_reset_link_created' }));
+    expect(send).not.toHaveBeenCalled();
   });
 
   it('rejects malformed reset tokens before querying tenant data', async () => {

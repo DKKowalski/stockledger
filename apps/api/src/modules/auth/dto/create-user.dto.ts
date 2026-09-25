@@ -14,6 +14,10 @@ export class CreateUserDto {
   role!: 'inventory_manager' | 'shop_attendant';
 
   @IsOptional()
+  @IsIn(['email', 'link'])
+  delivery?: 'email' | 'link';
+
+  @IsOptional()
   @IsUUID()
   locationId?: string;
 }
