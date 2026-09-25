@@ -78,20 +78,20 @@ export function SpreadsheetImportForm({
     <details className="spreadsheet-format-guide" open={guideOpen} onToggle={(event) => setGuideOpen(event.currentTarget.open)}>
       <summary><span><CircleHelp size={16} />How to format your spreadsheet</span><ChevronDown className="spreadsheet-guide-chevron" size={16} /></summary>
       <div className="spreadsheet-guide-body">
-        <p>Use the first row for column names and put one inventory item on each row. SKU and Name are the only required columns.</p>
+        <p>Use the first row for column names and put one inventory item on each row. Name is the only required column.</p>
         <div className="spreadsheet-guide-columns">
           <section>
             <h3>Required</h3>
-            <div className="spreadsheet-column-chips"><code>SKU</code><code>Name</code></div>
-            <small>Each SKU must be unique. Use letters, numbers, dots, dashes, or underscores.</small>
+            <div className="spreadsheet-column-chips"><code>Name</code></div>
+            <small>Use the name your team already knows, such as Basmati Rice 5kg.</small>
           </section>
           <section>
             <h3>Optional</h3>
-            <div className="spreadsheet-column-chips"><code>Category</code><code>Unit</code><code>Reorder level</code><code>Unit cost</code><code>Selling price</code><code>Opening stock</code></div>
-            <small>Blank category and unit cells become General and pcs. Reorder, cost, and opening stock default to 0. Selling price may stay blank.</small>
+            <div className="spreadsheet-column-chips"><code>Item code</code><code>Category</code><code>Unit</code><code>Reorder level</code><code>Unit cost</code><code>Selling price</code><code>Opening stock</code></div>
+            <small>Leave Item code blank if you do not use one. StockLedger will create it. Category and unit become General and pcs. Reorder, cost, and opening stock default to 0.</small>
           </section>
         </div>
-        <p className="spreadsheet-aliases">We also recognize Item name, Reorder, Cost, Price, and Quantity. Enter money as a plain amount such as 12.50.</p>
+        <p className="spreadsheet-aliases">We also recognize Product name, Product code, Reorder, Cost, Price, Quantity, and Stock on hand. Enter money as a plain amount such as 12.50.</p>
       </div>
     </details>
     <button className={`spreadsheet-dropzone ${rows.length ? 'has-file' : ''}`} disabled={reading || busy} onClick={() => inputRef.current?.click()} type="button">
@@ -106,7 +106,7 @@ export function SpreadsheetImportForm({
     {error && <div className="form-error spreadsheet-import-error" role="alert">{error}</div>}
     {rows.length > 0 && <div className="spreadsheet-preview">
       <div className="spreadsheet-preview-heading"><b>Preview</b><span>First {Math.min(rows.length, 5)} of {rows.length}</span></div>
-      <div className="table-wrap"><table><thead><tr><th>SKU</th><th>Name</th><th>Category</th><th className="num">Opening</th><th className="num">Cost</th></tr></thead><tbody>{rows.slice(0, 5).map((row) => <tr key={row.sku}><td><b>{row.sku}</b></td><td>{row.name}</td><td>{row.category}</td><td className="num">{row.openingStock}</td><td className="num">{formatMoney(row.unitCostCents)}</td></tr>)}</tbody></table></div>
+      <div className="table-wrap"><table><thead><tr><th>Item code</th><th>Name</th><th>Category</th><th className="num">Opening</th><th className="num">Cost</th></tr></thead><tbody>{rows.slice(0, 5).map((row, index) => <tr key={`${row.sku ?? 'automatic'}-${index}`}><td><b>{row.sku ?? 'Automatic'}</b></td><td>{row.name}</td><td>{row.category}</td><td className="num">{row.openingStock}</td><td className="num">{formatMoney(row.unitCostCents)}</td></tr>)}</tbody></table></div>
     </div>}
     {!completeCount && <div className="spreadsheet-import-actions">
       <label><span>Opening place</span><SelectControl aria-label="Opening place for imported stock" disabled={busy} value={selectedLocationId} onValueChange={setLocationId} options={[{ value: '', label: 'Select place' }, ...locations.map((place) => ({ value: place.id, label: place.name }))]} /></label>

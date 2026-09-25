@@ -2,11 +2,11 @@ import { Type } from 'class-transformer';
 import { IsInt, IsNotEmpty, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min } from 'class-validator';
 
 export class CreateItemDto {
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
   @MaxLength(40)
   @Matches(/^[A-Za-z0-9][A-Za-z0-9._-]*$/)
-  sku!: string;
+  sku?: string;
 
   @IsString()
   @IsNotEmpty()

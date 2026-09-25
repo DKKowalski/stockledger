@@ -2,11 +2,11 @@ import { Type } from 'class-transformer';
 import { ArrayMaxSize, ArrayMinSize, IsArray, IsInt, IsNotEmpty, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min, ValidateNested } from 'class-validator';
 
 export class ImportItemRowDto {
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
   @MaxLength(40)
   @Matches(/^[A-Za-z0-9][A-Za-z0-9._-]*$/)
-  sku!: string;
+  sku?: string;
 
   @IsString()
   @IsNotEmpty()

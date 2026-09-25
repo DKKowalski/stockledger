@@ -369,6 +369,39 @@ describe('inventory transactions with PostgreSQL', () => {
     });
   });
 
+  it('creates readable unique item codes when an owner does not supply them', async () => {
+    const f = await fixture();
+    const manuallyAdded = await service.createItem(f.admin.id, f.company.id, {
+      name: 'Test item', category: 'Test', unit: 'pcs', unitCostCents: 100,
+      reorderLevel: 0, openingStock: 1, locationId: f.warehouse.id,
+    });
+    expect(manuallyAdded.sku).toBe('TEST-ITEM-2');
+
+    await service.importItems(f.admin.id, f.company.id, {
+      locationId: f.warehouse.id,
+      rows: [
+        { name: 'Fresh tomatoes', category: 'Produce', unit: 'crate', reorderLevel: 2, unitCostCents: 500, openingStock: 4 },
+        { name: 'Fresh tomatoes', category: 'Produce', unit: 'basket', reorderLevel: 1, unitCostCents: 300, openingStock: 2 },
+      ],
+    });
+    const items = await db.orm.public.InventoryItem.where({ companyId: f.company.id }).all();
+    expect(items.map((item) => item.sku)).toEqual(expect.arrayContaining(['FRESH-TOMATOES', 'FRESH-TOMATOES-2']));
+  });
+
+  it('serializes automatic item codes created at the same time', async () => {
+    const f = await fixture();
+    const body = {
+      name: 'Cooking oil', category: 'Grocery', unit: 'bottle', unitCostCents: 700,
+      reorderLevel: 3, openingStock: 8, locationId: f.warehouse.id,
+    };
+
+    const [first, second] = await Promise.all([
+      service.createItem(f.admin.id, f.company.id, body),
+      otherService.createItem(f.admin.id, f.company.id, body),
+    ]);
+    expect(new Set([first.sku, second.sku])).toEqual(new Set(['COOKING-OIL', 'COOKING-OIL-2']));
+  });
+
   it('rejects duplicate spreadsheet SKUs before writing any rows', async () => {
     const f = await fixture();
     await expect(service.importItems(f.admin.id, f.company.id, {

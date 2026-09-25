@@ -1,5 +1,5 @@
 export type SpreadsheetItem = {
-  sku: string;
+  sku?: string;
   name: string;
   category: string;
   unit: string;
@@ -13,8 +13,11 @@ type Cell = string | number | boolean | Date | null | undefined;
 
 const columnAliases: Record<string, keyof SpreadsheetItem> = {
   sku: 'sku',
+  item_code: 'sku',
+  product_code: 'sku',
   name: 'name',
   item_name: 'name',
+  product_name: 'name',
   category: 'category',
   unit: 'unit',
   reorder_level: 'reorderLevel',
@@ -25,6 +28,7 @@ const columnAliases: Record<string, keyof SpreadsheetItem> = {
   price: 'sellingPriceCents',
   opening_stock: 'openingStock',
   quantity: 'openingStock',
+  stock_on_hand: 'openingStock',
 };
 
 export async function readInventorySpreadsheet(file: File): Promise<SpreadsheetItem[]> {
@@ -47,8 +51,8 @@ export function parseInventoryRows(data: Cell[][]): SpreadsheetItem[] {
   if (data.length < 2) throw new Error('The spreadsheet needs a header row and at least one item');
   const headers = data[0]!.map((cell) => normalizeHeader(cell));
   const columns = headers.map((header) => columnAliases[header]);
-  if (!columns.includes('sku') || !columns.includes('name')) {
-    throw new Error('The header row must include SKU and Name columns');
+  if (!columns.includes('name')) {
+    throw new Error('The header row must include a Name column');
   }
 
   const dataRows = data.slice(1).filter((row) => row.some((cell) => cell !== null && cell !== undefined && String(cell).trim() !== ''));
@@ -61,15 +65,14 @@ export function parseInventoryRows(data: Cell[][]): SpreadsheetItem[] {
     const record = Object.fromEntries(columns.flatMap((key, columnIndex) => key ? [[key, row[columnIndex]]] : [])) as Partial<Record<keyof SpreadsheetItem, Cell>>;
     const sku = text(record.sku).toUpperCase();
     const name = text(record.name);
-    if (!sku) throw new Error(`Row ${spreadsheetRow}: SKU is required`);
-    if (!/^[A-Z0-9][A-Z0-9._-]*$/.test(sku)) throw new Error(`Row ${spreadsheetRow}: SKU can use letters, numbers, dots, dashes and underscores`);
+    if (sku && !/^[A-Z0-9][A-Z0-9._-]*$/.test(sku)) throw new Error(`Row ${spreadsheetRow}: Item code can use letters, numbers, dots, dashes and underscores`);
     if (!name) throw new Error(`Row ${spreadsheetRow}: Name is required`);
-    if (seen.has(sku)) throw new Error(`Rows ${seen.get(sku)} and ${spreadsheetRow} use the same SKU ${sku}`);
-    seen.set(sku, spreadsheetRow);
+    if (sku && seen.has(sku)) throw new Error(`Rows ${seen.get(sku)} and ${spreadsheetRow} use the same item code ${sku}`);
+    if (sku) seen.set(sku, spreadsheetRow);
 
     const sellingPrice = optionalMoney(record.sellingPriceCents, spreadsheetRow, 'Selling price');
     return {
-      sku,
+      ...(sku ? { sku } : {}),
       name,
       category: text(record.category) || 'General',
       unit: text(record.unit) || 'pcs',
@@ -82,8 +85,8 @@ export function parseInventoryRows(data: Cell[][]): SpreadsheetItem[] {
 }
 
 export const inventoryTemplate = [
-  ['SKU', 'Name', 'Category', 'Unit', 'Reorder level', 'Unit cost', 'Selling price', 'Opening stock'],
-  ['SKU-1001', 'Basmati Rice 5kg', 'Grocery', 'bag', '20', '12.50', '18.00', '80'],
+  ['Item code', 'Name', 'Category', 'Unit', 'Reorder level', 'Unit cost', 'Selling price', 'Opening stock'],
+  ['', 'Basmati Rice 5kg', 'Grocery', 'bag', '20', '12.50', '18.00', '80'],
 ];
 
 function normalizeHeader(value: Cell) {

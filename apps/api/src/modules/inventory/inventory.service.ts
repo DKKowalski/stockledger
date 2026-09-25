@@ -69,11 +69,13 @@ export class InventoryService {
     return this.prisma.withCompany(companyId, async (tx) => {
       const actor = await this.actor(tx, companyId, userId);
       this.assertAdministrator(actor);
+      await this.lockCompany(tx, companyId);
       const scope = await this.scope(tx, companyId);
       this.knownLocation(scope.locations, body.locationId);
-      const sku = body.sku.trim().toUpperCase();
-      const existing = scope.items.find((item) => item.sku.toLowerCase() === sku.toLowerCase());
-      if (existing) throw new ConflictException(`SKU ${sku} already exists`);
+      const requestedSku = body.sku?.trim().toUpperCase();
+      const usedSkus = new Set(scope.items.map((item) => item.sku.toUpperCase()));
+      if (requestedSku && usedSkus.has(requestedSku)) throw new ConflictException(`Item code ${requestedSku} already exists`);
+      const sku = requestedSku || this.availableSku(body.name, usedSkus);
 
       const item = await tx.orm.public.InventoryItem.create({
         companyId,
@@ -99,15 +101,22 @@ export class InventoryService {
     return this.prisma.withCompany(companyId, async (tx) => {
       const actor = await this.actor(tx, companyId, userId);
       this.assertAdministrator(actor);
+      await this.lockCompany(tx, companyId);
       const scope = await this.scope(tx, companyId);
       this.knownLocation(scope.locations, body.locationId);
 
-      const rows = body.rows.map((row) => ({ ...row, sku: row.sku.trim().toUpperCase() }));
-      const duplicateInFile = rows.find((row, index) => rows.findIndex((candidate) => candidate.sku === row.sku) !== index);
-      if (duplicateInFile) throw new ConflictException(`SKU ${duplicateInFile.sku} appears more than once in the spreadsheet`);
+      const normalized = body.rows.map((row) => ({ ...row, sku: row.sku?.trim().toUpperCase() }));
+      const duplicateInFile = normalized.find((row, index) => row.sku && normalized.findIndex((candidate) => candidate.sku === row.sku) !== index);
+      if (duplicateInFile?.sku) throw new ConflictException(`Item code ${duplicateInFile.sku} appears more than once in the spreadsheet`);
       const existingSkus = new Set(scope.items.map((item) => item.sku.toUpperCase()));
-      const existing = rows.find((row) => existingSkus.has(row.sku));
-      if (existing) throw new ConflictException(`SKU ${existing.sku} already exists`);
+      const existing = normalized.find((row) => row.sku && existingSkus.has(row.sku));
+      if (existing?.sku) throw new ConflictException(`Item code ${existing.sku} already exists`);
+      const usedSkus = new Set(existingSkus);
+      const rows = normalized.map((row) => {
+        const sku = row.sku || this.availableSku(row.name, usedSkus);
+        usedSkus.add(sku);
+        return { ...row, sku };
+      });
 
       for (const row of rows) {
         const item = await tx.orm.public.InventoryItem.create({
@@ -266,6 +275,27 @@ export class InventoryService {
       FOR UPDATE
     `.returnsRow({ id: 'pg/uuid@1' }).build());
     if (rows.length === 0) throw new NotFoundException('Inventory item not found');
+  }
+
+  private async lockCompany(tx: PrismaTransaction, companyId: string) {
+    await tx.query(this.prisma.client.raw.sql`
+      SELECT id FROM public.companies
+      WHERE id = ${companyId}::uuid
+      FOR UPDATE
+    `.returnsRow({ id: 'pg/uuid@1' }).build());
+  }
+
+  private availableSku(name: string, usedSkus: ReadonlySet<string>) {
+    const normalized = name.normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
+    const stem = normalized.toUpperCase().replace(/[^A-Z0-9]+/g, '-').replace(/^-|-$/g, '') || 'ITEM';
+    let candidate = stem.slice(0, 40);
+    let sequence = 2;
+    while (usedSkus.has(candidate)) {
+      const suffix = `-${sequence}`;
+      candidate = `${stem.slice(0, 40 - suffix.length)}${suffix}`;
+      sequence += 1;
+    }
+    return candidate;
   }
 
   private async actor(tx: PrismaTransaction, companyId: string, userId: string): Promise<Actor> {

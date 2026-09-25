@@ -67,7 +67,7 @@ function AddItemPanel() {
     event.preventDefault();
     if (!accessToken) return;
     await mutate(() => api.addItem(accessToken, {
-      sku: form.sku, name: form.name, category: form.category || 'General', unit: form.unit || 'pcs',
+      ...(form.sku.trim() ? { sku: form.sku } : {}), name: form.name, category: form.category || 'General', unit: form.unit || 'pcs',
       reorderLevel: Number(form.reorderLevel), unitCostCents: Math.round(Number(form.unitCost) * 100),
       ...(form.sellingPrice !== '' ? { sellingPriceCents: Math.round(Number(form.sellingPrice) * 100) } : {}),
       openingStock: Number(form.openingStock), locationId: form.locationId,
@@ -75,7 +75,7 @@ function AddItemPanel() {
     setForm({ sku: '', name: '', category: '', unit: 'pcs', reorderLevel: '10', unitCost: '0', sellingPrice: '', openingStock: '0', locationId: '' });
   };
   return <Panel title="Add item" subtitle="Opening stock lands at the place you choose"><form className="form-grid item-form" onSubmit={(event) => void submit(event).catch(() => {})}>
-    {(['sku', 'name', 'category', 'unit'] as const).map((key) => <label key={key}><span>{key === 'sku' ? 'SKU' : key[0].toUpperCase() + key.slice(1)}</span><InputControl required={key === 'sku' || key === 'name'} value={form[key]} onValueChange={(value) => change(key, value)} /></label>)}
+    {(['sku', 'name', 'category', 'unit'] as const).map((key) => <label key={key}><span>{key === 'sku' ? 'Item code (optional)' : key[0].toUpperCase() + key.slice(1)}</span><InputControl placeholder={key === 'sku' ? 'Created automatically' : undefined} required={key === 'name'} value={form[key]} onValueChange={(value) => change(key, value)} /></label>)}
     <label><span>Reorder level</span><InputControl type="number" min="0" required value={form.reorderLevel} onValueChange={(value) => change('reorderLevel', value)} /></label>
     <label><span>Unit cost</span><InputControl type="number" min="0" step="0.01" required value={form.unitCost} onValueChange={(value) => change('unitCost', value)} /></label>
     <label><span>Selling price (optional)</span><InputControl type="number" min="0" max="21474836.47" step="0.01" placeholder="Not set" value={form.sellingPrice} onValueChange={(value) => change('sellingPrice', value)} /></label>
