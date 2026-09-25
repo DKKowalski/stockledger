@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 type TallyMascotProps = {
-  step?: 0 | 1 | 2 | 3;
+  step?: 0 | 1 | 2 | 3 | 4;
   compact?: boolean;
   celebrating?: boolean;
 };
@@ -10,6 +10,7 @@ const tips = [
   'This helps me shape the setup around the way your business moves stock.',
   'Every quantity needs a home. You can add more shops and warehouses later.',
   'Choose what matches today. Your first item can still be added another way.',
+  'Preview the rows before importing. Nothing is saved until you press the import button.',
   'Your setup is saved. The next milestones happen inside your workspace.',
 ] as const;
 

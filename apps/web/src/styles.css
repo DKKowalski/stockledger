@@ -297,7 +297,9 @@ h1, h2, .brand, .login-brand, .mobile-login-brand { font-family: var(--font-disp
 .onboarding-complete-list svg { width: 23px; height: 23px; padding: 4px; border-radius: 50%; color: #fff; background: var(--success); }
 .onboarding-actions { min-height: 46px; margin-top: 26px; display: flex; align-items: center; justify-content: flex-end; gap: 12px; }
 .onboarding-back { margin-right: auto; padding: 9px 4px; display: inline-flex; align-items: center; gap: 7px; border: 0; color: var(--muted); background: transparent; cursor: pointer; font-size: 12px; font-weight: 500; }
+.onboarding-skip { padding: 9px 4px; border: 0; color: #676d45; background: transparent; cursor: pointer; font-size: 12px; font-weight: 600; }
 .onboarding-continue { min-width: 160px; }
+.spreadsheet-import-body.onboarding-spreadsheet-import { margin-top: 30px; padding: 0; }
 .onboarding-tally-panel { position: relative; min-height: 560px; padding: 34px; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; border-radius: 22px; color: #f5f5ed; background: var(--ink); isolation: isolate; }
 .tally-stage-copy { position: relative; z-index: 2; }
 .tally-stage-copy > span { color: #dce38d; font-size: 10px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }

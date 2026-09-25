@@ -1,12 +1,14 @@
 import { ArrowLeft, ArrowRight, Building2, Check, PackageOpen, ScrollText, Store, Warehouse } from 'lucide-react';
-import { useMemo, useState, type ComponentType } from 'react';
-import { api } from '../../api';
+import { useEffect, useMemo, useState, type ComponentType } from 'react';
+import { ApiError, api } from '../../api';
 import { useAuth } from '../../auth-context';
 import { SpreadsheetImportIcon } from '../../components/animated-icons';
 import { StockLedgerMark } from '../../components/stockledger-mark';
 import { TallyMascot } from '../../components/tally-mascot';
 import { InputControl } from '../../components/ui/input-control';
-import type { BusinessType, InventorySource, LocationType, OnboardingStatus } from '../../types';
+import { SpreadsheetImportForm } from '../items/spreadsheet-import-form';
+import type { SpreadsheetItem } from '../items/spreadsheet-import';
+import type { BusinessType, InventorySource, LocationType, OnboardingStatus, Place } from '../../types';
 
 type OnboardingPageProps = {
   initialStatus: OnboardingStatus;
@@ -27,15 +29,21 @@ const sourceOptions = [
   { value: 'starting_fresh', title: 'Starting fresh', description: 'I will create my first items here.', icon: PackageOpen },
 ] satisfies Array<{ value: InventorySource; title: string; description: string; icon: ComponentType<{ className?: string; size?: number }> }>;
 
+type OnboardingStep = 0 | 1 | 2 | 3 | 4;
+
 export function OnboardingPage({ initialStatus, onComplete }: OnboardingPageProps) {
   const { accessToken, signOut } = useAuth();
   const firstStep = initialStatus.company.businessType ? (initialStatus.counts.locations ? 2 : 1) : 0;
-  const [step, setStep] = useState<0 | 1 | 2 | 3>(initialStatus.company.inventorySource && initialStatus.counts.locations ? 2 : firstStep);
+  const resumedStep = initialStatus.company.inventorySource === 'spreadsheet' && initialStatus.counts.locations ? 3 : firstStep;
+  const [step, setStep] = useState<OnboardingStep>(resumedStep);
   const [businessType, setBusinessType] = useState<BusinessType | null>(initialStatus.company.businessType);
   const [locationType, setLocationType] = useState<LocationType>('shop');
   const [locationName, setLocationName] = useState('');
   const [locationReady, setLocationReady] = useState(initialStatus.counts.locations > 0);
+  const [locations, setLocations] = useState<Place[]>([]);
+  const [loadingLocations, setLoadingLocations] = useState(resumedStep === 3);
   const [inventorySource, setInventorySource] = useState<InventorySource | null>(initialStatus.company.inventorySource);
+  const [importedCount, setImportedCount] = useState(0);
   const [completedStatus, setCompletedStatus] = useState<OnboardingStatus | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,8 +52,27 @@ export function OnboardingPage({ initialStatus, onComplete }: OnboardingPageProp
     { eyebrow: 'Your business', title: 'What kind of business do you run?', description: 'We will use this to put the most useful setup tasks first.' },
     { eyebrow: 'Your first place', title: 'Where do you keep stock?', description: 'Every quantity in StockLedger belongs to a shop or warehouse.' },
     { eyebrow: 'Your inventory', title: 'Where are your stock records today?', description: 'This changes what we recommend when you enter the workspace.' },
+    { eyebrow: 'Bring your inventory', title: 'Start with the stock you already have.', description: 'Upload Excel or CSV, review the rows, then add them to your first place.' },
     { eyebrow: 'Setup complete', title: 'Your ledger is live.', description: `Your first place is ready inside ${initialStatus.company.name}.` },
   ][step], [initialStatus.company.name, step]);
+
+  useEffect(() => {
+    if (!accessToken || step !== 3 || locations.length) return;
+    let cancelled = false;
+    void api.snapshot(accessToken, 30)
+      .then((snapshot) => {
+        if (!cancelled) setLocations(snapshot.locations);
+      })
+      .catch((caught: unknown) => {
+        if (cancelled) return;
+        if (caught instanceof ApiError && caught.status === 401) signOut();
+        else setError(caught instanceof Error ? caught.message : 'Could not load your stock locations');
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingLocations(false);
+      });
+    return () => { cancelled = true; };
+  }, [accessToken, locations.length, signOut, step]);
 
   if (!accessToken) return null;
 
@@ -57,14 +84,17 @@ export function OnboardingPage({ initialStatus, onComplete }: OnboardingPageProp
         await api.setBusinessType(accessToken, businessType);
         setStep(locationReady ? 2 : 1);
       } else if (step === 1 && locationName.trim()) {
-        await api.addLocation(accessToken, { name: locationName.trim(), type: locationType });
+        const location = await api.addLocation(accessToken, { name: locationName.trim(), type: locationType });
+        setLocations([location]);
         setLocationReady(true);
         setStep(2);
       } else if (step === 2 && inventorySource) {
         await api.setInventorySource(accessToken, inventorySource);
-        const completed = await api.completeOnboarding(accessToken);
-        setCompletedStatus(completed);
-        setStep(3);
+        if (inventorySource === 'spreadsheet') {
+          if (!locations.length) setLoadingLocations(true);
+          setStep(3);
+        }
+        else await finishSetup();
       }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not save this step');
@@ -73,20 +103,52 @@ export function OnboardingPage({ initialStatus, onComplete }: OnboardingPageProp
     }
   };
 
+  const finishSetup = async () => {
+    if (!accessToken) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const completed = await api.completeOnboarding(accessToken);
+      setCompletedStatus(completed);
+      setStep(4);
+    } catch (caught) {
+      if (caught instanceof ApiError && caught.status === 401) signOut();
+      else setError(caught instanceof Error ? caught.message : 'Could not finish business setup');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const importSpreadsheet = async (locationId: string, rows: SpreadsheetItem[]) => {
+    if (!accessToken) throw new Error('Your session has expired');
+    setBusy(true);
+    setError(null);
+    try {
+      await api.importItems(accessToken, { locationId, rows });
+    } catch (caught) {
+      if (caught instanceof ApiError && caught.status === 401) signOut();
+      throw caught;
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const canContinue = step === 0 ? Boolean(businessType) : step === 1 ? Boolean(locationName.trim()) : step === 2 ? Boolean(inventorySource) : true;
+  const totalSteps = inventorySource === 'spreadsheet' || step === 3 ? 4 : 3;
+  const progressStep = step === 4 ? totalSteps - 1 : Math.min(step, totalSteps - 1);
 
   return <main className="onboarding-page">
     <header className="onboarding-header">
       <div className="brand"><span className="brand-mark"><StockLedgerMark /></span>StockLedger</div>
       <button className="onboarding-exit" onClick={signOut} type="button">Save and exit</button>
     </header>
-    <div className="onboarding-progress" aria-label={`Setup step ${Math.min(step + 1, 3)} of 3`}>
-      {[0, 1, 2].map((part) => <span className={part <= step ? 'active' : ''} key={part} />)}
+    <div className="onboarding-progress" style={{ gridTemplateColumns: `repeat(${totalSteps}, 1fr)` }} aria-label={`Setup step ${progressStep + 1} of ${totalSteps}`}>
+      {Array.from({ length: totalSteps }, (_, part) => <span className={part <= progressStep ? 'active' : ''} key={part} />)}
     </div>
     <div className="onboarding-layout">
       <section className="onboarding-form-card">
         <div className="onboarding-copy" key={step}>
-          <span className="onboarding-eyebrow">{stepCopy.eyebrow}{step < 3 && <small>{step + 1} of 3</small>}</span>
+          <span className="onboarding-eyebrow">{stepCopy.eyebrow}{step < 4 && <small>{progressStep + 1} of {totalSteps}</small>}</span>
           <h1>{stepCopy.title}</h1>
           <p>{stepCopy.description}</p>
         </div>
@@ -114,20 +176,35 @@ export function OnboardingPage({ initialStatus, onComplete }: OnboardingPageProp
           </button>)}
         </div>}
 
-        {step === 3 && <div className="onboarding-complete-list">
+        {step === 3 && <SpreadsheetImportForm
+          busy={busy || loadingLocations}
+          className="onboarding-spreadsheet-import"
+          locations={locations}
+          onImport={importSpreadsheet}
+          onImported={(count) => {
+            setImportedCount(count);
+            void finishSetup();
+          }}
+          submitLabel={(count) => `Import ${count} and finish`}
+        />}
+
+        {step === 4 && <div className="onboarding-complete-list">
           <span><Check size={15} />Business profile saved</span>
           <span><Check size={15} />First stock location created</span>
-          <span><Check size={15} />Launch path personalized</span>
+          <span><Check size={15} />{inventorySource === 'spreadsheet' ? importedCount ? `${importedCount} inventory ${importedCount === 1 ? 'item' : 'items'} imported` : 'Spreadsheet import saved for later' : 'Launch path personalized'}</span>
         </div>}
 
         <div className="onboarding-actions">
           {step > 0 && step < 3 && <button className="onboarding-back" disabled={busy} onClick={() => setStep(step === 2 && locationReady ? 0 : (step - 1) as 0 | 1 | 2)} type="button"><ArrowLeft size={15} />Back</button>}
-          {step < 3 ? <button className="button onboarding-continue" disabled={!canContinue || busy} onClick={() => void next()} type="button">{busy ? <><StockLedgerMark animated size={18} />Saving</> : <>{step === 2 ? 'Finish setup' : 'Continue'}<ArrowRight size={16} /></>}</button> : <button className="button onboarding-continue" onClick={() => onComplete(completedStatus ?? { ...initialStatus, completed: true })} type="button">Open my workspace<ArrowRight size={16} /></button>}
+          {step < 3 && <button className="button onboarding-continue" disabled={!canContinue || busy} onClick={() => void next()} type="button">{busy ? <><StockLedgerMark animated size={18} />Saving</> : <>{step === 2 && inventorySource !== 'spreadsheet' ? 'Finish setup' : 'Continue'}<ArrowRight size={16} /></>}</button>}
+          {step === 3 && !importedCount && <><button className="onboarding-back" disabled={busy} onClick={() => setStep(2)} type="button"><ArrowLeft size={15} />Back</button><button className="onboarding-skip" disabled={busy || loadingLocations} onClick={() => void finishSetup()} type="button">Import later</button></>}
+          {step === 3 && importedCount > 0 && <button className="button onboarding-continue" disabled={busy} onClick={() => void finishSetup()} type="button">{busy ? <><StockLedgerMark animated size={18} />Finishing</> : <>Finish setup<ArrowRight size={16} /></>}</button>}
+          {step === 4 && <button className="button onboarding-continue" onClick={() => onComplete(completedStatus ?? { ...initialStatus, completed: true })} type="button">Open my workspace<ArrowRight size={16} /></button>}
         </div>
       </section>
       <aside className="onboarding-tally-panel">
-        <div className="tally-stage-copy"><span>{step === 3 ? 'All set' : 'Your setup guide'}</span><p>{step === 3 ? 'Tally will stay nearby while you finish the first few tasks.' : 'Tally only speaks when you ask.'}</p></div>
-        <TallyMascot celebrating={step === 3} step={step} />
+        <div className="tally-stage-copy"><span>{step === 4 ? 'All set' : 'Your setup guide'}</span><p>{step === 4 ? 'Tally will stay nearby while you finish the first few tasks.' : 'Tally only speaks when you ask.'}</p></div>
+        <TallyMascot celebrating={step === 4} step={step} />
         <div className="tally-ledger-lines" aria-hidden="true"><span /><span /><span /><span /></div>
       </aside>
     </div>

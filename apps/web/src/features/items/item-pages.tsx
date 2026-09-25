@@ -1,5 +1,5 @@
-import { ArrowUpRight, Check, Download, X } from 'lucide-react';
-import { useRef, useState, type ChangeEvent, type FormEvent } from 'react';
+import { ArrowUpRight, Check, X } from 'lucide-react';
+import { useState, type FormEvent } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../../api';
 import { useInventoryStore } from '../../app/inventory-store';
@@ -8,7 +8,7 @@ import { useAuth } from '../../auth-context';
 import { EmptyState, PageHeader, PageState, Panel, SelectControl } from '../../components/inventory-ui';
 import { SpreadsheetImportIcon } from '../../components/animated-icons';
 import { InputControl } from '../../components/ui/input-control';
-import { inventoryTemplate, readInventorySpreadsheet, type SpreadsheetItem } from './spreadsheet-import';
+import { SpreadsheetImportForm } from './spreadsheet-import-form';
 
 export function AdminItemsPage() {
   const [searchParams] = useSearchParams();
@@ -26,79 +26,16 @@ function SpreadsheetImportPanel({ onClose }: { onClose: () => void }) {
   const { money } = useCompanySettings();
   const { accessToken } = useAuth();
   const { snapshot, mutate, busy } = useInventoryStore();
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [fileName, setFileName] = useState('');
-  const [rows, setRows] = useState<SpreadsheetItem[]>([]);
-  const [locationId, setLocationId] = useState(snapshot?.locations[0]?.id ?? '');
-  const [reading, setReading] = useState(false);
-  const [complete, setComplete] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const chooseFile = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    setReading(true);
-    setComplete(false);
-    setError(null);
-    try {
-      setRows(await readInventorySpreadsheet(file));
-      setFileName(file.name);
-    } catch (caught) {
-      setRows([]);
-      setFileName('');
-      setError(caught instanceof Error ? caught.message : 'Could not read this spreadsheet');
-    } finally {
-      setReading(false);
-      event.target.value = '';
-    }
-  };
-
-  const submit = async () => {
-    if (!accessToken || !rows.length || !locationId) return;
-    await mutate(
-      () => api.importItems(accessToken, { locationId, rows }),
-      `${rows.length} ${rows.length === 1 ? 'item was' : 'items were'} imported.`,
-    );
-    setComplete(true);
-    setRows([]);
-    setFileName('');
-  };
-
-  const downloadTemplate = () => {
-    const content = inventoryTemplate.map((row) => row.map(csvCell).join(',')).join('\n');
-    const url = URL.createObjectURL(new Blob([content], { type: 'text/csv;charset=utf-8' }));
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = 'stockledger-inventory-template.csv';
-    anchor.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const iconState = complete ? 'complete' : reading || busy ? 'reading' : 'idle';
   return <Panel title="Import inventory" subtitle="Upload Excel or CSV. StockLedger validates every row before saving anything." className="spreadsheet-import-panel">
     <button aria-label="Close spreadsheet import" className="spreadsheet-import-close" onClick={onClose} type="button"><X size={16} /></button>
-    <div className="spreadsheet-import-body">
-      <button className={`spreadsheet-dropzone ${rows.length ? 'has-file' : ''}`} disabled={reading || busy} onClick={() => inputRef.current?.click()} type="button">
-        <SpreadsheetImportIcon size={34} state={iconState} />
-        <span><b>{reading ? 'Reading spreadsheet' : complete ? 'Import complete' : fileName || 'Choose an Excel or CSV file'}</b><small>{rows.length ? `${rows.length} valid ${rows.length === 1 ? 'item' : 'items'} ready to import` : 'Use .xlsx or .csv, up to 200 items'}</small></span>
-      </button>
-      <input ref={inputRef} className="sr-only" type="file" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" onChange={(event) => void chooseFile(event)} />
-      <button className="spreadsheet-template-button" onClick={downloadTemplate} type="button"><Download size={15} />Download column template</button>
-      {error && <div className="form-error spreadsheet-import-error" role="alert">{error}</div>}
-      {rows.length > 0 && <div className="spreadsheet-preview">
-        <div className="spreadsheet-preview-heading"><b>Preview</b><span>First {Math.min(rows.length, 5)} of {rows.length}</span></div>
-        <div className="table-wrap"><table><thead><tr><th>SKU</th><th>Name</th><th>Category</th><th className="num">Opening</th><th className="num">Cost</th></tr></thead><tbody>{rows.slice(0, 5).map((row) => <tr key={row.sku}><td><b>{row.sku}</b></td><td>{row.name}</td><td>{row.category}</td><td className="num">{row.openingStock}</td><td className="num">{money(row.unitCostCents)}</td></tr>)}</tbody></table></div>
-      </div>}
-      <div className="spreadsheet-import-actions">
-        <label><span>Opening place</span><SelectControl aria-label="Opening place for imported stock" disabled={busy} value={locationId} onValueChange={setLocationId} options={[{ value: '', label: 'Select place' }, ...(snapshot?.locations.map((place) => ({ value: place.id, label: place.name })) ?? [])]} /></label>
-        <button className="button" disabled={busy || reading || !rows.length || !locationId} onClick={() => void submit().catch(() => {})} type="button"><SpreadsheetImportIcon state={iconState} />{busy ? 'Importing' : rows.length ? `Import ${rows.length} ${rows.length === 1 ? 'item' : 'items'}` : 'Import items'}</button>
-      </div>
-    </div>
+    <SpreadsheetImportForm busy={busy} formatMoney={money} locations={snapshot?.locations ?? []} onImport={(locationId, rows) => {
+      if (!accessToken) return Promise.reject(new Error('Your session has expired'));
+      return mutate(
+        () => api.importItems(accessToken, { locationId, rows }),
+        `${rows.length} ${rows.length === 1 ? 'item was' : 'items were'} imported.`,
+      );
+    }} />
   </Panel>;
-}
-
-function csvCell(value: string) {
-  return `"${value.replaceAll('"', '""')}"`;
 }
 
 export function ManagerItemsPage() {
