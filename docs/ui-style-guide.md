@@ -1,7 +1,7 @@
 # StockLedger UI and brand style guide
 
 Status: active
-Last updated: 24 September 2026
+Last updated: 25 September 2026
 
 This document is the visual source of truth for StockLedger. Use it before changing product UI, creating marketing material, or drawing the final logo.
 
@@ -170,10 +170,13 @@ Motion should confirm an action or explain a change.
 - Hover and color changes: 140–180ms
 - Buttons: subtle press scale, 100–160ms
 - Menus and tooltips: 150–200ms with strong ease-out
+- Async actions: keep one button footprint and morph its label and icon through idle, pending, and success states
+- Tabs: move one selection indicator between options instead of repainting disconnected pills
+- Charts: grow bars from their baseline with transforms and reveal exact values on hover or keyboard focus
 - Page entrances: optional, no more than 8px of movement
 - Respect `prefers-reduced-motion`
 
-Do not animate controls used repeatedly with the keyboard. Do not use bounce in operational screens.
+Keep state swaps under 240ms. A small blur may bridge an icon or label swap, but it must clear as soon as the new state settles. Do not animate controls used repeatedly with the keyboard. Do not use bounce in operational screens. Do not pair a loading toast with a button that already shows progress.
 
 ### Tally mascot
 

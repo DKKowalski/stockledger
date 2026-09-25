@@ -1,5 +1,5 @@
 import { Dialog } from '@base-ui/react/dialog';
-import { Archive, ArrowUpRight, Check, Pencil, RotateCcw, Save, X } from 'lucide-react';
+import { Archive, Check, Pencil, RotateCcw, Save, X } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 import { useSearchParams } from 'react-router-dom';
@@ -10,6 +10,8 @@ import { useAuth } from '../../auth-context';
 import { EmptyState, PageHeader, PageState, Panel, SelectControl } from '../../components/inventory-ui';
 import { SpreadsheetImportIcon } from '../../components/animated-icons';
 import { InputControl } from '../../components/ui/input-control';
+import { AsyncActionButton } from '../../components/ui/async-action-button';
+import { useAsyncActionState } from '../../components/ui/use-async-action-state';
 import { SpreadsheetImportForm } from './spreadsheet-import-form';
 import type { Item } from '../../types';
 
@@ -65,17 +67,18 @@ export function ShopCatalogPage() {
 function AddItemPanel() {
   const { accessToken } = useAuth();
   const { snapshot, mutate, busy } = useInventoryStore();
+  const addAction = useAsyncActionState();
   const [form, setForm] = useState({ sku: '', name: '', category: '', unit: 'pcs', reorderLevel: '10', unitCost: '0', sellingPrice: '', openingStock: '0', locationId: '' });
   const change = (key: keyof typeof form, value: string) => setForm((current) => ({ ...current, [key]: value }));
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (!accessToken) return;
-    await mutate(() => api.addItem(accessToken, {
+    await addAction.run(() => mutate(() => api.addItem(accessToken, {
       ...(form.sku.trim() ? { sku: form.sku } : {}), name: form.name, category: form.category || 'General', unit: form.unit || 'pcs',
       reorderLevel: Number(form.reorderLevel), unitCostCents: Math.round(Number(form.unitCost) * 100),
       ...(form.sellingPrice !== '' ? { sellingPriceCents: Math.round(Number(form.sellingPrice) * 100) } : {}),
       openingStock: Number(form.openingStock), locationId: form.locationId,
-    }), `${form.name} was added to inventory.`);
+    }), `${form.name} was added to inventory.`));
     setForm({ sku: '', name: '', category: '', unit: 'pcs', reorderLevel: '10', unitCost: '0', sellingPrice: '', openingStock: '0', locationId: '' });
   };
   return <Panel title="Add item" subtitle="Opening stock lands at the place you choose"><form className="form-grid item-form" onSubmit={(event) => void submit(event).catch(() => {})}>
@@ -85,7 +88,7 @@ function AddItemPanel() {
     <label><span>Selling price (optional)</span><InputControl type="number" min="0" max="21474836.47" step="0.01" placeholder="Not set" value={form.sellingPrice} onValueChange={(value) => change('sellingPrice', value)} /></label>
     <label><span>Opening place</span><SelectControl aria-label="Opening place" required value={form.locationId} onValueChange={(value) => change('locationId', value)} options={[{ value: '', label: 'Select place' }, ...(snapshot?.locations.map((place) => ({ value: place.id, label: place.name })) ?? [])]} /></label>
     <label><span>Opening stock</span><InputControl type="number" min="0" required value={form.openingStock} onValueChange={(value) => change('openingStock', value)} /></label>
-    <button className="button" disabled={busy || !snapshot?.locations.length}>Add item<ArrowUpRight size={16} /></button>
+    <AsyncActionButton disabled={busy || !snapshot?.locations.length} idleLabel="Add item" pendingLabel="Adding" state={addAction.state} successLabel="Item added" />
   </form></Panel>;
 }
 

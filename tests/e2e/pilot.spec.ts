@@ -4,8 +4,16 @@ async function signIntoDemo(page: Page) {
   await page.goto('/login');
   await page.getByRole('button', { name: 'Preview the demo workspace' }).click();
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  await expect(page).toHaveURL('/');
   await expect(page.getByText('You are viewing a read-only demo.')).toBeVisible();
 }
+
+test('opens the login page from the public landing page', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('link', { name: 'Sign in', exact: true }).first().click();
+  await expect(page).toHaveURL('/login');
+  await expect(page.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
+});
 
 test('publishes the privacy notice and terms without requiring an account', async ({ page }) => {
   await page.goto('/privacy');

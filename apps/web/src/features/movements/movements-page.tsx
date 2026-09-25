@@ -1,4 +1,4 @@
-import { ArrowUpRight, Trash2 } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { useEffect, useState, type FormEvent } from 'react';
 import { NavLink } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -9,6 +9,8 @@ import { useAuth } from '../../auth-context';
 import { EmptyState, PageHeader, PageState, Panel, SelectControl } from '../../components/inventory-ui';
 import { InfoTooltip } from '../../components/ui/info-tooltip';
 import { InputControl } from '../../components/ui/input-control';
+import { AsyncActionButton } from '../../components/ui/async-action-button';
+import { useAsyncActionState } from '../../components/ui/use-async-action-state';
 import { movementMeta } from '../../lib/presentation';
 import type { MovementType, Supplier } from '../../types';
 
@@ -16,6 +18,7 @@ export function MovementsPage() {
   const { accessToken } = useAuth();
   const { snapshot, mutate, busy } = useInventoryStore();
   const { money, calendarDate } = useCompanySettings();
+  const saveAction = useAsyncActionState();
   const [filter, setFilter] = useState<'all' | MovementType>('all');
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [form, setForm] = useState({
@@ -52,7 +55,7 @@ export function MovementsPage() {
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (!accessToken) return;
-    await mutate(() => api.addMovement(accessToken, {
+    await saveAction.run(() => mutate(() => api.addMovement(accessToken, {
       itemId: form.itemId,
       locationId: form.locationId,
       destinationLocationId: form.type === 'transfer' ? form.destinationLocationId : undefined,
@@ -64,7 +67,7 @@ export function MovementsPage() {
       unitCostCents: form.type === 'purchase' ? Math.round(Number(form.unitCost) * 100) : undefined,
       supplierId: form.type === 'purchase' && form.supplierId ? form.supplierId : undefined,
       relatedMovementId: form.type === 'return_in' ? form.relatedMovementId : undefined,
-    }), `${movementMeta[form.type].label} was recorded.`);
+    }), `${movementMeta[form.type].label} was recorded.`));
     setForm((current) => ({ ...current, quantity: '', reference: '', note: '', unitCost: '', relatedMovementId: '' }));
   };
 
@@ -83,7 +86,7 @@ export function MovementsPage() {
         <label><span>Date</span><InputControl type="date" required value={form.movementDate} onValueChange={(movementDate) => setForm({ ...form, movementDate })} /></label>
         <label><span>Reference</span><InputControl value={form.reference} onValueChange={(reference) => setForm({ ...form, reference })} /></label>
         <label><span>Note</span><InputControl value={form.note} onValueChange={(note) => setForm({ ...form, note })} /></label>
-        <button className="button" disabled={busy || !items.length}>Save movement<ArrowUpRight size={16} /></button>
+        <AsyncActionButton disabled={busy || !items.length} idleLabel="Save movement" pendingLabel="Saving" state={saveAction.state} successLabel="Saved" />
       </form>
     </Panel>
     <Panel title={`Movement ledger (${rows.length})`} className="spaced">

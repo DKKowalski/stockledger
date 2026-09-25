@@ -1,4 +1,3 @@
-import { ArrowUpRight } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { api } from '../../api';
 import { useInventoryStore } from '../../app/inventory-store';
@@ -7,11 +6,14 @@ import { useAuth } from '../../auth-context';
 import { EmptyState, PageHeader, PageState, Panel, SelectControl } from '../../components/inventory-ui';
 import { InfoTooltip } from '../../components/ui/info-tooltip';
 import { InputControl } from '../../components/ui/input-control';
+import { AsyncActionButton } from '../../components/ui/async-action-button';
+import { useAsyncActionState } from '../../components/ui/use-async-action-state';
 
 export function ShopSalesPage() {
   const { accessToken, user } = useAuth();
   const { snapshot, mutate, busy } = useInventoryStore();
   const { money, calendarDate } = useCompanySettings();
+  const saleAction = useAsyncActionState();
   const [form, setForm] = useState({ itemId: '', quantity: '' });
   const shop = snapshot?.locations.find((place) => place.id === user?.locationId) ?? snapshot?.locations[0];
   const stocked = snapshot?.positions.filter((position) => position.closing > 0) ?? [];
@@ -24,10 +26,10 @@ export function ShopSalesPage() {
     event.preventDefault();
     if (!accessToken || !user?.locationId || !selected || unitPriceCents == null) return;
     const quantity = Number(form.quantity);
-    await mutate(() => api.addMovement(accessToken, {
+    await saleAction.run(() => mutate(() => api.addMovement(accessToken, {
       itemId: selected.item.id, locationId: user.locationId!, type: 'sale', quantity,
       expectedUnitPriceCents: unitPriceCents, movementDate: new Date().toISOString().slice(0, 10),
-    }), `Sold ${quantity} ${selected.item.unit} of ${selected.item.name}.`);
+    }), `Sold ${quantity} ${selected.item.unit} of ${selected.item.name}.`));
     setForm({ itemId: '', quantity: '' });
   };
 
@@ -39,7 +41,7 @@ export function ShopSalesPage() {
         <label><span className="label-row"><span>Quantity</span><InfoTooltip label="Stock on hand">{selected ? `${selected.closing} ${selected.item.unit} on hand` : 'Choose an item to see what is on hand'}</InfoTooltip></span><InputControl type="number" min="1" max={selected?.closing} required value={form.quantity} onValueChange={(quantity) => setForm({ ...form, quantity })} /></label>
         <label><span>Unit price</span><InputControl readOnly value={unitPriceCents == null ? 'Not set' : money(unitPriceCents)} /></label>
         <label><span>Total</span><output className="sale-total" aria-live="polite">{totalCents == null ? '—' : money(totalCents)}</output></label>
-        <button className="button" disabled={busy || !selected || unitPriceCents == null}>Sell<ArrowUpRight size={16} /></button>
+        <AsyncActionButton disabled={busy || !selected || unitPriceCents == null} idleLabel="Sell" pendingLabel="Recording" state={saleAction.state} successLabel="Sale recorded" />
         {selected && unitPriceCents == null && <p className="price-hint" role="status">Ask an administrator to set a selling price for this item.</p>}
       </form> : <EmptyState text="Nothing to sell yet. Stock arrives when someone transfers it to this shop." />}
     </Panel>

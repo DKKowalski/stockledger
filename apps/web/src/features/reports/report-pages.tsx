@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useInventoryStore } from '../../app/inventory-store';
 import { useCompanySettings } from '../../app/company-settings-store';
 import { EmptyState, LocationFilter, PageHeader, PageState, Panel, SelectControl, StockTable } from '../../components/inventory-ui';
+import { MotionTabs } from '../../components/ui/motion-tabs';
 import type { Position } from '../../types';
 
 type ReportTab = 'current' | 'low' | 'fast' | 'slow' | 'dead';
@@ -59,10 +60,11 @@ function PeriodFilter({ days, setDays }: { days: number; setDays: (days: number)
 }
 
 function ReportTabs({ tab, setTab, positions }: { tab: ReportTab; setTab: (tab: ReportTab) => void; positions: Position[] }) {
-  return <div className="tabs" role="tablist">{(Object.keys(labels) as ReportTab[]).map((key) => {
+  const items = (Object.keys(labels) as ReportTab[]).map((key) => {
     const count = key === 'current' ? positions.length : positions.filter((position) => key === 'low' ? position.isLowStock : position.velocity === key).length;
-    return <button role="tab" aria-selected={tab === key} className={tab === key ? 'active' : ''} key={key} onClick={() => setTab(key)}>{labels[key]} ({count})</button>;
-  })}</div>;
+    return { value: key, label: `${labels[key]} (${count})` };
+  });
+  return <MotionTabs aria-label="Inventory report" items={items} onValueChange={setTab} value={tab} />;
 }
 
 function OperationsVelocityTable({ positions }: { positions: Position[] }) {

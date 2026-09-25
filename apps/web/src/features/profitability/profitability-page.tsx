@@ -1,5 +1,5 @@
 import { Building2, CircleDollarSign, PackageX, Percent, ReceiptText, SlidersHorizontal, Store, TrendingUp, Warehouse as WarehouseIcon } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { ApiError, api } from '../../api';
 import { useInventoryStore } from '../../app/inventory-store';
 import { useCompanySettings } from '../../app/company-settings-store';
@@ -14,7 +14,7 @@ type ProfitPeriod = 7 | 30 | 90;
 export function ProfitabilityPage() {
   const { accessToken, signOut } = useAuth();
   const { snapshot } = useInventoryStore();
-  const { money } = useCompanySettings();
+  const { money, calendarDate } = useCompanySettings();
   const [days, setDays] = useState<ProfitPeriod>(30);
   const [locationType, setLocationType] = useState<LocationScope>('');
   const [locationId, setLocationId] = useState('');
@@ -82,7 +82,15 @@ export function ProfitabilityPage() {
       </section>
       <section className="profit-layout">
         <Panel title="Sales and gross profit" subtitle={`${scopeLabel} over the last ${days} days`} className="profit-trend-panel">
-          {report?.trend.length ? <div className="profit-chart"><div className="profit-chart-legend"><span><i className="sales" />Net sales</span><span><i className="profit" />Gross profit</span></div><div className="profit-chart-bars">{report.trend.map((point) => <div className="profit-chart-day" key={point.date} title={`${point.date}: ${money(point.netSalesCents)} sales, ${money(point.grossProfitCents)} profit`}><div><i className="sales" style={{ height: `${Math.max(Math.abs(point.netSalesCents) / maxTrend * 100, 3)}%` }} /><i className="profit" style={{ height: `${Math.max(Math.abs(point.grossProfitCents) / maxTrend * 100, 3)}%` }} /></div><small>{point.date.slice(5)}</small></div>)}</div></div> : <EmptyState text={isWarehouseView ? 'Sales are recorded at shops, so this warehouse has no profit trend.' : 'No sales match these filters.'} />}
+          {report?.trend.length ? <div className="profit-chart"><div className="profit-chart-legend"><span><i className="sales" />Net sales</span><span><i className="profit" />Gross profit</span></div><div className="profit-chart-bars">{report.trend.map((point) => {
+            const salesScale = Math.max(Math.abs(point.netSalesCents) / maxTrend, .03);
+            const profitScale = Math.max(Math.abs(point.grossProfitCents) / maxTrend, .03);
+            const description = `${calendarDate(point.date)}. ${money(point.netSalesCents)} net sales. ${money(point.grossProfitCents)} gross profit.`;
+            return <div aria-label={description} className="profit-chart-day" key={point.date} role="img" tabIndex={0}>
+              <span className="profit-chart-tooltip" role="tooltip"><b>{calendarDate(point.date)}</b><small><i className="sales" />Sales {money(point.netSalesCents)}</small><small><i className="profit" />Profit {money(point.grossProfitCents)}</small></span>
+              <div><i className="sales" style={{ '--bar-scale': salesScale } as CSSProperties} /><i className="profit" style={{ '--bar-scale': profitScale } as CSSProperties} /></div><small>{point.date.slice(5)}</small>
+            </div>;
+          })}</div></div> : <EmptyState text={isWarehouseView ? 'Sales are recorded at shops, so this warehouse has no profit trend.' : 'No sales match these filters.'} />}
         </Panel>
         <Panel title="Inventory losses" subtitle="Damage and negative count adjustments at recorded cost"><div className="profit-loss"><span><PackageX size={22} /></span><strong>{money(summary.inventoryLossCents)}</strong><small>Tracked separately from gross profit</small></div></Panel>
       </section>

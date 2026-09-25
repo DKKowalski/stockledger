@@ -430,6 +430,25 @@ h1, h2, .brand, .login-brand, .mobile-login-brand { font-family: var(--font-disp
 .button.secondary { color: var(--ink); border-color: #dedfd9; background: #fff; }
 .button:active { transform: scale(.97); }
 .button:disabled, .icon-button:disabled { opacity: .48; cursor: not-allowed; transform: none; }
+.async-action-button { position: relative; min-width: 118px; overflow: hidden; isolation: isolate; transition: color 160ms ease, background-color 200ms ease, border-color 200ms ease, transform 140ms var(--ease-out), opacity 160ms ease; }
+.async-action-button.is-pending:disabled, .async-action-button.is-success:disabled { opacity: 1; }
+.async-action-button.is-pending { cursor: wait; }
+.async-action-button.is-success { color: #fff; border-color: #59651d; background: #59651d; cursor: default; }
+.async-action-labels { display: grid; place-items: center; }
+.async-action-label { grid-area: 1 / 1; white-space: nowrap; opacity: 0; filter: blur(2px); transform: translateY(4px) scale(.98); transition: opacity 120ms ease, filter 160ms ease, transform 200ms var(--ease-out); }
+.async-action-button.is-idle .async-action-label.is-idle,
+.async-action-button.is-pending .async-action-label.is-pending,
+.async-action-button.is-success .async-action-label.is-success { opacity: 1; filter: blur(0); transform: translateY(0) scale(1); }
+.async-action-button.is-pending .async-action-label.is-idle,
+.async-action-button.is-success .async-action-label.is-pending { transform: translateY(-4px) scale(.98); }
+.async-action-icon { flex: 0 0 auto; overflow: visible; }
+.async-action-icon path, .async-action-icon circle { fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.9; transform-box: fill-box; transform-origin: center; transition: opacity 120ms ease, filter 160ms ease, transform 200ms var(--ease-out); }
+.async-action-spinner, .async-action-check { opacity: 0; filter: blur(2px); transform: scale(.88); }
+.async-action-icon[data-state='pending'] .async-action-arrow,
+.async-action-icon[data-state='success'] .async-action-arrow { opacity: 0; filter: blur(2px); transform: scale(.88) rotate(-10deg); }
+.async-action-icon[data-state='pending'] .async-action-spinner { opacity: 1; filter: blur(0); transform: scale(1); stroke-dasharray: 29 18; animation: async-action-spin 680ms linear infinite; }
+.async-action-icon[data-state='success'] .async-action-spinner { opacity: 0; transform: scale(.88) rotate(30deg); }
+.async-action-icon[data-state='success'] .async-action-check { opacity: 1; filter: blur(0); transform: scale(1); stroke-dasharray: 14; stroke-dashoffset: 0; animation: async-action-check 240ms var(--ease-out) backwards; }
 .inventory-sync-button { min-width: 119px; padding-inline: 12px 15px; color: #303426; border-color: #d5d8c8; background: #f6f7ee; }
 .inventory-sync-label { min-width: 61px; text-align: left; }
 .inventory-sync-button.is-loading { opacity: 1; cursor: default; color: #4f543d; border-color: #cbd09f; background: #eef0d8; }
@@ -791,10 +810,13 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px soli
 .filter-row label { width: 220px; }
 .icon-button { width: 34px; height: 34px; display: inline-grid; place-items: center; border: 1px solid var(--border); border-radius: 8px; color: var(--danger); background: #fff; cursor: pointer; transition: border-color 160ms ease, background-color 160ms ease, transform 140ms var(--ease-out); }
 .icon-button:active { transform: scale(.95); }
-.tabs { display: flex; gap: 7px; overflow-x: auto; margin-bottom: 17px; padding-bottom: 2px; }
-.tabs button { border: 1px solid #e4e4df; background: #eeeeeb; color: #444741; white-space: nowrap; padding: 10px 15px; border-radius: 11px; font-size: 12px; font-weight: 500; cursor: pointer; transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease, transform 140ms var(--ease-out); }
-.tabs button.active { color: #fff; border-color: var(--ink); background: var(--ink); }
-.tabs button:active { transform: scale(.97); }
+.motion-tabs { position: relative; width: max-content; max-width: 100%; margin-bottom: 17px; padding: 4px; display: flex; gap: 1px; overflow-x: auto; border: 1px solid #e0e2da; border-radius: 13px; background: #e9eae5; scrollbar-width: none; isolation: isolate; }
+.motion-tabs::-webkit-scrollbar { display: none; }
+.motion-tabs-indicator { position: absolute; top: 4px; bottom: 4px; left: 0; z-index: -1; display: block; border-radius: 9px; background: var(--ink); box-shadow: 0 3px 8px rgb(17 18 15 / 14%); }
+.motion-tabs.is-ready .motion-tabs-indicator { transition: width 240ms var(--ease-in-out), transform 280ms var(--ease-in-out); }
+.motion-tabs button { min-height: 34px; padding: 8px 13px; border: 0; border-radius: 9px; color: #565a53; background: transparent; white-space: nowrap; font-size: 11px; font-weight: 550; cursor: pointer; transition: color 150ms ease, transform 140ms var(--ease-out); }
+.motion-tabs button.active { color: #fff; }
+.motion-tabs button:active { transform: scale(.97); }
 .error-banner { max-width: calc(1450px - 48px); margin: 16px auto -16px; border: 1px solid #e1b4ae; border-radius: 9px; background: #fff0ee; color: #8f3028; padding: 10px 14px; display: flex; justify-content: space-between; gap: 12px; font-size: 12px; }
 .error-banner button { border: 0; background: none; color: inherit; font-weight: 700; cursor: pointer; }
 .nav-scrim { display: none; }
@@ -881,11 +903,21 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px soli
 .profit-chart-legend i { width: 7px; height: 7px; border-radius: 2px; background: var(--ink); }
 .profit-chart-legend i.profit { background: #a9b450; }
 .profit-chart-bars { height: 215px; padding: 15px 5px 0; display: flex; align-items: stretch; gap: clamp(4px, .8vw, 10px); border-bottom: 1px solid #dbddd5; background: repeating-linear-gradient(to bottom, transparent 0, transparent 49px, #ecece7 50px); }
-.profit-chart-day { min-width: 12px; flex: 1; display: grid; grid-template-rows: minmax(0, 1fr) 17px; gap: 5px; }
-.profit-chart-day > div { display: flex; align-items: flex-end; justify-content: center; gap: 2px; }
-.profit-chart-day i { width: min(8px, 38%); min-height: 3px; border-radius: 3px 3px 1px 1px; background: var(--ink); transform-origin: bottom; animation: bar-rise 260ms var(--ease-out) backwards; }
+.profit-chart-day { position: relative; min-width: 12px; flex: 1; display: grid; grid-template-rows: minmax(0, 1fr) 17px; gap: 5px; outline: none; }
+.profit-chart-day:focus-visible { border-radius: 5px; box-shadow: 0 0 0 3px rgb(162 170 70 / 28%); }
+.profit-chart-day > div { min-height: 0; display: flex; align-items: stretch; justify-content: center; gap: 2px; }
+.profit-chart-day > div > i { width: min(8px, 38%); height: 100%; min-height: 3px; border-radius: 3px 3px 1px 1px; background: var(--ink); transform: scaleY(var(--bar-scale)); transform-origin: bottom; animation: profit-bar-enter 300ms var(--ease-out) backwards; transition: filter 150ms ease, transform 280ms var(--ease-in-out); }
 .profit-chart-day i.profit { background: #a9b450; animation-delay: 30ms; }
 .profit-chart-day small { overflow: hidden; color: #9a9e96; font-size: 7px; text-align: center; white-space: nowrap; }
+.profit-chart-tooltip { position: absolute; top: 7px; left: 50%; z-index: 4; width: max-content; max-width: 156px; padding: 8px 10px; display: grid; gap: 3px; border: 1px solid #2d2f29; border-radius: 9px; color: #f8f8f5; background: var(--ink); box-shadow: 0 12px 24px -13px rgb(17 18 15 / 70%); opacity: 0; pointer-events: none; transform: translate(-50%, 4px) scale(.98); transform-origin: top center; transition: opacity 120ms ease, transform 170ms var(--ease-out); }
+.profit-chart-day:first-child .profit-chart-tooltip { left: 0; transform: translate(0, 4px) scale(.98); transform-origin: top left; }
+.profit-chart-day:last-child .profit-chart-tooltip { right: 0; left: auto; transform: translate(0, 4px) scale(.98); transform-origin: top right; }
+.profit-chart-tooltip b { margin-bottom: 2px; font-size: 9px; font-weight: 650; }
+.profit-chart-tooltip small { display: flex; align-items: center; gap: 6px; color: #c7cbc2; font-size: 8px; }
+.profit-chart-tooltip small i { width: 6px; height: 6px; flex: 0 0 auto; border-radius: 2px; background: #fff; }
+.profit-chart-day:hover .profit-chart-tooltip, .profit-chart-day:focus .profit-chart-tooltip { opacity: 1; transform: translate(-50%, 0) scale(1); }
+.profit-chart-day:first-child:hover .profit-chart-tooltip, .profit-chart-day:first-child:focus .profit-chart-tooltip,
+.profit-chart-day:last-child:hover .profit-chart-tooltip, .profit-chart-day:last-child:focus .profit-chart-tooltip { transform: translate(0, 0) scale(1); }
 .profit-loss { min-height: 238px; padding: 25px; display: flex; align-items: center; justify-content: center; flex-direction: column; text-align: center; }
 .profit-loss > span { width: 46px; height: 46px; display: grid; place-items: center; border-radius: 13px; color: #9b5548; background: #f4e2dd; }
 .profit-loss strong { margin-top: 17px; font-size: 26px; font-weight: 550; letter-spacing: -.04em; }
@@ -1245,6 +1277,9 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px soli
 @keyframes success-ring-pop { from { opacity: .35; transform: scale(.82); } 65% { transform: scale(1.06); } }
 @keyframes success-check-draw { from { stroke-dashoffset: 18; } to { stroke-dashoffset: 0; } }
 @keyframes toast-spin { to { transform: rotate(360deg); } }
+@keyframes async-action-spin { to { transform: rotate(360deg); } }
+@keyframes async-action-check { from { stroke-dashoffset: 14; transform: scale(.88); } }
+@keyframes profit-bar-enter { from { opacity: .45; transform: scaleY(.04); } }
 @keyframes empty-box-arrive { from { opacity: .25; transform: translateY(2px); } }
 @keyframes empty-lid-open { from { opacity: .35; transform: translateY(3px) rotate(-6deg); } 65% { transform: translateY(-1px) rotate(1.5deg); } }
 @keyframes empty-slot-draw { from { opacity: .2; stroke-dashoffset: 8; } to { stroke-dashoffset: 0; } }
@@ -1284,6 +1319,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px soli
   .ledger-sync-icon.is-active .ledger-sync-scan { animation: none; opacity: .75; transform: translateX(9px); }
   .menu-morph-icon path { transition-duration: .01ms; }
   .success-mark *, .empty-inventory-icon *, .health-gauge path, .nav-icon, .nav-icon > * { animation: none !important; }
+  .async-action-label, .async-action-icon path, .async-action-icon circle, .motion-tabs-indicator, .profit-chart-day > div > i, .profit-chart-tooltip { animation: none !important; transition-duration: .01ms !important; }
   .team-share-timeout { display: none; }
   .tally-character, .tally-shadow, .tally-eye, .tally-sparks, .tally-arm-right, .tally-count-tag, .spreadsheet-import-icon *, .source-motion-icon, .onboarding-copy, .onboarding-progress span, .onboarding-complete-list span, .landing-hero-copy, .landing-hero-product, .landing-product-frame { animation: none !important; transition-duration: .01ms !important; }
   .spreadsheet-import-icon.is-reading .spreadsheet-scan { opacity: .7; transform: translateY(4px); }

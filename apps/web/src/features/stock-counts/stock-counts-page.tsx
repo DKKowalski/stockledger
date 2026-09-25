@@ -1,4 +1,4 @@
-import { ArrowUpRight, ClipboardCheck } from 'lucide-react';
+import { ClipboardCheck } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { api } from '../../api';
 import { useInventoryStore } from '../../app/inventory-store';
@@ -6,12 +6,15 @@ import { useCompanySettings } from '../../app/company-settings-store';
 import { useAuth } from '../../auth-context';
 import { EmptyState, PageHeader, PageState, Panel, SelectControl } from '../../components/inventory-ui';
 import { InputControl } from '../../components/ui/input-control';
+import { AsyncActionButton } from '../../components/ui/async-action-button';
+import { useAsyncActionState } from '../../components/ui/use-async-action-state';
 import type { StockCount } from '../../types';
 
 export function StockCountsPage() {
   const { accessToken } = useAuth();
   const { snapshot, mutate, busy } = useInventoryStore();
   const { money, calendarDate } = useCompanySettings();
+  const countAction = useAsyncActionState();
   const [counts, setCounts] = useState<StockCount[] | null>(null);
   const [form, setForm] = useState({ itemId: '', locationId: '', countedQuantity: '', countedAt: new Date().toISOString().slice(0, 10), note: '' });
   const items = snapshot?.items.filter((item) => item.isActive) ?? [];
@@ -30,14 +33,16 @@ export function StockCountsPage() {
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (!accessToken) return;
-    await mutate(() => api.addStockCount(accessToken, {
+    await countAction.run(async () => {
+      await mutate(() => api.addStockCount(accessToken, {
       itemId: form.itemId,
       locationId: form.locationId,
       countedQuantity: Number(form.countedQuantity),
       countedAt: form.countedAt,
       note: form.note,
-    }), variance === 0 ? 'The count matched the ledger.' : `The ledger was adjusted by ${variance && variance > 0 ? '+' : ''}${variance ?? 0}.`);
-    await load();
+      }), variance === 0 ? 'The count matched the ledger.' : `The ledger was adjusted by ${variance && variance > 0 ? '+' : ''}${variance ?? 0}.`);
+      await load();
+    });
     setForm((current) => ({ ...current, itemId: '', countedQuantity: '', note: '' }));
   };
 
@@ -52,7 +57,7 @@ export function StockCountsPage() {
         <label><span>Count date</span><InputControl type="date" required value={form.countedAt} onValueChange={(countedAt) => setForm({ ...form, countedAt })} /></label>
         <label><span>Reason or note</span><InputControl maxLength={500} value={form.note} onValueChange={(note) => setForm({ ...form, note })} /></label>
         <div className={`stock-count-variance ${variance === null || variance === 0 ? '' : variance > 0 ? 'positive' : 'negative'}`}><span>Variance</span><strong>{variance === null ? '—' : `${variance > 0 ? '+' : ''}${variance}`}</strong></div>
-        <button className="button" disabled={busy || !items.length}>Save count<ArrowUpRight size={16} /></button>
+        <AsyncActionButton disabled={busy || !items.length} idleLabel="Save count" pendingLabel="Saving" state={countAction.state} successLabel="Count saved" />
       </form>
     </Panel>
     <Panel title={`Count history (${counts?.length ?? 0})`} className="spaced">

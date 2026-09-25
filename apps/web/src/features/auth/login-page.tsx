@@ -1,6 +1,6 @@
 import { ArrowUpRight, ChevronRight, Eye, EyeOff } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { api } from '../../api';
 import { useAuth } from '../../auth-context';
@@ -9,6 +9,7 @@ import { InputControl } from '../../components/ui/input-control';
 
 export function LoginPage() {
   const { signIn } = useAuth();
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -21,6 +22,7 @@ export function LoginPage() {
     setError(null);
     try {
       await signIn(email, password);
+      navigate('/', { replace: true });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not sign in');
     } finally {
