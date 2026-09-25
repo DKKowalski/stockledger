@@ -1,0 +1,71 @@
+[
+  {
+    "id": "rlsPolicy.public.audit_events.audit_event_workspace_delete_336681c2",
+    "label": "Create RLS policy \"audit_event_workspace_delete_336681c2\" on \"audit_events\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "audit_event_workspace_delete_336681c2",
+        "table": "audit_events"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"audit_event_workspace_delete_336681c2\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "audit_events",
+          "audit_event_workspace_delete_336681c2"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"audit_event_workspace_delete_336681c2\"",
+        "sql": "CREATE POLICY \"audit_event_workspace_delete_336681c2\" ON \"public\".\"audit_events\" AS PERMISSIVE FOR DELETE TO stockledger_app USING (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid AND current_setting('app.workspace_deletion_company_id', true) = company_id::text)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"audit_event_workspace_delete_336681c2\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "audit_events",
+          "audit_event_workspace_delete_336681c2"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "settings.grant_audit_delete_for_workspace_deletion",
+    "label": "Grant tenant-scoped audit deletion to the application role",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres"
+    },
+    "precheck": [
+      {
+        "description": "Application role cannot delete audit rows",
+        "sql": "SELECT NOT has_table_privilege('stockledger_app', 'public.audit_events', 'DELETE') AS result"
+      }
+    ],
+    "execute": [
+      {
+        "description": "Grant delete while the RLS policy keeps audit history append-only outside workspace deletion",
+        "sql": "GRANT DELETE ON TABLE public.audit_events TO stockledger_app"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "Application role has audit delete privilege",
+        "sql": "SELECT has_table_privilege('stockledger_app', 'public.audit_events', 'DELETE') AS result"
+      }
+    ]
+  }
+]

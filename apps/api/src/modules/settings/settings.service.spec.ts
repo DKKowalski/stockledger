@@ -1,4 +1,5 @@
-import { ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import * as argon2 from 'argon2';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { SettingsService } from './settings.service.js';
@@ -10,6 +11,13 @@ describe('SettingsService', () => {
   const companyFirst = vi.fn();
   const companyUpdate = vi.fn();
   const auditCreate = vi.fn();
+  const query = vi.fn();
+  const execute = vi.fn();
+  const builtStatement = { build: vi.fn(() => ({})) };
+  const rawStatement = {
+    returnsRow: vi.fn(() => builtStatement),
+    affectedCount: vi.fn(() => builtStatement),
+  };
   const auditAll = vi.fn();
   const auditCollection = {
     include: vi.fn(),
@@ -22,13 +30,16 @@ describe('SettingsService', () => {
   auditCollection.limit.mockReturnValue(auditCollection);
   const auditWhere = vi.fn(() => auditCollection);
   const companyWhere = vi.fn(() => ({ update: companyUpdate }));
-  const tx = { orm: { public: {
+  const tx = { query, execute, orm: { public: {
     User: { first: userFirst },
     Company: { first: companyFirst, where: companyWhere },
     AuditEvent: { create: auditCreate, where: auditWhere },
   } } };
   const withCompany = vi.fn(async (_companyId: string, work: (client: typeof tx) => Promise<unknown>) => work(tx));
-  const service = new SettingsService({ withCompany } as unknown as PrismaService);
+  const service = new SettingsService({
+    withCompany,
+    client: { raw: { sql: vi.fn(() => rawStatement) } },
+  } as unknown as PrismaService);
 
   const company = {
     id: companyId,
@@ -49,6 +60,8 @@ describe('SettingsService', () => {
     companyUpdate.mockResolvedValue(undefined);
     auditCreate.mockResolvedValue(undefined);
     auditAll.mockResolvedValue([]);
+    query.mockResolvedValue([{ company_id: companyId }]);
+    execute.mockResolvedValue(0);
   });
 
   it('lets an active company member read shared presentation settings', async () => {
@@ -112,5 +125,30 @@ describe('SettingsService', () => {
     })]);
     expect(auditWhere).toHaveBeenCalledWith({ companyId });
     expect(auditCollection.limit).toHaveBeenCalledWith(100);
+  });
+
+  it('deletes the entire workspace after checking the owner password and business name', async () => {
+    const passwordHash = await argon2.hash('StockLedger123!');
+    userFirst.mockResolvedValue({ id: ownerId, companyId, role: 'administrator', isActive: true, passwordHash });
+
+    await expect(service.deleteWorkspace(ownerId, companyId, {
+      currentPassword: 'StockLedger123!',
+      confirmation: 'Mensah Trading',
+    })).resolves.toEqual({ deleted: true });
+
+    expect(query).toHaveBeenCalledOnce();
+    expect(execute).toHaveBeenCalledTimes(11);
+    expect(rawStatement.affectedCount).toHaveBeenCalledTimes(11);
+  });
+
+  it('keeps the workspace when its name does not match', async () => {
+    const passwordHash = await argon2.hash('StockLedger123!');
+    userFirst.mockResolvedValue({ id: ownerId, companyId, role: 'administrator', isActive: true, passwordHash });
+
+    await expect(service.deleteWorkspace(ownerId, companyId, {
+      currentPassword: 'StockLedger123!',
+      confirmation: 'Wrong business',
+    })).rejects.toBeInstanceOf(BadRequestException);
+    expect(execute).not.toHaveBeenCalled();
   });
 });

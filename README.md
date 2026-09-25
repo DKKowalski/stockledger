@@ -12,6 +12,7 @@ The product's visual direction, component rules, and logo brief live in the [UI 
 - Administrators can activate or deactivate staff accounts and send expiring password-reset links
 - Inventory managers and shop attendants change passwords only through an administrator-issued reset link
 - Protected API routes and session restoration after a browser refresh
+- A read-only public demo enforced by the API, not only by disabled browser controls
 - Public business-owner registration that creates the company and administrator atomically
 - Resumable owner onboarding with business type, first stock location, and inventory-source setup
 - A database-derived launch checklist for the first item, movement, and teammate
@@ -31,6 +32,9 @@ The product's visual direction, component rules, and logo brief live in the [UI 
 - Current, low, fast, slow and dead-stock reports for 7, 30 or 90 days
 - Transactional stock checks that prevent simultaneous outbound movements from taking stock below zero
 - Responsive React UI with loading, empty and error states
+- CSV exports, owner-confirmed workspace deletion, and public privacy and terms pages
+- Optional Sentry reporting for unexpected API and browser errors
+- Liveness and database-readiness endpoints for deployment and uptime checks
 
 ## Run locally
 
@@ -85,9 +89,15 @@ npm run api:test
 docker compose up -d
 npm run api:test:integration
 npm run api:build
+npm run web:build
+npm run web:lint
+npm run e2e:install
+npm run e2e
 ```
 
 The integration runner creates a uniquely named database inside the local Compose PostgreSQL service, applies migrations, runs the tests, and removes that database afterward. It overrides database connection variables for the test process. The tests cover competing sales and transfers, deletion races, rollback, company access boundaries, and attendant restrictions using separate connection pools. They hold an item lock until both competing requests are waiting in PostgreSQL before releasing it.
+
+The Playwright suite starts the built API and Vite on isolated test ports. It covers public legal pages, demo login, refresh-cookie session restoration, and API-enforced demo write protection. GitHub Actions runs unit and isolated PostgreSQL integration tests, builds, lint, migrations, seed, and the Chromium suite on every pull request and push to `main`.
 
 ## Deploy with Render and Supabase
 
@@ -114,6 +124,12 @@ For local migration work, copy Supabase's direct connection URL into `DIRECT_DAT
 In Render, choose **New > Blueprint**, connect `DKKowalski/stockledger`, and apply `render.yaml`. Render generates `JWT_SECRET`; do not enter one manually.
 
 Account email uses the Resend HTTP API. Add `RESEND_API_KEY` and `EMAIL_FROM` to the API service in Render. `EMAIL_FROM` must use a sender address verified in Resend, for example `StockLedger <accounts@example.com>`. Owner verification links last 24 hours, staff invitations last 72 hours, and password-reset links last 30 minutes by default.
+
+Set `DEMO_COMPANY_ID` to the seeded company ID to keep the public demo read-only. The checked-in Blueprint uses `31000000-0000-4000-8000-000000000001`. Do not reuse that ID for a real customer.
+
+For error reporting, create separate Sentry projects for the NestJS API and React client. Add the server DSN as `SENTRY_DSN` on the API service and the browser DSN as `VITE_SENTRY_DSN` on the static site. The application runs without either value. Unexpected API failures include the request ID and Cloudflare Ray ID when available; the React error boundary gives users a reload screen instead of a blank page.
+
+Render checks `/health/ready`, which verifies that the API can query PostgreSQL. `/health` is a cheaper process-liveness endpoint. An external uptime provider can monitor the web URL and `/health/ready` later if alerts outside Render are needed.
 
 StockLedger owns the transactional sending domain. Individual businesses do not need to connect their own domains. Until a StockLedger domain is verified, an administrator can create a staff account with a copyable invitation link, or create a copyable password-reset link from the Team page. Each new link invalidates the previous link of the same type and should be shared through a private channel.
 

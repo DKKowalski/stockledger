@@ -348,3 +348,9 @@ policy_insert audit_event_write {
   roles =[stockledger_app]
   withCheck = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
 }
+
+policy_delete audit_event_workspace_delete {
+  target = AuditEvent
+  roles =[stockledger_app]
+  using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid AND current_setting('app.workspace_deletion_company_id', true) = company_id::text"
+}

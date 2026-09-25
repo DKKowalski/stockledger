@@ -1778,6 +1778,19 @@
               "tableName": "audit_events",
               "using": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
             },
+            "audit_event_workspace_delete": {
+              "kind": "policy",
+              "name": "audit_event_workspace_delete_336681c2",
+              "namespaceId": "public",
+              "operation": "delete",
+              "permissive": true,
+              "prefix": "audit_event_workspace_delete",
+              "roles": [
+                "stockledger_app"
+              ],
+              "tableName": "audit_events",
+              "using": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid AND current_setting('app.workspace_deletion_company_id', true) = company_id::text"
+            },
             "audit_event_write": {
               "kind": "policy",
               "name": "audit_event_write_1c87de9a",
@@ -3729,7 +3742,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "6a950c83571a1a94da9115cc7dc0d3d171f50e243f746584bb67aaf8bcf4f410"
+    "storageHash": "09f8f57c7156d74b37b201f847fb5ff4fcf768b22dad904b7cc8c3b7800b0b2e"
   },
   "execution": {
     "executionHash": "b43e3bc4b16addb2d1b967638641ba478fb9e6d206de9632cbb70e7e68055c8e",

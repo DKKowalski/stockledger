@@ -14,6 +14,7 @@ import { ResetPasswordPage } from './features/auth/reset-password-page';
 import { SignupPage } from './features/auth/signup-page';
 import { VerifyEmailPage } from './features/auth/verify-email-page';
 import { LandingPage } from './features/marketing/landing-page';
+import { PrivacyPage, TermsPage } from './features/legal/legal-pages';
 import { OnboardingPage } from './features/onboarding/onboarding-page';
 import type { OnboardingStatus } from './types';
 import { workspaceError, type UserFacingError } from './lib/user-facing-error';
@@ -25,6 +26,8 @@ export function App() {
     <Route path="/forgot-password" element={<ForgotPasswordPage />} />
     <Route path="/verify-email" element={<VerifyEmailPage />} />
     <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
+    <Route path="/privacy" element={<PrivacyPage />} />
+    <Route path="/terms" element={<TermsPage />} />
     <Route path="*" element={<AuthenticatedApp />} />
   </Routes>;
 }

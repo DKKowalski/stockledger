@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import postgres from '@prisma/orm-postgres/runtime';
 import type { Varchar } from '@prisma/orm-postgres/target/codec-types';
+import * as argon2 from 'argon2';
 import { afterAll, describe, expect, it } from 'vitest';
 import type { Contract } from '../src/prisma/contract.d.js';
 import contractJson from '../src/prisma/contract.json' with { type: 'json' };
@@ -10,6 +11,7 @@ import { InventoryService } from '../src/modules/inventory/inventory.service.js'
 import { StockMovementType as Type } from '../src/modules/inventory/inventory.types.js';
 import { DataExportService } from '../src/modules/settings/data-export.service.js';
 import { DataExportType } from '../src/modules/settings/data-export.types.js';
+import { SettingsService } from '../src/modules/settings/settings.service.js';
 
 const url = process.env.INVENTORY_TEST_DATABASE_URL;
 if (!url || !/^stockledger_test_[a-f0-9]{32}$/.test(new URL(url).pathname.slice(1))
@@ -682,7 +684,62 @@ describe('inventory transactions with PostgreSQL', () => {
 
     expect(await asApplicationRole(secondCompany.company.id, (tx) => tx.orm.public.RefreshSession.all())).toEqual([]);
     expect(await asApplicationRole(secondCompany.company.id, (tx) => tx.orm.public.AuditEvent.all())).toEqual([]);
-    await expect(asApplicationRole(firstCompany.company.id, (tx) => tx.orm.public.AuditEvent.where({ companyId: firstCompany.company.id }).delete()))
-      .rejects.toThrow();
+    await asApplicationRole(firstCompany.company.id, (tx) => tx.orm.public.AuditEvent.where({ companyId: firstCompany.company.id }).delete());
+    expect(await db.orm.public.AuditEvent.first({
+      companyId: firstCompany.company.id,
+      action: varchar<80>('test.created'),
+    })).not.toBeNull();
+  });
+
+  it('deletes a populated workspace through the restricted application role', async () => {
+    const f = await fixture(10);
+    const other = await fixture();
+    const passwordHash = await argon2.hash('DeleteThisWorkspace123!');
+    await db.orm.public.User.where({ id: f.admin.id, companyId: f.company.id }).update({
+      passwordHash: varchar<255>(passwordHash),
+    });
+    const supplier = await service.createSupplier(f.admin.id, f.company.id, { name: 'Deletion supplier' });
+    await service.createMovement(f.admin.id, f.company.id, {
+      itemId: f.item.id,
+      locationId: f.warehouse.id,
+      type: Type.PURCHASE,
+      quantity: 2,
+      unitCostCents: 110,
+      supplierId: supplier.id,
+      movementDate,
+    });
+    await service.createStockCount(f.admin.id, f.company.id, {
+      itemId: f.item.id,
+      locationId: f.warehouse.id,
+      countedQuantity: 12,
+      countedAt: movementDate,
+    });
+    await db.orm.public.RefreshSession.create({
+      companyId: f.company.id,
+      userId: f.admin.id,
+      tokenHash: varchar<64>('d'.repeat(64)),
+      expiresAt: '2099-01-01T00:00:00.000Z',
+    });
+
+    const runtimeSettings = new SettingsService({
+      client: db,
+      withCompany: <T>(companyId: string, work: (tx: TestTransaction) => Promise<T>) => asApplicationRole(companyId, work),
+    } as PrismaService);
+    await expect(runtimeSettings.deleteWorkspace(f.admin.id, f.company.id, {
+      currentPassword: 'DeleteThisWorkspace123!',
+      confirmation: 'Concurrency test',
+    })).resolves.toEqual({ deleted: true });
+
+    expect(await db.orm.public.Company.first({ id: f.company.id })).toBeNull();
+    expect(await db.orm.public.Location.where({ companyId: f.company.id }).all()).toEqual([]);
+    expect(await db.orm.public.User.where({ companyId: f.company.id }).all()).toEqual([]);
+    expect(await db.orm.public.InventoryItem.where({ companyId: f.company.id }).all()).toEqual([]);
+    expect(await db.orm.public.Supplier.where({ companyId: f.company.id }).all()).toEqual([]);
+    expect(await db.orm.public.LocationStock.where({ companyId: f.company.id }).all()).toEqual([]);
+    expect(await db.orm.public.StockMovement.where({ companyId: f.company.id }).all()).toEqual([]);
+    expect(await db.orm.public.StockCount.where({ companyId: f.company.id }).all()).toEqual([]);
+    expect(await db.orm.public.RefreshSession.where({ companyId: f.company.id }).all()).toEqual([]);
+    expect(await db.orm.public.AuditEvent.where({ companyId: f.company.id }).all()).toEqual([]);
+    expect(await db.orm.public.Company.first({ id: other.company.id })).not.toBeNull();
   });
 });

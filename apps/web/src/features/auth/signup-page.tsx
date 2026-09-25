@@ -56,6 +56,7 @@ export function SignupPage() {
           <button className="button login-submit" disabled={submitting}>{submitting ? <><StockLedgerMark animated size={20} />Creating workspace</> : <>Continue to setup<ArrowUpRight size={17} /></>}</button>
         </form>
         <p className="signup-signin">Already have an account? <Link to="/login">Sign in</Link></p>
+        <p className="signup-legal">By creating a workspace, you agree to the <Link to="/terms">Terms</Link> and acknowledge the <Link to="/privacy">Privacy notice</Link>.</p>
         </>}
       </div>
     </section>

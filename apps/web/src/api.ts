@@ -89,6 +89,8 @@ export const api = {
     request<CompanySettings>('/settings', { method: 'PATCH', body: JSON.stringify(body) }, accessToken),
   activity: (accessToken: string) => request<ActivityEvent[]>('/settings/activity', undefined, accessToken),
   exportData: (accessToken: string, type: DataExportType) => download(`/settings/exports/${type}`, accessToken),
+  deleteWorkspace: (accessToken: string, body: { currentPassword: string; confirmation: string }) =>
+    request<{ deleted: true }>('/settings/account', { method: 'DELETE', body: JSON.stringify(body) }, accessToken),
   snapshot: (accessToken: string, days: number, locationId?: string | null) =>
     request<Snapshot>(`/inventory/snapshot?days=${days}${locationId ? `&locationId=${locationId}` : ''}`, undefined, accessToken),
   addLocation: (accessToken: string, body: { name: string; type: LocationType }) =>

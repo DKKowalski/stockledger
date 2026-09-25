@@ -2,6 +2,7 @@ import { type LucideIcon } from 'lucide-react';
 import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useInventoryStore } from '../app/inventory-store';
+import { useAuth } from '../auth-context';
 import { AccountMenu } from './account-menu';
 import { MenuMorphIcon } from './animated-icons';
 import { StockLedgerMark } from './stockledger-mark';
@@ -12,6 +13,7 @@ export type NavigationItem = readonly [path: string, label: string, icon: Lucide
 
 export function AppShell({ navigation }: { navigation: readonly NavigationItem[] }) {
   const { error, refresh } = useInventoryStore();
+  const { user } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
 
   return <div className="app-shell">
@@ -32,6 +34,7 @@ export function AppShell({ navigation }: { navigation: readonly NavigationItem[]
     </header>
     <button className={`nav-scrim ${menuOpen ? 'open' : ''}`} aria-label="Close navigation" onClick={() => setMenuOpen(false)} />
     <div className="shell-content">
+      {user?.isDemo && <div className="demo-mode-banner" role="status"><span>You are viewing a read-only demo.</span><NavLink to="/signup">Create a workspace</NavLink></div>}
       {error && <div className="error-banner" role="alert"><span>{error}</span><button onClick={() => void refresh()}>Try again</button></div>}
       <main className="page"><Outlet /></main>
     </div>

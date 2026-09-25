@@ -64,7 +64,7 @@ export function LoginPage() {
           </span></label>
           <button className="button login-submit" disabled={submitting}>{submitting ? <><StockLedgerMark animated size={20} />Signing in</> : <>Sign in<ArrowUpRight size={17} /></>}</button>
         </form>
-        <button className="demo-login" type="button" onClick={useDemo}><span><b>Preview the demo workspace</b><small>Fill in the seeded administrator account</small></span><ChevronRight size={18} /></button>
+        <button className="demo-login" type="button" onClick={useDemo}><span><b>Preview the demo workspace</b><small>Explore real sample data without changing it</small></span><ChevronRight size={18} /></button>
         <p className="signup-signin">New to StockLedger? <Link to="/signup">Create your workspace</Link></p>
       </div>
       <p className="login-footnote">Protected with encrypted passwords and expiring sessions.</p>

@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { ArgumentsHost, Catch, HttpException, HttpStatus, Logger, type ExceptionFilter } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import { Sentry } from './monitoring.js';
 
 type HttpErrorBody = { message?: string | string[] };
 
@@ -20,6 +21,15 @@ export class ApiExceptionFilter implements ExceptionFilter {
     if (status >= 500) {
       const detail = exception instanceof Error ? exception.stack ?? exception.message : String(exception);
       this.logger.error(`${request.method} ${request.originalUrl} failed [${requestId}]`, detail);
+      Sentry.withScope((scope) => {
+        scope.setTag('request_id', requestId);
+        scope.setTag('http.method', request.method);
+        scope.setTag('http.route', request.originalUrl);
+        const rawCloudflareRay = request.headers?.['cf-ray'];
+        const cloudflareRay = Array.isArray(rawCloudflareRay) ? rawCloudflareRay[0] : rawCloudflareRay;
+        if (cloudflareRay) scope.setTag('cloudflare.ray_id', cloudflareRay);
+        Sentry.captureException(exception);
+      });
     }
 
     response.setHeader('X-Request-Id', requestId);

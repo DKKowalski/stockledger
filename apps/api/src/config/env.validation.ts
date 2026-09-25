@@ -21,6 +21,8 @@ export default z.object({
   PASSWORD_RESET_TTL_MINUTES: z.coerce.number().int().min(5).max(120).default(30),
   EMAIL_VERIFICATION_TTL_HOURS: z.coerce.number().int().min(1).max(72).default(24),
   INVITATION_TTL_HOURS: z.coerce.number().int().min(1).max(168).default(72),
+  DEMO_COMPANY_ID: z.string().uuid().optional(),
+  SENTRY_DSN: optionalSetting(1),
   RESEND_API_KEY: optionalSetting(1),
   EMAIL_FROM: optionalSetting(3),
 });

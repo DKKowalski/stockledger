@@ -200,7 +200,7 @@ export function LandingPage() {
     <footer className="landing-footer">
       <div className="landing-brand"><span className="brand-mark"><StockLedgerMark size={23} /></span><span>StockLedger</span></div>
       <p>Stock certainty for teams that move inventory.</p>
-      <span>Inventory, without the guesswork.</span>
+      <nav aria-label="Legal"><Link to="/privacy">Privacy</Link><Link to="/terms">Terms</Link></nav>
     </footer>
   </div>;
 }

@@ -310,6 +310,7 @@ export class AuthService {
     const tokenHash = this.hashToken(body.token);
     const companyId = this.tryCompanyFromToken(body.token) ?? await this.companyForResetToken(tokenHash);
     if (!companyId) throw new BadRequestException('This reset link is invalid or has expired');
+    if (this.isDemoCompany(companyId)) throw new ForbiddenException('The demo account password cannot be changed');
     return this.prisma.withCompany(companyId, async (tx) => {
       const user = await tx.orm.public.User.first({ companyId, passwordResetTokenHash: tokenHash as Varchar<64> });
       if (!user || !user.isActive || !user.passwordResetExpiresAt || new Date(user.passwordResetExpiresAt).getTime() <= Date.now()) {
@@ -331,7 +332,7 @@ export class AuthService {
   async forgotPassword(body: ForgotPasswordDto) {
     const startedAt = Date.now();
     const user = await this.authenticationUser(body.email.trim().toLowerCase());
-    if (user?.role === 'administrator' && user.isActive && user.emailVerifiedAt) {
+    if (user?.role === 'administrator' && user.isActive && user.emailVerifiedAt && !this.isDemoCompany(user.companyId)) {
       const token = this.createOpaqueToken(user.companyId);
       const tokenHash = this.hashToken(token);
       const expiresInMinutes = this.config.getOrThrow<number>('auth.passwordResetTtlMinutes');
@@ -593,9 +594,14 @@ export class AuthService {
       email: user.email,
       role: user.role,
       isActive: user.isActive ?? true,
+      isDemo: this.isDemoCompany(user.companyId),
       setupPending: user.role !== 'administrator' && !user.invitationAcceptedAt,
       createdAt: user.createdAt,
     };
+  }
+
+  private isDemoCompany(companyId: string) {
+    return companyId === this.config.get<string>('app.demoCompanyId');
   }
 
   private createOpaqueToken(companyId: string) {

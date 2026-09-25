@@ -48,6 +48,7 @@ describe('AuthService launch account flows', () => {
     'auth.refreshTokenTtlDays': 30,
     'app.webOrigin': 'https://stockledger.example',
   })[key]);
+  const get = vi.fn(() => undefined);
   const send = vi.fn();
   const sendVerification = vi.fn();
   const sendInvitation = vi.fn();
@@ -63,7 +64,7 @@ describe('AuthService launch account flows', () => {
   const service = new AuthService(
     prisma,
     { signAsync } as unknown as JwtService,
-    { getOrThrow } as unknown as ConfigService,
+    { getOrThrow, get } as unknown as ConfigService,
     mailer,
   );
 
@@ -87,6 +88,7 @@ describe('AuthService launch account flows', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    get.mockReturnValue(undefined);
     runtimeQuery.mockResolvedValue([]);
     userFirst.mockResolvedValue(null);
     transactionQuery.mockResolvedValue([]);
@@ -307,6 +309,16 @@ describe('AuthService launch account flows', () => {
 
   it('returns the same public recovery response for an unknown address', async () => {
     await expect(service.forgotPassword({ email: 'missing@example.com' })).resolves.toEqual({ sent: true });
+    expect(sendRecovery).not.toHaveBeenCalled();
+  });
+
+  it('does not issue password recovery tokens for the public demo', async () => {
+    get.mockReturnValue(companyId);
+    runtimeQuery.mockResolvedValue([{ id: ownerId, company_id: companyId }]);
+    userFirst.mockResolvedValue(owner());
+
+    await expect(service.forgotPassword({ email: 'admin@stockledger.app' })).resolves.toEqual({ sent: true });
+    expect(userUpdate).not.toHaveBeenCalled();
     expect(sendRecovery).not.toHaveBeenCalled();
   });
 

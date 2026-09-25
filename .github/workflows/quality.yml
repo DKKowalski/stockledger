@@ -1,0 +1,55 @@
+name: Quality
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: stockledger
+        ports:
+          - 5434:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d stockledger"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      NODE_ENV: test
+      PORT: 3000
+      WEB_ORIGIN: http://localhost:5173
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5434/stockledger
+      DIRECT_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5434/stockledger
+      JWT_SECRET: ci-only-secret-with-at-least-thirty-two-characters
+      DEMO_COMPANY_ID: 31000000-0000-4000-8000-000000000001
+      VITE_API_URL: http://127.0.0.1:3000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run api:test
+      - run: npm run api:test:integration
+      - run: npm run web:lint
+      - run: npm run api:build
+      - run: npm run web:build
+      - run: npm run api:migrate
+      - run: npm run api:seed
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

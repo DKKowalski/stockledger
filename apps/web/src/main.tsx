@@ -5,11 +5,13 @@ import { App } from './App';
 import { AuthProvider } from './auth';
 import { StockLedgerToaster } from './components/ui/stockledger-toaster';
 import { UiProvider } from './components/ui/ui-provider';
+import { AppErrorBoundary } from './components/app-error-boundary';
+import './monitoring';
 import 'sonner/dist/styles.css';
 import './styles.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <BrowserRouter><AuthProvider><UiProvider><App /><StockLedgerToaster /></UiProvider></AuthProvider></BrowserRouter>
+    <AppErrorBoundary><BrowserRouter><AuthProvider><UiProvider><App /><StockLedgerToaster /></UiProvider></AuthProvider></BrowserRouter></AppErrorBoundary>
   </StrictMode>,
 );

@@ -7,7 +7,7 @@ services:
     buildCommand: npm ci --include=dev && npm run api:build && npm run api:migrate
     startCommand: npm run start:prod --workspace=apps/api
     initialDeployHook: npm run db:seed:prod --workspace=apps/api
-    healthCheckPath: /health
+    healthCheckPath: /health/ready
     autoDeployTrigger: commit
     buildFilter:
       paths:
@@ -35,6 +35,10 @@ services:
         value: 24
       - key: INVITATION_TTL_HOURS
         value: 72
+      - key: DEMO_COMPANY_ID
+        value: 31000000-0000-4000-8000-000000000001
+      - key: SENTRY_DSN
+        sync: false
       - key: RESEND_API_KEY
         sync: false
       - key: EMAIL_FROM
@@ -54,6 +58,10 @@ services:
     envVars:
       - key: VITE_API_URL
         value: https://stockledger-dkk-api.onrender.com
+      - key: VITE_SENTRY_DSN
+        sync: false
+      - key: VITE_SUPPORT_EMAIL
+        value: accounts@e9magazine.com
     routes:
       - type: rewrite
         source: /*

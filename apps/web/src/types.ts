@@ -9,6 +9,7 @@ export type User = {
   email: string;
   role: UserRole;
   isActive: boolean;
+  isDemo: boolean;
   setupPending: boolean;
   createdAt: string;
 };
