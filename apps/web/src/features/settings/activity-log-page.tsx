@@ -1,4 +1,4 @@
-import { Activity, Building2, CircleDollarSign, KeyRound, Package, ShieldCheck, UserRoundCog } from 'lucide-react';
+import { Activity, Building2, CircleDollarSign, Download, KeyRound, Package, ShieldCheck, UserRoundCog } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ApiError, api } from '../../api';
 import { useCompanySettings } from '../../app/company-settings-store';
@@ -24,6 +24,7 @@ const activityCopy: Record<string, { title: string; description: (event: Activit
   'account.activated': { title: 'Account activated', description: () => 'An administrator restored access to a staff account.' },
   'account.deactivated': { title: 'Account deactivated', description: () => 'An administrator removed access and revoked active sessions.' },
   'company.settings_updated': { title: 'Business settings updated', description: (event) => changedSettings(event.metadata.changedFields) },
+  'data.exported': { title: 'Business data exported', description: (event) => `${exportName(event.metadata.type)} was downloaded as a CSV file.` },
   'inventory.items_imported': { title: 'Inventory imported', description: (event) => `${numberValue(event.metadata.imported)} items were added from a spreadsheet.` },
   'inventory.selling_price_changed': { title: 'Selling price changed', description: () => 'An administrator updated an item selling price.' },
   'inventory.movement_deleted': { title: 'Movement removed', description: (event) => `${numberValue(event.metadata.quantity)} units were removed from the movement ledger.` },
@@ -83,17 +84,25 @@ function ActivityRow({ event, dateTime }: { event: ActivityEvent; dateTime: (val
 
 function eventCategory(action: string): Exclude<ActivityCategory, 'all'> {
   if (action.startsWith('inventory.')) return 'inventory';
-  if (action.startsWith('company.')) return 'business';
+  if (action.startsWith('company.') || action.startsWith('data.')) return 'business';
   return 'account';
 }
 
 function ActivityIcon({ action, category }: { action: string; category: Exclude<ActivityCategory, 'all'> }) {
+  if (action === 'data.exported') return <Download size={17} />;
   if (category === 'business') return <Building2 size={17} />;
   if (category === 'inventory') return action.includes('price') ? <CircleDollarSign size={17} /> : <Package size={17} />;
   if (action.includes('password')) return <KeyRound size={17} />;
   if (action.includes('verified') || action.includes('activated') || action.includes('deactivated')) return <ShieldCheck size={17} />;
   if (action.includes('profile') || action.includes('invitation') || action.includes('invited')) return <UserRoundCog size={17} />;
   return <Activity size={17} />;
+}
+
+function exportName(value: unknown) {
+  if (value === 'inventory') return 'Inventory balances';
+  if (value === 'movements') return 'The movement ledger';
+  if (value === 'activity') return 'Activity history';
+  return 'Business data';
 }
 
 function changedSettings(value: unknown) {

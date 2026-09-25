@@ -8,6 +8,8 @@ import contractJson from '../src/prisma/contract.json' with { type: 'json' };
 import type { PrismaService } from '../src/prisma/prisma.service.js';
 import { InventoryService } from '../src/modules/inventory/inventory.service.js';
 import { StockMovementType as Type } from '../src/modules/inventory/inventory.types.js';
+import { DataExportService } from '../src/modules/settings/data-export.service.js';
+import { DataExportType } from '../src/modules/settings/data-export.types.js';
 
 const url = process.env.INVENTORY_TEST_DATABASE_URL;
 if (!url || !/^stockledger_test_[a-f0-9]{32}$/.test(new URL(url).pathname.slice(1))
@@ -34,6 +36,7 @@ function tenantPrisma(client: typeof db) {
 }
 const service = new InventoryService(tenantPrisma(db));
 const otherService = new InventoryService(tenantPrisma(otherDb));
+const exportsService = new DataExportService(tenantPrisma(db));
 const varchar = <N extends number>(value: string) => value as Varchar<N>;
 const movementDate = '2026-09-23';
 
@@ -496,6 +499,41 @@ describe('inventory transactions with PostgreSQL', () => {
     ]));
     expect(events.find((event) => event.action === 'inventory.selling_price_changed')?.metadata)
       .toEqual({ previousSellingPriceCents: 175, sellingPriceCents: 225 });
+  });
+
+  it('exports only the administrator company data and audits the download', async () => {
+    const firstCompany = await fixture();
+    const secondCompany = await fixture();
+    await service.createItem(secondCompany.admin.id, secondCompany.company.id, {
+      sku: 'SECOND-ONLY', name: 'Other company item', category: 'Private', unit: 'pcs',
+      unitCostCents: 800, sellingPriceCents: 1000, reorderLevel: 2, openingStock: 4,
+      locationId: secondCompany.warehouse.id,
+    });
+
+    const exported = await exportsService.create(
+      firstCompany.admin.id,
+      firstCompany.company.id,
+      DataExportType.INVENTORY,
+    );
+
+    expect(exported.filename).toMatch(/^stockledger-inventory-\d{4}-\d{2}-\d{2}\.csv$/);
+    expect(exported.csv).toContain('TEST-ITEM');
+    expect(exported.csv).not.toContain('SECOND-ONLY');
+    expect(await db.orm.public.AuditEvent.first({
+      companyId: firstCompany.company.id,
+      action: varchar<80>('data.exported'),
+    })).toMatchObject({ metadata: { type: 'inventory', rowCount: 1 } });
+  });
+
+  it('keeps data exports under administrator control', async () => {
+    const f = await fixture();
+
+    await expect(exportsService.create(f.attendant.id, f.company.id, DataExportType.MOVEMENTS))
+      .rejects.toBeInstanceOf(ForbiddenException);
+    expect(await db.orm.public.AuditEvent.where({
+      companyId: f.company.id,
+      action: varchar<80>('data.exported'),
+    }).all()).toEqual([]);
   });
 
   it('isolates refresh sessions and audit records under the application role', async () => {
