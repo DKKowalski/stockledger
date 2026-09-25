@@ -1,4 +1,4 @@
-import { Download } from 'lucide-react';
+import { ChevronDown, CircleHelp, Download } from 'lucide-react';
 import { useRef, useState, type ChangeEvent } from 'react';
 import { SpreadsheetImportIcon } from '../../components/animated-icons';
 import { SelectControl } from '../../components/inventory-ui';
@@ -13,6 +13,7 @@ type SpreadsheetImportFormProps = {
   formatMoney?: (cents: number) => string;
   submitLabel?: (count: number) => string;
   className?: string;
+  guideInitiallyOpen?: boolean;
 };
 
 export function SpreadsheetImportForm({
@@ -23,6 +24,7 @@ export function SpreadsheetImportForm({
   formatMoney = plainMoney,
   submitLabel = defaultSubmitLabel,
   className = '',
+  guideInitiallyOpen = false,
 }: SpreadsheetImportFormProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [fileName, setFileName] = useState('');
@@ -31,6 +33,7 @@ export function SpreadsheetImportForm({
   const [reading, setReading] = useState(false);
   const [completeCount, setCompleteCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [guideOpen, setGuideOpen] = useState(guideInitiallyOpen);
 
   const selectedLocationId = locations.some((location) => location.id === locationId)
     ? locationId
@@ -72,6 +75,25 @@ export function SpreadsheetImportForm({
 
   const iconState = completeCount ? 'complete' : reading || busy ? 'reading' : 'idle';
   return <div className={`spreadsheet-import-body ${className}`}>
+    <details className="spreadsheet-format-guide" open={guideOpen} onToggle={(event) => setGuideOpen(event.currentTarget.open)}>
+      <summary><span><CircleHelp size={16} />How to format your spreadsheet</span><ChevronDown className="spreadsheet-guide-chevron" size={16} /></summary>
+      <div className="spreadsheet-guide-body">
+        <p>Use the first row for column names and put one inventory item on each row. SKU and Name are the only required columns.</p>
+        <div className="spreadsheet-guide-columns">
+          <section>
+            <h3>Required</h3>
+            <div className="spreadsheet-column-chips"><code>SKU</code><code>Name</code></div>
+            <small>Each SKU must be unique. Use letters, numbers, dots, dashes, or underscores.</small>
+          </section>
+          <section>
+            <h3>Optional</h3>
+            <div className="spreadsheet-column-chips"><code>Category</code><code>Unit</code><code>Reorder level</code><code>Unit cost</code><code>Selling price</code><code>Opening stock</code></div>
+            <small>Blank category and unit cells become General and pcs. Reorder, cost, and opening stock default to 0. Selling price may stay blank.</small>
+          </section>
+        </div>
+        <p className="spreadsheet-aliases">We also recognize Item name, Reorder, Cost, Price, and Quantity. Enter money as a plain amount such as 12.50.</p>
+      </div>
+    </details>
     <button className={`spreadsheet-dropzone ${rows.length ? 'has-file' : ''}`} disabled={reading || busy} onClick={() => inputRef.current?.click()} type="button">
       <SpreadsheetImportIcon size={34} state={iconState} />
       <span>

@@ -538,6 +538,21 @@ th:last-child, td:last-child { padding-right: 22px; }
 .spreadsheet-import-close { position: absolute; top: 17px; right: 17px; z-index: 2; width: 32px; height: 32px; display: grid; place-items: center; border: 0; border-radius: 8px; color: #737869; background: transparent; cursor: pointer; transition: color 150ms ease, background-color 150ms ease, transform 140ms var(--ease-out); }
 .spreadsheet-import-close:active { transform: scale(.94); }
 .spreadsheet-import-body { padding: 1px 22px 23px; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; }
+.spreadsheet-format-guide { grid-column: 1 / -1; overflow: hidden; border: 1px solid #dfe1d2; border-radius: 12px; background: rgb(255 255 255 / 58%); }
+.spreadsheet-format-guide summary { min-height: 46px; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; gap: 14px; color: #4e5432; cursor: pointer; font-size: 11px; font-weight: 650; list-style: none; }
+.spreadsheet-format-guide summary::-webkit-details-marker { display: none; }
+.spreadsheet-format-guide summary > span { display: inline-flex; align-items: center; gap: 8px; }
+.spreadsheet-guide-chevron { flex: 0 0 auto; transition: transform 180ms var(--ease-out); }
+.spreadsheet-format-guide[open] .spreadsheet-guide-chevron { transform: rotate(180deg); }
+.spreadsheet-guide-body { padding: 0 14px 15px; border-top: 1px solid #e4e6da; }
+.spreadsheet-guide-body > p { margin-top: 13px; color: #646a5d; font-size: 10px; line-height: 1.5; }
+.spreadsheet-guide-columns { margin-top: 13px; display: grid; grid-template-columns: .65fr 1.35fr; gap: 10px; }
+.spreadsheet-guide-columns section { padding: 12px; border: 1px solid #e3e5da; border-radius: 9px; background: #fff; }
+.spreadsheet-guide-columns h3 { color: var(--ink); font-size: 10px; font-weight: 700; }
+.spreadsheet-column-chips { margin-top: 9px; display: flex; flex-wrap: wrap; gap: 5px; }
+.spreadsheet-column-chips code { padding: 4px 6px; border-radius: 5px; color: #52592a; background: #eef0dc; font: 600 9px/1.2 var(--font-body); }
+.spreadsheet-guide-columns small { display: block; margin-top: 10px; color: #777c72; font-size: 9px; line-height: 1.45; }
+.spreadsheet-guide-body .spreadsheet-aliases { color: #74796c; }
 .spreadsheet-dropzone { min-height: 88px; padding: 17px 19px; display: flex; align-items: center; gap: 15px; border: 1px dashed #bcc28b; border-radius: 12px; color: #34392a; background: #f1f3dc; text-align: left; cursor: pointer; transition: border-color 160ms ease, background-color 160ms ease, transform 140ms var(--ease-out); }
 .spreadsheet-dropzone:active { transform: scale(.992); }
 .spreadsheet-dropzone:disabled { cursor: wait; }
@@ -709,7 +724,7 @@ label:focus-within > span:first-child { color: var(--olive-dark); }
 .select-item-indicator { grid-column: 1; height: 17px; display: grid; place-items: center; }
 .select-item-text { grid-column: 2; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .select-scroll-arrow { position: relative; z-index: 1; width: 100%; height: 22px; display: flex; align-items: center; justify-content: center; border: 0; color: #777c73; background: #fffffd; }
-button:focus-visible, a:focus-visible { outline: 3px solid rgb(162 170 70 / 38%); outline-offset: 2px; }
+button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px solid rgb(162 170 70 / 38%); outline-offset: 2px; }
 .filter-row { display: flex; justify-content: flex-end; padding: 0 22px 15px; }
 .filter-row label { width: 220px; }
 .icon-button { width: 34px; height: 34px; display: inline-grid; place-items: center; border: 1px solid var(--border); border-radius: 8px; color: var(--danger); background: #fff; cursor: pointer; transition: border-color 160ms ease, background-color 160ms ease, transform 140ms var(--ease-out); }
@@ -782,6 +797,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgb(162 170 70 / 38%)
   .spreadsheet-open-button:hover .spreadsheet-rows path:nth-child(3), .spreadsheet-dropzone:hover .spreadsheet-rows path:nth-child(3) { transform: translateX(1px); }
   .spreadsheet-dropzone:hover { border-color: #929b43; background: #ecefce; }
   .spreadsheet-template-button:hover svg { transform: translateY(2px); }
+  .spreadsheet-format-guide summary:hover { color: var(--ink); background: #f3f4e8; }
   .spreadsheet-import-close:hover { color: var(--ink); background: #e9ebd8; }
   .onboarding-option:hover, .location-type-option:hover { border-color: #aeb3a0; background: #fff; }
   .onboarding-option.selected:hover, .location-type-option.selected:hover { border-color: #8f9839; background: #eef0d3; }
@@ -995,6 +1011,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgb(162 170 70 / 38%)
   .spreadsheet-import-error, .spreadsheet-preview, .spreadsheet-import-actions { grid-column: auto; }
   .spreadsheet-import-actions { align-items: stretch; flex-direction: column; }
   .spreadsheet-import-actions label, .spreadsheet-import-actions .button { width: 100%; }
+  .spreadsheet-guide-columns { grid-template-columns: 1fr; }
   .account-form { padding: 0 15px 19px; }
   .managed-security-note { margin: 0 15px 19px; }
   .account-form-fields, .account-password-fields, .account-facts { grid-template-columns: 1fr; }

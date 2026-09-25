@@ -179,6 +179,7 @@ export function OnboardingPage({ initialStatus, onComplete }: OnboardingPageProp
         {step === 3 && <SpreadsheetImportForm
           busy={busy || loadingLocations}
           className="onboarding-spreadsheet-import"
+          guideInitiallyOpen
           locations={locations}
           onImport={importSpreadsheet}
           onImported={(count) => {
