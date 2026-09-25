@@ -3,11 +3,11 @@ import { useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../../api';
 import { useInventoryStore } from '../../app/inventory-store';
+import { useCompanySettings } from '../../app/company-settings-store';
 import { useAuth } from '../../auth-context';
 import { EmptyState, PageHeader, PageState, Panel, SelectControl } from '../../components/inventory-ui';
 import { SpreadsheetImportIcon } from '../../components/animated-icons';
 import { InputControl } from '../../components/ui/input-control';
-import { money } from '../../lib/presentation';
 import { inventoryTemplate, readInventorySpreadsheet, type SpreadsheetItem } from './spreadsheet-import';
 
 export function AdminItemsPage() {
@@ -23,6 +23,7 @@ export function AdminItemsPage() {
 }
 
 function SpreadsheetImportPanel({ onClose }: { onClose: () => void }) {
+  const { money } = useCompanySettings();
   const { accessToken } = useAuth();
   const { snapshot, mutate, busy } = useInventoryStore();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -109,6 +110,7 @@ export function ManagerItemsPage() {
 
 export function ShopCatalogPage() {
   const { snapshot } = useInventoryStore();
+  const { money } = useCompanySettings();
   const rows = snapshot?.positions ?? [];
   const shop = snapshot?.locations.find((place) => place.id === snapshot.locationId);
   return <PageState>
@@ -149,6 +151,7 @@ function AddItemPanel() {
 function SellingPricesPanel() {
   const { accessToken } = useAuth();
   const { snapshot, mutate, busy } = useInventoryStore();
+  const { money } = useCompanySettings();
   const [itemId, setItemId] = useState('');
   const [price, setPrice] = useState('');
   const catalog = snapshot?.items ?? [];
@@ -169,6 +172,7 @@ function SellingPricesPanel() {
 
 function OperationsCatalog() {
   const { snapshot } = useInventoryStore();
+  const { money } = useCompanySettings();
   const rows = snapshot?.positions ?? [];
   return <Panel title={`Stock by place (${rows.length})`} className="spaced">{rows.length ? <div className="table-wrap"><table><thead><tr><th>Item</th><th>Place</th><th>Category</th><th>Unit</th><th className="num">Reorder</th><th className="num">Cost</th><th className="num">Selling price</th><th className="num">Closing</th><th className="num">Value</th></tr></thead><tbody>{rows.map((position) => <tr key={`${position.location.id}-${position.item.id}`}><td><b>{position.item.name}</b><small>{position.item.sku}</small></td><td>{position.location.name}</td><td>{position.item.category}</td><td>{position.item.unit}</td><td className="num">{position.item.reorderLevel}</td><td className="num">{money(position.item.unitCostCents)}</td><td className="num">{position.item.sellingPriceCents == null ? 'Not set' : money(position.item.sellingPriceCents)}</td><td className="num"><b>{position.closing}</b></td><td className="num">{money(position.valueCents)}</td></tr>)}</tbody></table></div> : <EmptyState text="No items yet." />}</Panel>;
 }

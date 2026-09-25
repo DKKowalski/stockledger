@@ -1,5 +1,5 @@
 import { Menu } from '@base-ui/react/menu';
-import { ChevronDown, Power, UserRoundCog } from 'lucide-react';
+import { Building2, ChevronDown, Power, UserRoundCog } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth-context';
 import { roleLabel } from '../lib/presentation';
@@ -11,7 +11,7 @@ export function AccountMenu() {
   const location = useLocation();
 
   return <Menu.Root>
-    <Menu.Trigger className={`topbar-user ${location.pathname === '/account' ? 'active' : ''}`} aria-label="Open account menu">
+    <Menu.Trigger className={`topbar-user ${['/account', '/settings'].includes(location.pathname) ? 'active' : ''}`} aria-label="Open account menu">
       <UserAvatar name={user?.fullName ?? 'StockLedger'} />
       <span className="topbar-user-copy"><b>{user?.fullName}</b><small>{user ? roleLabel[user.role] : ''}</small></span>
       <ChevronDown className="account-menu-chevron" size={14} />
@@ -22,6 +22,7 @@ export function AccountMenu() {
           <div className="account-menu-identity"><b>{user?.fullName}</b><span>{user?.email}</span></div>
           <div className="account-menu-separator" />
           <Menu.Item className="account-menu-item" onClick={() => navigate('/account')}><UserRoundCog size={17} /><span>Profile settings</span></Menu.Item>
+          {user?.role === 'administrator' && <Menu.Item className="account-menu-item" onClick={() => navigate('/settings')}><Building2 size={17} /><span>Business settings</span></Menu.Item>}
           <Menu.Item className="account-menu-item danger" onClick={signOut}><Power size={17} /><span>Sign out</span></Menu.Item>
         </Menu.Popup>
       </Menu.Positioner>

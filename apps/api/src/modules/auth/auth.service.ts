@@ -7,6 +7,7 @@ import type { Varchar } from '@prisma/orm-postgres/target/codec-types';
 import { PrismaService, type PrismaTransaction } from '../../prisma/prisma.service.js';
 import { ChangePasswordDto } from './dto/change-password.dto.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
+import { ForgotPasswordDto } from './dto/forgot-password.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RegisterOwnerDto } from './dto/register-owner.dto.js';
 import { RequestVerificationDto } from './dto/request-verification.dto.js';
@@ -57,7 +58,11 @@ export class AuthService {
     const expiresInHours = this.config.getOrThrow<number>('auth.emailVerificationTtlHours');
     const passwordHash = await argon2.hash(body.password, { type: argon2.argon2id });
     const user = await this.prisma.withCompany(companyId, async (tx) => {
-      const company = await tx.orm.public.Company.create({ id: companyId, name: body.businessName.trim() as Varchar<120> });
+      const company = await tx.orm.public.Company.create({
+        id: companyId,
+        name: body.businessName.trim() as Varchar<120>,
+        contactEmail: email as Varchar<255>,
+      });
       return tx.orm.public.User.create({
         companyId: company.id,
         locationId: null,
@@ -298,6 +303,44 @@ export class AuthService {
       await this.audit(tx, companyId, user.id, 'account.password_reset', 'user', user.id, {});
       return { changed: true as const };
     });
+  }
+
+  async forgotPassword(body: ForgotPasswordDto) {
+    const startedAt = Date.now();
+    const user = await this.authenticationUser(body.email.trim().toLowerCase());
+    if (user?.role === 'administrator' && user.isActive && user.emailVerifiedAt) {
+      const token = this.createOpaqueToken(user.companyId);
+      const tokenHash = this.hashToken(token);
+      const expiresInMinutes = this.config.getOrThrow<number>('auth.passwordResetTtlMinutes');
+      await this.prisma.withCompany(user.companyId, async (tx) => {
+        await tx.orm.public.User.where({ id: user.id, companyId: user.companyId }).update({
+          passwordResetTokenHash: tokenHash as Varchar<64>,
+          passwordResetExpiresAt: this.expiresAt(expiresInMinutes),
+        });
+        await this.audit(tx, user.companyId, null, 'owner.password_reset_requested', 'user', user.id, {});
+      });
+
+      try {
+        await this.mailer.sendRecovery({
+          email: user.email,
+          fullName: user.fullName,
+          resetUrl: `${this.webOrigin()}/reset-password?token=${encodeURIComponent(token)}`,
+          expiresInMinutes,
+        });
+      } catch {
+        await this.prisma.withCompany(user.companyId, async (tx) => {
+          await tx.orm.public.User.where({ id: user.id, companyId: user.companyId, passwordResetTokenHash: tokenHash as Varchar<64> }).update({
+            passwordResetTokenHash: null,
+            passwordResetExpiresAt: null,
+          });
+        });
+      }
+    }
+
+    const minimumResponseMs = 350;
+    const remaining = minimumResponseMs - (Date.now() - startedAt);
+    if (remaining > 0) await new Promise((resolve) => setTimeout(resolve, remaining));
+    return { sent: true as const };
   }
 
   async listUsers(userId: string, companyId: string) {

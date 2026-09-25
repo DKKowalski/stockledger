@@ -2,15 +2,16 @@ import { ArrowUpRight } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { api } from '../../api';
 import { useInventoryStore } from '../../app/inventory-store';
+import { useCompanySettings } from '../../app/company-settings-store';
 import { useAuth } from '../../auth-context';
 import { EmptyState, PageHeader, PageState, Panel, SelectControl } from '../../components/inventory-ui';
 import { InfoTooltip } from '../../components/ui/info-tooltip';
 import { InputControl } from '../../components/ui/input-control';
-import { formatDate, money } from '../../lib/presentation';
 
 export function ShopSalesPage() {
   const { accessToken, user } = useAuth();
   const { snapshot, mutate, busy } = useInventoryStore();
+  const { money, calendarDate } = useCompanySettings();
   const [form, setForm] = useState({ itemId: '', quantity: '' });
   const shop = snapshot?.locations.find((place) => place.id === user?.locationId) ?? snapshot?.locations[0];
   const stocked = snapshot?.positions.filter((position) => position.closing > 0) ?? [];
@@ -43,7 +44,7 @@ export function ShopSalesPage() {
       </form> : <EmptyState text="Nothing to sell yet. Stock arrives when someone transfers it to this shop." />}
     </Panel>
     <Panel title={`Recent sales (${sales.length})`} className="spaced">
-      {sales.length ? <div className="table-wrap"><table><thead><tr><th>Date</th><th>Item</th><th className="num">Qty</th><th className="num">Unit price</th><th className="num">Total</th></tr></thead><tbody>{sales.map((sale) => <tr key={sale.id}><td>{formatDate(sale.movementDate)}</td><td><b>{sale.item?.name ?? 'Deleted item'}</b><small>{sale.item?.sku}</small></td><td className="num negative">−{sale.quantity}</td><td className="num">{sale.unitPriceCents == null ? 'Not recorded' : money(sale.unitPriceCents)}</td><td className="num">{sale.saleTotalCents == null ? 'Not recorded' : money(sale.saleTotalCents)}</td></tr>)}</tbody></table></div> : <EmptyState text="No sales recorded at this shop yet." />}
+      {sales.length ? <div className="table-wrap"><table><thead><tr><th>Date</th><th>Item</th><th className="num">Qty</th><th className="num">Unit price</th><th className="num">Total</th></tr></thead><tbody>{sales.map((sale) => <tr key={sale.id}><td>{calendarDate(sale.movementDate)}</td><td><b>{sale.item?.name ?? 'Deleted item'}</b><small>{sale.item?.sku}</small></td><td className="num negative">−{sale.quantity}</td><td className="num">{sale.unitPriceCents == null ? 'Not recorded' : money(sale.unitPriceCents)}</td><td className="num">{sale.saleTotalCents == null ? 'Not recorded' : money(sale.saleTotalCents)}</td></tr>)}</tbody></table></div> : <EmptyState text="No sales recorded at this shop yet." />}
     </Panel>
   </PageState>;
 }

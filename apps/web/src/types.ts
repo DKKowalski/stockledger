@@ -16,6 +16,29 @@ export type LoginResponse = { accessToken: string; user: User };
 export type RegistrationResponse = { verificationRequired: true; email: string };
 export type BusinessType = 'retail' | 'wholesale' | 'warehouse' | 'mixed';
 export type InventorySource = 'spreadsheet' | 'another_system' | 'paper' | 'starting_fresh';
+export type Currency = 'GHS' | 'USD' | 'NGN' | 'GBP' | 'EUR';
+export type TimeZone = 'Africa/Accra' | 'Africa/Lagos' | 'Europe/London' | 'America/New_York' | 'UTC';
+export type DateFormat = 'day_month_year' | 'month_day_year' | 'year_month_day';
+export type CompanySettings = {
+  id: string;
+  name: string;
+  businessType: BusinessType;
+  contactEmail: string;
+  phone: string;
+  address: string;
+  currency: Currency;
+  timeZone: TimeZone;
+  dateFormat: DateFormat;
+};
+export type ActivityEvent = {
+  id: string;
+  action: string;
+  entityType: string;
+  entityId: string | null;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+  actor: { id: string; fullName: string; email: string } | null;
+};
 export type OnboardingStatus = {
   company: {
     id: string;

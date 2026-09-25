@@ -1,4 +1,12 @@
-import type { LocationType, MovementType, UserRole } from '../types';
+import type { Currency, LocationType, MovementType, UserRole } from '../types';
+
+const currencyLocale: Record<Currency, string> = {
+  GHS: 'en-GH',
+  USD: 'en-US',
+  NGN: 'en-NG',
+  GBP: 'en-GB',
+  EUR: 'en-IE',
+};
 
 export const roleLabel: Record<UserRole, string> = {
   administrator: 'Administrator',
@@ -20,17 +28,10 @@ export const movementMeta: Record<MovementType, { label: string; hint: string }>
   sale: { label: 'Sale', hint: 'Goods sold at a shop' },
 };
 
-export const money = (cents: number) =>
-  new Intl.NumberFormat('en-US', {
+export const formatMoney = (cents: number, currency: Currency) =>
+  new Intl.NumberFormat(currencyLocale[currency], {
     style: 'currency',
-    currency: 'USD',
+    currency,
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(cents / 100);
-
-export const formatDate = (date: string) =>
-  new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short', year: 'numeric' })
-    .format(new Date(`${date}T00:00:00`));
-
-export const joinedOn = (value: string) =>
-  new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(value));

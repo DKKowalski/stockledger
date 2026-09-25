@@ -2,9 +2,10 @@ import { ArrowLeftRight, ArrowUpDown, ArrowUpRight, CalendarDays, Check, Chevron
 import { NavLink } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import { useInventoryStore } from '../../app/inventory-store';
+import { useCompanySettings } from '../../app/company-settings-store';
 import { EmptyState, Kpi, LocationFilter, PageHeader, PageState, Panel } from '../../components/inventory-ui';
 import { LedgerSyncIcon } from '../../components/ledger-sync-icon';
-import { formatDate, money, movementMeta } from '../../lib/presentation';
+import { movementMeta } from '../../lib/presentation';
 import type { Movement, Position, Snapshot } from '../../types';
 import { OwnerSetupChecklist } from '../onboarding/owner-setup-checklist';
 
@@ -24,6 +25,7 @@ export function OperationsDashboardPage() {
 
 export function ShopDashboardPage() {
   const { snapshot, refresh, loading } = useInventoryStore();
+  const { money, calendarDate } = useCompanySettings();
   if (!snapshot) return <PageState><></></PageState>;
   const shop = snapshot.locations.find((place) => place.id === snapshot.locationId);
   const sales = snapshot.movements.filter((movement) => movement.type === 'sale');
@@ -41,7 +43,7 @@ export function ShopDashboardPage() {
       <Panel title="Recent sales" subtitle="Latest sales at this shop" className="movement-panel">
         {sales.length ? <div className="movement-list">{sales.slice(0, 6).map((sale) => <div className="movement-row" key={sale.id}>
           <span className="movement-icon out"><ShoppingBag size={15} /></span>
-          <div><b>{sale.item?.name ?? 'Deleted item'}</b><small>{formatDate(sale.movementDate)} · {sale.saleTotalCents == null ? 'Price not recorded' : money(sale.saleTotalCents)}</small></div>
+          <div><b>{sale.item?.name ?? 'Deleted item'}</b><small>{calendarDate(sale.movementDate)} · {sale.saleTotalCents == null ? 'Price not recorded' : money(sale.saleTotalCents)}</small></div>
           <strong className="negative">−{sale.quantity}</strong>
         </div>)}</div> : <EmptyState text="No sales recorded yet." />}
       </Panel>
@@ -74,6 +76,7 @@ function DashboardBody({ title, subtitle, actions, positions, movements, periodD
   summary: Snapshot['summary'];
   setup?: ReactNode;
 }) {
+  const { money, calendarDate } = useCompanySettings();
   return <>
     <PageHeader title={title} subtitle={subtitle} actions={actions} />
     {setup}
@@ -88,7 +91,7 @@ function DashboardBody({ title, subtitle, actions, positions, movements, periodD
       <Panel title="Recent movements" subtitle="Latest stock activity" className="movement-panel">
         {movements.length ? <div className="movement-list">{movements.slice(0, 6).map((movement) => <div className="movement-row" key={movement.id}>
           <span className={`movement-icon ${movement.sign === 1 ? 'in' : 'out'}`}><ArrowLeftRight size={15} /></span>
-          <div><b>{movement.item?.name ?? 'Deleted item'}</b><small>{movementMeta[movement.type].label} · {formatDate(movement.movementDate)}</small></div>
+          <div><b>{movement.item?.name ?? 'Deleted item'}</b><small>{movementMeta[movement.type].label} · {calendarDate(movement.movementDate)}</small></div>
           <strong className={movement.sign === 1 ? 'positive' : 'negative'}>{movement.sign === 1 ? '+' : '−'}{movement.quantity}</strong>
         </div>)}</div> : <EmptyState text="No movements recorded yet." />}
       </Panel>

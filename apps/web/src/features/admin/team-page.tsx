@@ -4,16 +4,18 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 import { ApiError, api } from '../../api';
 import { useInventoryStore } from '../../app/inventory-store';
+import { useCompanySettings } from '../../app/company-settings-store';
 import { useAuth } from '../../auth-context';
 import { PageHeader, Panel, SelectControl } from '../../components/inventory-ui';
 import { StockLedgerMark } from '../../components/stockledger-mark';
 import { InputControl } from '../../components/ui/input-control';
-import { joinedOn, roleLabel } from '../../lib/presentation';
+import { roleLabel } from '../../lib/presentation';
 import type { User } from '../../types';
 
 export function TeamPage() {
   const { accessToken, signOut } = useAuth();
   const { snapshot } = useInventoryStore();
+  const { memberDate } = useCompanySettings();
   const [people, setPeople] = useState<User[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [listError, setListError] = useState<string | null>(null);
@@ -130,7 +132,7 @@ export function TeamPage() {
       {actionError && <div className="form-error team-action-error" role="alert">{actionError}</div>}
       {loading && !people ? <div className="empty"><StockLedgerMark animated size={32} /><p>Loading accounts</p></div>
         : listError && !people ? <div className="empty"><p>{listError}</p><button className="button secondary" onClick={() => void load()}>Try again</button></div>
-          : people?.length ? <div className="table-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Place</th><th>Status</th><th className="num">Joined</th><th><span className="sr-only">Account actions</span></th></tr></thead><tbody>{people.map((person) => <tr className={person.isActive ? '' : 'inactive-account-row'} key={person.id}><td><b>{person.fullName}</b></td><td>{person.email}</td><td>{roleLabel[person.role]}</td><td>{snapshot?.locations.find((place) => place.id === person.locationId)?.name ?? 'All places'}</td><td><span className={`account-status ${person.setupPending ? 'pending' : person.isActive ? 'active' : 'inactive'}`}><i />{person.setupPending ? 'Invite pending' : person.isActive ? 'Active' : 'Inactive'}</span></td><td className="num">{joinedOn(person.createdAt)}</td><td className="num">{person.role === 'administrator' ? <span className="account-owner-label">Owner</span> : <PersonActionsMenu person={person} busy={busyUserId === person.id} onReset={() => void sendPasswordReset(person)} onResendInvitation={() => void resendInvitation(person)} onStatusChange={() => void setAccountStatus(person)} />}</td></tr>)}</tbody></table></div>
+          : people?.length ? <div className="table-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Place</th><th>Status</th><th className="num">Joined</th><th><span className="sr-only">Account actions</span></th></tr></thead><tbody>{people.map((person) => <tr className={person.isActive ? '' : 'inactive-account-row'} key={person.id}><td><b>{person.fullName}</b></td><td>{person.email}</td><td>{roleLabel[person.role]}</td><td>{snapshot?.locations.find((place) => place.id === person.locationId)?.name ?? 'All places'}</td><td><span className={`account-status ${person.setupPending ? 'pending' : person.isActive ? 'active' : 'inactive'}`}><i />{person.setupPending ? 'Invite pending' : person.isActive ? 'Active' : 'Inactive'}</span></td><td className="num">{memberDate(person.createdAt)}</td><td className="num">{person.role === 'administrator' ? <span className="account-owner-label">Owner</span> : <PersonActionsMenu person={person} busy={busyUserId === person.id} onReset={() => void sendPasswordReset(person)} onResendInvitation={() => void resendInvitation(person)} onStatusChange={() => void setAccountStatus(person)} />}</td></tr>)}</tbody></table></div>
             : <div className="empty"><Users size={22} /><p>No accounts yet.</p></div>}
     </Panel>
   </>;

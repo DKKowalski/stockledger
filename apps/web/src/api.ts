@@ -1,4 +1,4 @@
-import type { BusinessType, InventorySource, LocationType, LoginResponse, MovementType, OnboardingStatus, Place, RegistrationResponse, Snapshot, User, UserRole } from './types';
+import type { ActivityEvent, BusinessType, CompanySettings, InventorySource, LocationType, LoginResponse, MovementType, OnboardingStatus, Place, RegistrationResponse, Snapshot, User, UserRole } from './types';
 
 const base = (import.meta.env.VITE_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 
@@ -44,6 +44,8 @@ export const api = {
     request<{ changed: true }>('/auth/me/password', { method: 'PATCH', body: JSON.stringify(body) }, accessToken),
   resetPassword: (body: { token: string; newPassword: string }) =>
     request<{ changed: true }>('/auth/password/reset', { method: 'POST', body: JSON.stringify(body) }),
+  forgotPassword: (email: string) =>
+    request<{ sent: true }>('/auth/password/forgot', { method: 'POST', body: JSON.stringify({ email }) }),
   users: (accessToken: string) => request<User[]>('/auth/users', undefined, accessToken),
   addUser: (accessToken: string, body: { fullName: string; email: string; role: Exclude<UserRole, 'administrator'>; locationId?: string }) =>
     request<User>('/auth/users', { method: 'POST', body: JSON.stringify(body) }, accessToken),
@@ -61,6 +63,10 @@ export const api = {
     request<OnboardingStatus>('/onboarding/inventory-source', { method: 'PATCH', body: JSON.stringify({ inventorySource }) }, accessToken),
   completeOnboarding: (accessToken: string) =>
     request<OnboardingStatus>('/onboarding/complete', { method: 'POST' }, accessToken),
+  companySettings: (accessToken: string) => request<CompanySettings>('/settings', undefined, accessToken),
+  updateCompanySettings: (accessToken: string, body: Omit<CompanySettings, 'id'>) =>
+    request<CompanySettings>('/settings', { method: 'PATCH', body: JSON.stringify(body) }, accessToken),
+  activity: (accessToken: string) => request<ActivityEvent[]>('/settings/activity', undefined, accessToken),
   snapshot: (accessToken: string, days: number, locationId?: string | null) =>
     request<Snapshot>(`/inventory/snapshot?days=${days}${locationId ? `&locationId=${locationId}` : ''}`, undefined, accessToken),
   addLocation: (accessToken: string, body: { name: string; type: LocationType }) =>

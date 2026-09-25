@@ -2,6 +2,8 @@ import { ArrowLeftRight, ChartColumn, LayoutDashboard, MapPin, Package, Shopping
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { useAuth } from '../auth-context';
 import { AccountSettingsPage } from '../features/account/account-settings-page';
+import { BusinessSettingsPage } from '../features/settings/business-settings-page';
+import { ActivityLogPage } from '../features/settings/activity-log-page';
 import { PlacesPage } from '../features/admin/places-page';
 import { TeamPage } from '../features/admin/team-page';
 import { OperationsDashboardPage, ShopDashboardPage } from '../features/dashboard/dashboard-pages';
@@ -57,6 +59,8 @@ function AdministratorWorkspace() {
     <Route path="places" element={<PlacesPage />} />
     <Route path="team" element={<TeamPage />} />
     <Route path="account" element={<AccountSettingsPage />} />
+    <Route path="settings" element={<BusinessSettingsPage />} />
+    <Route path="settings/activity" element={<ActivityLogPage />} />
     <Route path="*" element={<Navigate to="/" replace />} />
   </Route></Routes>;
 }

@@ -44,4 +44,26 @@ describe('PasswordResetMailer', () => {
     expect(body.html).toContain('Ama &lt;Boateng&gt;');
     expect(body.html).not.toContain('<unsafe>');
   });
+
+  it('uses neutral copy for a self-service recovery request', async () => {
+    const config = { get: vi.fn((key: string) => ({
+      'email.resendApiKey': 're_test_key',
+      'email.from': 'StockLedger <accounts@example.com>',
+    })[key]) } as unknown as ConfigService;
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal('fetch', fetchMock);
+    const mailer = new PasswordResetMailer(config);
+
+    await mailer.sendRecovery({
+      email: 'ama@example.com',
+      fullName: 'Ama Mensah',
+      resetUrl: 'https://stockledger.example/reset-password?token=secret',
+      expiresInMinutes: 30,
+    });
+
+    const options = fetchMock.mock.calls[0][1] as RequestInit;
+    const body = JSON.parse(options.body as string) as { text: string };
+    expect(body.text).toContain('We received a request');
+    expect(body.text).not.toContain('administrator requested');
+  });
 });

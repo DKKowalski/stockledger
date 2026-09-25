@@ -7,6 +7,7 @@ import { AuthService } from './auth.service.js';
 import type { AuthenticatedRequest } from './auth.types.js';
 import { ChangePasswordDto } from './dto/change-password.dto.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
+import { ForgotPasswordDto } from './dto/forgot-password.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RegisterOwnerDto } from './dto/register-owner.dto.js';
 import { RequestVerificationDto } from './dto/request-verification.dto.js';
@@ -75,6 +76,13 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   resetPassword(@Body() body: ResetPasswordDto) {
     return this.auth.resetPassword(body);
+  }
+
+  @Post('password/forgot')
+  @Throttle({ default: { limit: 5, ttl: minutes(15), blockDuration: minutes(30) } })
+  @HttpCode(HttpStatus.OK)
+  forgotPassword(@Body() body: ForgotPasswordDto) {
+    return this.auth.forgotPassword(body);
   }
 
   @Get('me')

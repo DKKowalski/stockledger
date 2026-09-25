@@ -220,6 +220,16 @@
           },
           "Company": {
             "fields": {
+              "address": {
+                "nullable": true,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 300
+                  }
+                }
+              },
               "businessType": {
                 "nullable": true,
                 "type": {
@@ -230,11 +240,41 @@
                   }
                 }
               },
+              "contactEmail": {
+                "nullable": true,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 255
+                  }
+                }
+              },
               "createdAt": {
                 "nullable": false,
                 "type": {
                   "codecId": "pg/timestamptz-string@1",
                   "kind": "scalar"
+                }
+              },
+              "currency": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 3
+                  }
+                }
+              },
+              "dateFormat": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 24
+                  }
                 }
               },
               "id": {
@@ -271,6 +311,26 @@
                   "kind": "scalar"
                 }
               },
+              "phone": {
+                "nullable": true,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 40
+                  }
+                }
+              },
+              "timeZone": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 64
+                  }
+                }
+              },
               "updatedAt": {
                 "nullable": false,
                 "type": {
@@ -282,11 +342,23 @@
             "relations": {},
             "storage": {
               "fields": {
+                "address": {
+                  "column": "address"
+                },
                 "businessType": {
                   "column": "business_type"
                 },
+                "contactEmail": {
+                  "column": "contact_email"
+                },
                 "createdAt": {
                   "column": "created_at"
+                },
+                "currency": {
+                  "column": "currency"
+                },
+                "dateFormat": {
+                  "column": "date_format"
                 },
                 "id": {
                   "column": "id"
@@ -299,6 +371,12 @@
                 },
                 "onboardingCompletedAt": {
                   "column": "onboarding_completed_at"
+                },
+                "phone": {
+                  "column": "phone"
+                },
+                "timeZone": {
+                  "column": "time_zone"
                 },
                 "updatedAt": {
                   "column": "updated_at"
@@ -1528,12 +1606,28 @@
             },
             "companies": {
               "columns": {
+                "address": {
+                  "codecId": "sql/varchar@1",
+                  "nativeType": "character varying",
+                  "nullable": true,
+                  "typeParams": {
+                    "length": 300
+                  }
+                },
                 "business_type": {
                   "codecId": "sql/varchar@1",
                   "nativeType": "character varying",
                   "nullable": true,
                   "typeParams": {
                     "length": 40
+                  }
+                },
+                "contact_email": {
+                  "codecId": "sql/varchar@1",
+                  "nativeType": "character varying",
+                  "nullable": true,
+                  "typeParams": {
+                    "length": 255
                   }
                 },
                 "created_at": {
@@ -1544,6 +1638,30 @@
                   },
                   "nativeType": "timestamptz",
                   "nullable": false
+                },
+                "currency": {
+                  "codecId": "sql/varchar@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": "GHS"
+                  },
+                  "nativeType": "character varying",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 3
+                  }
+                },
+                "date_format": {
+                  "codecId": "sql/varchar@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": "day_month_year"
+                  },
+                  "nativeType": "character varying",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 24
+                  }
                 },
                 "id": {
                   "codecId": "pg/uuid@1",
@@ -1570,6 +1688,26 @@
                   "codecId": "pg/timestamptz-string@1",
                   "nativeType": "timestamptz",
                   "nullable": true
+                },
+                "phone": {
+                  "codecId": "sql/varchar@1",
+                  "nativeType": "character varying",
+                  "nullable": true,
+                  "typeParams": {
+                    "length": 40
+                  }
+                },
+                "time_zone": {
+                  "codecId": "sql/varchar@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": "Africa/Accra"
+                  },
+                  "nativeType": "character varying",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 64
+                  }
                 },
                 "updated_at": {
                   "codecId": "pg/timestamptz-string@1",
@@ -2598,7 +2736,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "76d4a739c3bb266665c8a9c4d6635e52602203a01c99bd7dd841d377f03a912a"
+    "storageHash": "34bcef8ebc6d466edf2f3fa85cba4bd89f288e8e3f3246002a450211536d2918"
   },
   "execution": {
     "executionHash": "05505ffcdc830b89bb1cb8cc894e38bdc8da7add468de58ddf76b36e3109745b",

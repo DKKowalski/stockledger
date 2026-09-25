@@ -3,16 +3,18 @@ import { useId, useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 import { ApiError } from '../../api';
 import { useInventoryStore } from '../../app/inventory-store';
+import { useCompanySettings } from '../../app/company-settings-store';
 import { useAuth } from '../../auth-context';
 import { PageHeader, Panel } from '../../components/inventory-ui';
 import { StockLedgerMark } from '../../components/stockledger-mark';
 import { InputControl } from '../../components/ui/input-control';
 import { UserAvatar } from '../../components/user-avatar';
-import { joinedOn, roleLabel } from '../../lib/presentation';
+import { roleLabel } from '../../lib/presentation';
 
 export function AccountSettingsPage() {
   const { user, updateProfile, changePassword, signOut } = useAuth();
   const { snapshot } = useInventoryStore();
+  const { memberDate } = useCompanySettings();
   const [profile, setProfile] = useState({ fullName: user?.fullName ?? '', email: user?.email ?? '' });
   const [passwords, setPasswords] = useState({ current: '', next: '', confirm: '' });
   const [profileError, setProfileError] = useState<string | null>(null);
@@ -72,7 +74,7 @@ export function AccountSettingsPage() {
         <dl className="account-facts">
           <div><dt><UserRound size={15} />Role</dt><dd>{roleLabel[user.role]}</dd></div>
           <div><dt><MapPin size={15} />Stock access</dt><dd>{assignedPlace}</dd></div>
-          <div><dt><CalendarDays size={15} />Member since</dt><dd>{joinedOn(user.createdAt)}</dd></div>
+          <div><dt><CalendarDays size={15} />Member since</dt><dd>{memberDate(user.createdAt)}</dd></div>
         </dl>
         <p className="account-access-note"><ShieldCheck size={16} />An administrator manages roles and shop assignments.</p>
       </aside>

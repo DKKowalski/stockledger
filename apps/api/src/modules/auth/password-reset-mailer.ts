@@ -32,6 +32,19 @@ export class PasswordResetMailer {
     });
   }
 
+  async sendRecovery(message: PasswordResetMessage) {
+    return this.deliver({
+      email: message.email,
+      subject: 'Reset your StockLedger password',
+      text: `Hello ${message.fullName},\n\nWe received a request to reset your StockLedger password. Open this link within ${message.expiresInMinutes} minutes:\n\n${message.resetUrl}\n\nIf you did not request this, you can ignore this email.`,
+      heading: 'Reset your password',
+      introduction: `Hello ${message.fullName}, use the secure link below to choose a new password.`,
+      buttonLabel: 'Choose a new password',
+      url: message.resetUrl,
+      footnote: `This link expires in ${message.expiresInMinutes} minutes and can only be used once. If you did not request it, you can ignore this email.`,
+    });
+  }
+
   async sendVerification(message: AccountLinkMessage) {
     return this.deliver({
       email: message.email,

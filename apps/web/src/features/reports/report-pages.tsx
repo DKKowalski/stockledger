@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useInventoryStore } from '../../app/inventory-store';
+import { useCompanySettings } from '../../app/company-settings-store';
 import { EmptyState, LocationFilter, PageHeader, PageState, Panel, SelectControl, StockTable } from '../../components/inventory-ui';
-import { formatDate, money } from '../../lib/presentation';
 import type { Position } from '../../types';
 
 type ReportTab = 'current' | 'low' | 'fast' | 'slow' | 'dead';
@@ -66,9 +66,11 @@ function ReportTabs({ tab, setTab, positions }: { tab: ReportTab; setTab: (tab: 
 }
 
 function OperationsVelocityTable({ positions }: { positions: Position[] }) {
-  return <div className="table-wrap"><table><thead><tr><th>Item</th><th>Place</th><th className="num">Units out</th><th className="num">Closing</th><th className="num">Value held</th><th className="num">Last time out</th></tr></thead><tbody>{positions.map((position) => <tr key={`${position.location.id}-${position.item.id}`}><td><b>{position.item.name}</b><small>{position.item.sku}</small></td><td>{position.location.name}</td><td className="num">{position.outLastPeriod}</td><td className="num">{position.closing}</td><td className="num">{money(position.valueCents)}</td><td className="num">{position.lastOutDate ? formatDate(position.lastOutDate) : 'Never'}</td></tr>)}</tbody></table></div>;
+  const { money, calendarDate } = useCompanySettings();
+  return <div className="table-wrap"><table><thead><tr><th>Item</th><th>Place</th><th className="num">Units out</th><th className="num">Closing</th><th className="num">Value held</th><th className="num">Last time out</th></tr></thead><tbody>{positions.map((position) => <tr key={`${position.location.id}-${position.item.id}`}><td><b>{position.item.name}</b><small>{position.item.sku}</small></td><td>{position.location.name}</td><td className="num">{position.outLastPeriod}</td><td className="num">{position.closing}</td><td className="num">{money(position.valueCents)}</td><td className="num">{position.lastOutDate ? calendarDate(position.lastOutDate) : 'Never'}</td></tr>)}</tbody></table></div>;
 }
 
 function ShopReportTable({ positions, current }: { positions: Position[]; current: boolean }) {
-  return <div className="table-wrap"><table><thead><tr><th>Item</th>{current && <><th className="num">Opening</th><th className="num">In</th></>}<th className="num">Units out</th><th className="num">Closing</th>{!current && <th className="num">Last time out</th>}</tr></thead><tbody>{positions.map((position) => <tr key={position.item.id}><td><b>{position.item.name}</b><small>{position.item.sku}</small></td>{current && <><td className="num">{position.opening}</td><td className="num positive">+{position.purchases + position.returnsIn + position.transferredIn}</td></>}<td className="num negative">−{position.transferredOut + position.returnsOut + position.damaged + position.sales}</td><td className="num"><b>{position.closing}</b>{position.isLowStock && <span className="badge">low</span>}</td>{!current && <td className="num">{position.lastOutDate ? formatDate(position.lastOutDate) : 'Never'}</td>}</tr>)}</tbody></table></div>;
+  const { calendarDate } = useCompanySettings();
+  return <div className="table-wrap"><table><thead><tr><th>Item</th>{current && <><th className="num">Opening</th><th className="num">In</th></>}<th className="num">Units out</th><th className="num">Closing</th>{!current && <th className="num">Last time out</th>}</tr></thead><tbody>{positions.map((position) => <tr key={position.item.id}><td><b>{position.item.name}</b><small>{position.item.sku}</small></td>{current && <><td className="num">{position.opening}</td><td className="num positive">+{position.purchases + position.returnsIn + position.transferredIn}</td></>}<td className="num negative">−{position.transferredOut + position.returnsOut + position.damaged + position.sales}</td><td className="num"><b>{position.closing}</b>{position.isLowStock && <span className="badge">low</span>}</td>{!current && <td className="num">{position.lastOutDate ? calendarDate(position.lastOutDate) : 'Never'}</td>}</tr>)}</tbody></table></div>;
 }

@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { ApiError, api } from './api';
 import { InventoryProvider } from './app/inventory-store';
+import { CompanySettingsProvider } from './app/company-settings-store';
 import { RoleWorkspace } from './app/role-workspace';
 import { useAuth } from './auth-context';
 import { StockLedgerMark } from './components/stockledger-mark';
 import { LoginPage } from './features/auth/login-page';
+import { ForgotPasswordPage } from './features/auth/forgot-password-page';
 import { AcceptInvitationPage } from './features/auth/accept-invitation-page';
 import { ResetPasswordPage } from './features/auth/reset-password-page';
 import { SignupPage } from './features/auth/signup-page';
@@ -17,6 +19,7 @@ import type { OnboardingStatus } from './types';
 export function App() {
   return <Routes>
     <Route path="/reset-password" element={<ResetPasswordPage />} />
+    <Route path="/forgot-password" element={<ForgotPasswordPage />} />
     <Route path="/verify-email" element={<VerifyEmailPage />} />
     <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
     <Route path="*" element={<AuthenticatedApp />} />
@@ -39,7 +42,7 @@ function AuthenticatedApp() {
 
   if (user?.role === 'administrator') return <OwnerGate accessToken={accessToken} />;
 
-  return <InventoryProvider><RoleWorkspace /></InventoryProvider>;
+  return <WorkspaceProviders><RoleWorkspace /></WorkspaceProviders>;
 }
 
 function OwnerGate({ accessToken }: { accessToken: string }) {
@@ -81,7 +84,11 @@ function OwnerGate({ accessToken }: { accessToken: string }) {
     </Routes>;
   }
 
-  return <InventoryProvider><RoleWorkspace /></InventoryProvider>;
+  return <WorkspaceProviders><RoleWorkspace /></WorkspaceProviders>;
+}
+
+function WorkspaceProviders({ children }: { children: ReactNode }) {
+  return <CompanySettingsProvider><InventoryProvider>{children}</InventoryProvider></CompanySettingsProvider>;
 }
 
 function AppLoader() {

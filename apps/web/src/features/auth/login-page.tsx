@@ -58,7 +58,7 @@ export function LoginPage() {
         <form className="login-form" onSubmit={(event) => void submit(event)}>
           {error && <div className="login-error" role="alert">{error}{error.includes('Verify your email') && <button className="text-button" type="button" onClick={() => void resendVerification()}>Send another link</button>}</div>}
           <label><span>Email address</span><InputControl autoComplete="email" inputMode="email" placeholder="you@company.com" required type="email" value={email} onValueChange={setEmail} /></label>
-          <label><span>Password</span><span className="password-field">
+          <label><span className="login-password-label"><span>Password</span><Link to="/forgot-password">Forgot password?</Link></span><span className="password-field">
             <InputControl autoComplete="current-password" placeholder="Enter your password" required type={showPassword ? 'text' : 'password'} value={password} onValueChange={setPassword} />
             <button type="button" aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword((visible) => !visible)}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button>
           </span></label>

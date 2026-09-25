@@ -51,6 +51,7 @@ describe('AuthService launch account flows', () => {
   const send = vi.fn();
   const sendVerification = vi.fn();
   const sendInvitation = vi.fn();
+  const sendRecovery = vi.fn();
   const prisma = {
     withCompany,
     client: {
@@ -58,7 +59,7 @@ describe('AuthService launch account flows', () => {
       runtime: () => ({ query: runtimeQuery }),
     },
   } as unknown as PrismaService;
-  const mailer = { send, sendVerification, sendInvitation } as unknown as PasswordResetMailer;
+  const mailer = { send, sendVerification, sendInvitation, sendRecovery } as unknown as PasswordResetMailer;
   const service = new AuthService(
     prisma,
     { signAsync } as unknown as JwtService,
@@ -98,6 +99,7 @@ describe('AuthService launch account flows', () => {
     send.mockResolvedValue(undefined);
     sendVerification.mockResolvedValue(undefined);
     sendInvitation.mockResolvedValue(undefined);
+    sendRecovery.mockResolvedValue(undefined);
   });
 
   it('returns one generic error for an unknown login', async () => {
@@ -221,6 +223,28 @@ describe('AuthService launch account flows', () => {
     await expect(service.resetPassword({ token: 'not-a-token', newPassword: 'FreshPassword123!' }))
       .rejects.toBeInstanceOf(BadRequestException);
     expect(withCompany).not.toHaveBeenCalled();
+  });
+
+  it('sends a generic public recovery link to an active owner', async () => {
+    runtimeQuery.mockResolvedValue([{ id: ownerId, company_id: companyId }]);
+    userFirst.mockResolvedValue(owner());
+
+    await expect(service.forgotPassword({ email: ' AMA@EXAMPLE.COM ' })).resolves.toEqual({ sent: true });
+
+    expect(userUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      passwordResetTokenHash: expect.stringMatching(/^[0-9a-f]{64}$/),
+      passwordResetExpiresAt: expect.any(String),
+    }));
+    expect(sendRecovery).toHaveBeenCalledWith(expect.objectContaining({
+      email: 'ama@example.com',
+      resetUrl: expect.stringContaining('/reset-password?token='),
+    }));
+    expect(auditCreate).toHaveBeenCalledWith(expect.objectContaining({ action: 'owner.password_reset_requested' }));
+  });
+
+  it('returns the same public recovery response for an unknown address', async () => {
+    await expect(service.forgotPassword({ email: 'missing@example.com' })).resolves.toEqual({ sent: true });
+    expect(sendRecovery).not.toHaveBeenCalled();
   });
 
   it('does not let staff change passwords directly', async () => {

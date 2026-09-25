@@ -29,6 +29,12 @@ model Company {
   name                  VarChar(120)
   businessType          VarChar(40)?               @map("business_type")
   inventorySource       VarChar(40)?               @map("inventory_source")
+  contactEmail          VarChar(255)?              @map("contact_email")
+  phone                 VarChar(40)?
+  address               VarChar(300)?
+  currency              VarChar(3)                 @default("GHS")
+  timeZone              VarChar(64)                @default("Africa/Accra") @map("time_zone")
+  dateFormat            VarChar(24)                @default("day_month_year") @map("date_format")
   onboardingCompletedAt TimestamptzString?         @map("onboarding_completed_at")
   createdAt             TimestamptzString          @default(now()) @map("created_at")
   updatedAt             temporal.updatedAtString() @map("updated_at")
