@@ -8,6 +8,7 @@ import { CreateStockCountDto } from './dto/create-stock-count.dto.js';
 import { CreateSupplierDto } from './dto/create-supplier.dto.js';
 import { ImportItemsDto } from './dto/import-items.dto.js';
 import { SnapshotQueryDto } from './dto/snapshot-query.dto.js';
+import { ProfitabilityQueryDto } from './dto/profitability-query.dto.js';
 import { UpdateItemDto } from './dto/update-item.dto.js';
 import { UpdateSupplierDto } from './dto/update-supplier.dto.js';
 import { UpdateSellingPriceDto } from './dto/update-selling-price.dto.js';
@@ -69,8 +70,8 @@ export class InventoryController {
   }
 
   @Get('profitability')
-  profitability(@Req() request: AuthenticatedRequest, @Query() query: SnapshotQueryDto) {
-    return this.inventory.profitability(request.user.sub, request.user.companyId, query.days, query.locationId);
+  profitability(@Req() request: AuthenticatedRequest, @Query() query: ProfitabilityQueryDto) {
+    return this.inventory.profitability(request.user.sub, request.user.companyId, query);
   }
 
   @Post('movements')

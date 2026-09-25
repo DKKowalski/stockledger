@@ -18,6 +18,8 @@ const item: ItemRecord = {
 };
 
 const shop: LocationRecord = { id: 'shop-1', name: 'Main shop', type: 'shop' };
+const warehouse: LocationRecord = { id: 'warehouse-1', name: 'Main warehouse', type: 'warehouse' };
+const allFilters = { days: 30, locationId: null, locationType: null, itemId: null, category: null } as const;
 
 function movement(
   type: StockMovementType,
@@ -53,8 +55,7 @@ describe('buildProfitability', () => {
         movement(StockMovementType.SALE, 5, { unitPriceCents: 2_000, unitCostCents: 1_200 }),
         movement(StockMovementType.RETURN_IN, 2, { unitPriceCents: 2_000, unitCostCents: 1_200, relatedMovementId: 'sale-1' }),
       ],
-      30,
-      null,
+      allFilters,
       new Date('2026-09-25T12:00:00.000Z'),
     );
 
@@ -74,8 +75,7 @@ describe('buildProfitability', () => {
       [item],
       [shop],
       [movement(StockMovementType.SALE, 4, { unitPriceCents: 2_000 })],
-      30,
-      null,
+      allFilters,
       new Date('2026-09-25T12:00:00.000Z'),
     );
 
@@ -98,11 +98,48 @@ describe('buildProfitability', () => {
         movement(StockMovementType.DAMAGE, 2, { unitCostCents: 1_200 }),
         movement(StockMovementType.ADJUSTMENT_OUT, 1, { unitCostCents: 1_200, stockCountId: 'count-1' }),
       ],
-      30,
-      null,
+      allFilters,
       new Date('2026-09-25T12:00:00.000Z'),
     );
 
     expect(report.summary.inventoryLossCents).toBe(3_600);
+  });
+
+  it('separates shop profit from warehouse stock losses', () => {
+    const movements = [
+      movement(StockMovementType.SALE, 2, { unitPriceCents: 2_000, unitCostCents: 1_200 }),
+      movement(StockMovementType.DAMAGE, 1, { locationId: warehouse.id, unitCostCents: 1_200 }),
+    ];
+    const shopReport = buildProfitability(
+      [item], [shop, warehouse], movements,
+      { ...allFilters, locationType: 'shop' },
+      new Date('2026-09-25T12:00:00.000Z'),
+    );
+    const warehouseReport = buildProfitability(
+      [item], [shop, warehouse], movements,
+      { ...allFilters, locationType: 'warehouse' },
+      new Date('2026-09-25T12:00:00.000Z'),
+    );
+
+    expect(shopReport.summary).toMatchObject({ netSalesCents: 4_000, grossProfitCents: 1_600, inventoryLossCents: 0 });
+    expect(warehouseReport.summary).toMatchObject({ netSalesCents: 0, grossProfitCents: 0, inventoryLossCents: 1_200 });
+    expect(warehouseReport.trend).toEqual([]);
+  });
+
+  it('filters profitability by category and item', () => {
+    const oil = { ...item, id: 'item-2', name: 'Oil', category: 'Cooking' };
+    const report = buildProfitability(
+      [item, oil],
+      [shop],
+      [
+        movement(StockMovementType.SALE, 2, { unitPriceCents: 2_000, unitCostCents: 1_200 }),
+        movement(StockMovementType.SALE, 4, { itemId: oil.id, unitPriceCents: 1_000, unitCostCents: 700 }),
+      ],
+      { ...allFilters, category: 'Cooking', itemId: oil.id },
+      new Date('2026-09-25T12:00:00.000Z'),
+    );
+
+    expect(report.lines).toHaveLength(1);
+    expect(report.lines[0]).toMatchObject({ itemId: oil.id, itemName: 'Oil', netSalesCents: 4_000, grossProfitCents: 1_200 });
   });
 });

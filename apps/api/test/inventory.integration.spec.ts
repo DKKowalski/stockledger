@@ -277,10 +277,20 @@ describe('inventory transactions with PostgreSQL', () => {
       itemId: f.item.id, locationId: f.shop.id, type: Type.RETURN_IN, quantity: 1,
       relatedMovementId: sale.id, movementDate,
     });
-    const report = await service.profitability(f.admin.id, f.company.id, 30);
+    const report = await service.profitability(f.admin.id, f.company.id, {
+      days: 30, locationType: 'shop', locationId: f.shop.id,
+    });
+    const warehouseReport = await service.profitability(f.admin.id, f.company.id, {
+      days: 30, locationType: 'warehouse', locationId: f.warehouse.id,
+    });
 
     expect(returned).toMatchObject({ relatedMovementId: sale.id, unitPriceCents: 175, unitCostCents: 100 });
     expect(report.summary).toMatchObject({ netSalesCents: 350, cogsCents: 200, grossProfitCents: 150, unitsSold: 3, unitsReturned: 1 });
+    expect(warehouseReport.summary).toMatchObject({ netSalesCents: 0, grossProfitCents: 0 });
+    expect(warehouseReport.lines).toEqual([]);
+    await expect(service.profitability(f.admin.id, f.company.id, {
+      days: 30, locationType: 'warehouse', locationId: f.shop.id,
+    })).rejects.toBeInstanceOf(BadRequestException);
     await expect(service.createMovement(f.admin.id, f.company.id, {
       itemId: f.item.id, locationId: f.shop.id, type: Type.RETURN_IN, quantity: 3,
       relatedMovementId: sale.id, movementDate,

@@ -20,12 +20,25 @@ import { workspaceError, type UserFacingError } from './lib/user-facing-error';
 
 export function App() {
   return <Routes>
+    {import.meta.env.DEV && <Route path="/__preview/workspace-error" element={<WorkspaceErrorPreview />} />}
     <Route path="/reset-password" element={<ResetPasswordPage />} />
     <Route path="/forgot-password" element={<ForgotPasswordPage />} />
     <Route path="/verify-email" element={<VerifyEmailPage />} />
     <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
     <Route path="*" element={<AuthenticatedApp />} />
   </Routes>;
+}
+
+function WorkspaceErrorPreview() {
+  const { signOut } = useAuth();
+  return <WorkspaceErrorState
+    error={{
+      title: "We couldn't open your workspace.",
+      description: 'Try again in a moment.',
+    }}
+    onRetry={() => window.location.reload()}
+    onSignOut={signOut}
+  />;
 }
 
 function AuthenticatedApp() {

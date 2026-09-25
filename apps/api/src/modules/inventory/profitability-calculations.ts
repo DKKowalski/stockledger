@@ -16,23 +16,36 @@ type ProfitLine = {
   uncostedSaleUnits: number;
 };
 
+export type ProfitabilityFilters = {
+  days: number;
+  locationId: string | null;
+  locationType: LocationRecord['type'] | null;
+  itemId: string | null;
+  category: string | null;
+};
+
 export function buildProfitability(
   items: readonly ItemRecord[],
   locations: readonly LocationRecord[],
   movements: readonly MovementRecord[],
-  days: number,
-  locationId: string | null,
+  filters: ProfitabilityFilters,
   now = new Date(),
 ) {
+  const { days, locationId, locationType, itemId, category } = filters;
   const periodStart = new Date(now);
   periodStart.setUTCDate(periodStart.getUTCDate() - days);
   const startDate = periodStart.toISOString().slice(0, 10);
-  const relevant = movements.filter((movement) => (
-    movement.movementDate >= startDate
-    && (!locationId || movement.locationId === locationId)
-  ));
   const itemById = new Map(items.map((item) => [item.id, item]));
   const locationById = new Map(locations.map((location) => [location.id, location]));
+  const relevant = movements.filter((movement) => {
+    const item = itemById.get(movement.itemId);
+    const location = locationById.get(movement.locationId);
+    return movement.movementDate >= startDate
+      && (!locationId || movement.locationId === locationId)
+      && (!locationType || location?.type === locationType)
+      && (!itemId || movement.itemId === itemId)
+      && (!category || item?.category === category);
+  });
   const lines = new Map<string, ProfitLine>();
 
   const lineFor = (movement: MovementRecord) => {
@@ -91,7 +104,8 @@ export function buildProfitability(
     .filter((movement) => movement.type === StockMovementType.DAMAGE || movement.type === StockMovementType.ADJUSTMENT_OUT)
     .reduce((total, movement) => total + (movement.unitCostCents === null ? 0 : movement.unitCostCents * movement.quantity), 0);
 
-  const trend = [...new Set(relevant.map((movement) => movement.movementDate))].sort().map((date) => {
+  const profitMovements = relevant.filter((movement) => movement.type === StockMovementType.SALE || movement.type === StockMovementType.RETURN_IN);
+  const trend = [...new Set(profitMovements.map((movement) => movement.movementDate))].sort().map((date) => {
     const day = relevant.filter((movement) => movement.movementDate === date);
     let sales = 0;
     let costedRevenue = 0;
@@ -113,6 +127,9 @@ export function buildProfitability(
     startDate,
     endDate: now.toISOString().slice(0, 10),
     locationId,
+    locationType,
+    itemId,
+    category,
     summary: {
       netSalesCents,
       costedRevenueCents,

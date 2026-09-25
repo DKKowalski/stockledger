@@ -1,4 +1,4 @@
-import type { AccountAccessLink, ActivityEvent, BusinessType, CompanySettings, CreateUserResponse, InventorySource, Item, LocationType, LoginResponse, MovementType, OnboardingStatus, Place, Profitability, RegistrationResponse, Snapshot, StockCount, Supplier, User, UserRole } from './types';
+import type { AccountAccessLink, ActivityEvent, BusinessType, CompanySettings, CreateUserResponse, InventorySource, Item, LocationType, LoginResponse, MovementType, OnboardingStatus, Place, Profitability, ProfitabilityFilters, RegistrationResponse, Snapshot, StockCount, Supplier, User, UserRole } from './types';
 
 export type DataExportType = 'inventory' | 'movements' | 'activity';
 
@@ -113,6 +113,12 @@ export const api = {
   stockCounts: (accessToken: string) => request<StockCount[]>('/inventory/stock-counts', undefined, accessToken),
   addStockCount: (accessToken: string, body: { itemId: string; locationId: string; countedQuantity: number; countedAt: string; note?: string }) =>
     request<StockCount>('/inventory/stock-counts', { method: 'POST', body: JSON.stringify(body) }, accessToken),
-  profitability: (accessToken: string, days: number, locationId?: string | null) =>
-    request<Profitability>(`/inventory/profitability?days=${days}${locationId ? `&locationId=${locationId}` : ''}`, undefined, accessToken),
+  profitability: (accessToken: string, filters: ProfitabilityFilters) => {
+    const params = new URLSearchParams({ days: String(filters.days) });
+    if (filters.locationType) params.set('locationType', filters.locationType);
+    if (filters.locationId) params.set('locationId', filters.locationId);
+    if (filters.category) params.set('category', filters.category);
+    if (filters.itemId) params.set('itemId', filters.itemId);
+    return request<Profitability>(`/inventory/profitability?${params}`, undefined, accessToken);
+  },
 };

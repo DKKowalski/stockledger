@@ -19,6 +19,7 @@ import { ImportItemsDto } from './dto/import-items.dto.js';
 import { UpdateItemDto } from './dto/update-item.dto.js';
 import { UpdateSupplierDto } from './dto/update-supplier.dto.js';
 import { UpdateSellingPriceDto } from './dto/update-selling-price.dto.js';
+import { ProfitabilityQueryDto } from './dto/profitability-query.dto.js';
 import { MOVEMENT_SIGN, StockMovementType } from './inventory.types.js';
 import { buildProfitability } from './profitability-calculations.js';
 
@@ -327,13 +328,26 @@ export class InventoryService {
     });
   }
 
-  async profitability(userId: string, companyId: string, days: number, locationId?: string) {
+  async profitability(userId: string, companyId: string, query: ProfitabilityQueryDto) {
     return this.prisma.withCompany(companyId, async (tx) => {
       const actor = await this.actor(tx, companyId, userId);
       this.assertAdministrator(actor);
       const scope = await this.scope(tx, companyId);
-      const selected = this.visibleLocation(actor, scope.locations, locationId);
-      return buildProfitability(scope.items, scope.locations, scope.movements, days, selected);
+      const locationId = this.visibleLocation(actor, scope.locations, query.locationId);
+      const location = locationId ? scope.locations.find((candidate) => candidate.id === locationId) : null;
+      if (location && query.locationType && location.type !== query.locationType) {
+        throw new BadRequestException('The selected place does not match the location type');
+      }
+      if (query.itemId && !scope.items.some((item) => item.id === query.itemId)) {
+        throw new NotFoundException('Inventory item not found');
+      }
+      return buildProfitability(scope.items, scope.locations, scope.movements, {
+        days: query.days,
+        locationId,
+        locationType: query.locationType ?? null,
+        itemId: query.itemId ?? null,
+        category: query.category?.trim() || null,
+      });
     });
   }
 

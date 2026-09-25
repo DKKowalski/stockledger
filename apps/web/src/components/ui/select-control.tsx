@@ -20,7 +20,8 @@ type SelectControlProps = {
 };
 
 export function SelectControl({ className, disabled, name, onValueChange, options, required, value, ...props }: SelectControlProps) {
-  const items = options.map((option) => ({ label: option.label, value: option.value || null }));
+  const optionLabel = (label: ReactNode) => <span className="select-option-label">{label}</span>;
+  const items = options.map((option) => ({ label: optionLabel(option.label), value: option.value || null }));
 
   return <Select.Root<string>
     disabled={disabled}
@@ -46,7 +47,7 @@ export function SelectControl({ className, disabled, name, onValueChange, option
               value={option.value || null}
             >
               <Select.ItemIndicator className="select-item-indicator"><Check size={14} strokeWidth={2.2} /></Select.ItemIndicator>
-              <Select.ItemText className="select-item-text">{option.label}</Select.ItemText>
+              <Select.ItemText className="select-item-text">{optionLabel(option.label)}</Select.ItemText>
             </Select.Item>)}
           </Select.List>
           <Select.ScrollDownArrow className="select-scroll-arrow"><ChevronDown size={14} /></Select.ScrollDownArrow>

@@ -96,6 +96,7 @@ export type StockCount = {
 
 export type Profitability = {
   periodDays: number; startDate: string; endDate: string; locationId: string | null;
+  locationType: LocationType | null; itemId: string | null; category: string | null;
   summary: {
     netSalesCents: number; costedRevenueCents: number; cogsCents: number; grossProfitCents: number;
     marginPercent: number | null; inventoryLossCents: number; costCoveragePercent: number;
@@ -107,4 +108,12 @@ export type Profitability = {
     cogsCents: number; grossProfitCents: number; marginPercent: number | null; uncostedSaleUnits: number;
   }>;
   trend: Array<{ date: string; netSalesCents: number; grossProfitCents: number }>;
+};
+
+export type ProfitabilityFilters = {
+  days: number;
+  locationType?: LocationType;
+  locationId?: string;
+  category?: string;
+  itemId?: string;
 };
