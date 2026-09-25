@@ -4,6 +4,10 @@
   "target": "postgres",
   "profileHash": "3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2",
   "roots": {
+    "audit_events": {
+      "model": "AuditEvent",
+      "namespace": "public"
+    },
     "companies": {
       "model": "Company",
       "namespace": "public"
@@ -18,6 +22,10 @@
     },
     "locations": {
       "model": "Location",
+      "namespace": "public"
+    },
+    "refresh_sessions": {
+      "model": "RefreshSession",
       "namespace": "public"
     },
     "stock_movements": {
@@ -94,6 +102,122 @@
           }
         },
         "models": {
+          "AuditEvent": {
+            "fields": {
+              "action": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 80
+                  }
+                }
+              },
+              "actorUserId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "companyId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "entityId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "entityType": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 80
+                  }
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "metadata": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/jsonb@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "actor": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "companyId",
+                    "actorUserId"
+                  ],
+                  "targetFields": [
+                    "companyId",
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "action": {
+                  "column": "action"
+                },
+                "actorUserId": {
+                  "column": "actor_user_id"
+                },
+                "companyId": {
+                  "column": "company_id"
+                },
+                "createdAt": {
+                  "column": "created_at"
+                },
+                "entityId": {
+                  "column": "entity_id"
+                },
+                "entityType": {
+                  "column": "entity_type"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "metadata": {
+                  "column": "metadata"
+                }
+              },
+              "namespaceId": "public",
+              "table": "audit_events"
+            }
+          },
           "Company": {
             "fields": {
               "businessType": {
@@ -433,6 +557,13 @@
           },
           "LocationStock": {
             "fields": {
+              "companyId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
               "createdAt": {
                 "nullable": false,
                 "type": {
@@ -482,9 +613,11 @@
                 "nullable": false,
                 "on": {
                   "localFields": [
+                    "companyId",
                     "itemId"
                   ],
                   "targetFields": [
+                    "companyId",
                     "id"
                   ]
                 },
@@ -498,9 +631,11 @@
                 "nullable": false,
                 "on": {
                   "localFields": [
+                    "companyId",
                     "locationId"
                   ],
                   "targetFields": [
+                    "companyId",
                     "id"
                   ]
                 },
@@ -512,6 +647,9 @@
             },
             "storage": {
               "fields": {
+                "companyId": {
+                  "column": "company_id"
+                },
                 "createdAt": {
                   "column": "created_at"
                 },
@@ -535,8 +673,118 @@
               "table": "location_stocks"
             }
           },
+          "RefreshSession": {
+            "fields": {
+              "companyId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "expiresAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "tokenHash": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 64
+                  }
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "userId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "user": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "companyId",
+                    "userId"
+                  ],
+                  "targetFields": [
+                    "companyId",
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "companyId": {
+                  "column": "company_id"
+                },
+                "createdAt": {
+                  "column": "created_at"
+                },
+                "expiresAt": {
+                  "column": "expires_at"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "tokenHash": {
+                  "column": "token_hash"
+                },
+                "updatedAt": {
+                  "column": "updated_at"
+                },
+                "userId": {
+                  "column": "user_id"
+                }
+              },
+              "namespaceId": "public",
+              "table": "refresh_sessions"
+            }
+          },
           "StockMovement": {
             "fields": {
+              "companyId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
               "createdAt": {
                 "nullable": false,
                 "type": {
@@ -633,9 +881,11 @@
                 "nullable": true,
                 "on": {
                   "localFields": [
+                    "companyId",
                     "destinationLocationId"
                   ],
                   "targetFields": [
+                    "companyId",
                     "id"
                   ]
                 },
@@ -649,9 +899,11 @@
                 "nullable": false,
                 "on": {
                   "localFields": [
+                    "companyId",
                     "itemId"
                   ],
                   "targetFields": [
+                    "companyId",
                     "id"
                   ]
                 },
@@ -665,9 +917,11 @@
                 "nullable": false,
                 "on": {
                   "localFields": [
+                    "companyId",
                     "locationId"
                   ],
                   "targetFields": [
+                    "companyId",
                     "id"
                   ]
                 },
@@ -679,6 +933,9 @@
             },
             "storage": {
               "fields": {
+                "companyId": {
+                  "column": "company_id"
+                },
                 "createdAt": {
                   "column": "created_at"
                 },
@@ -743,6 +1000,30 @@
                   }
                 }
               },
+              "emailVerificationExpiresAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "emailVerificationTokenHash": {
+                "nullable": true,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 64
+                  }
+                }
+              },
+              "emailVerifiedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
               "fullName": {
                 "nullable": false,
                 "type": {
@@ -758,6 +1039,30 @@
                 "type": {
                   "codecId": "pg/uuid@1",
                   "kind": "scalar"
+                }
+              },
+              "invitationAcceptedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "invitationExpiresAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "invitationTokenHash": {
+                "nullable": true,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 64
+                  }
                 }
               },
               "isActive": {
@@ -844,9 +1149,11 @@
                 "nullable": true,
                 "on": {
                   "localFields": [
+                    "companyId",
                     "locationId"
                   ],
                   "targetFields": [
+                    "companyId",
                     "id"
                   ]
                 },
@@ -867,11 +1174,29 @@
                 "email": {
                   "column": "email"
                 },
+                "emailVerificationExpiresAt": {
+                  "column": "email_verification_expires_at"
+                },
+                "emailVerificationTokenHash": {
+                  "column": "email_verification_token_hash"
+                },
+                "emailVerifiedAt": {
+                  "column": "email_verified_at"
+                },
                 "fullName": {
                   "column": "full_name"
                 },
                 "id": {
                   "column": "id"
+                },
+                "invitationAcceptedAt": {
+                  "column": "invitation_accepted_at"
+                },
+                "invitationExpiresAt": {
+                  "column": "invitation_expires_at"
+                },
+                "invitationTokenHash": {
+                  "column": "invitation_token_hash"
                 },
                 "isActive": {
                   "column": "is_active"
@@ -905,9 +1230,155 @@
   },
   "storage": {
     "namespaces": {
+      "__unbound__": {
+        "entries": {
+          "role": {
+            "stockledger_app": {
+              "control": "external",
+              "kind": "role",
+              "name": "stockledger_app",
+              "namespaceId": "__unbound__"
+            }
+          },
+          "table": {}
+        },
+        "id": "__unbound__",
+        "kind": "postgres-unbound-schema"
+      },
       "public": {
         "entries": {
+          "policy": {
+            "audit_event_read": {
+              "kind": "policy",
+              "name": "audit_event_read_10e0fa81",
+              "namespaceId": "public",
+              "operation": "select",
+              "permissive": true,
+              "prefix": "audit_event_read",
+              "roles": [
+                "stockledger_app"
+              ],
+              "tableName": "audit_events",
+              "using": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+            },
+            "audit_event_write": {
+              "kind": "policy",
+              "name": "audit_event_write_1c87de9a",
+              "namespaceId": "public",
+              "operation": "insert",
+              "permissive": true,
+              "prefix": "audit_event_write",
+              "roles": [
+                "stockledger_app"
+              ],
+              "tableName": "audit_events",
+              "withCheck": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+            },
+            "company_tenant": {
+              "kind": "policy",
+              "name": "company_tenant_87eb9ca4",
+              "namespaceId": "public",
+              "operation": "all",
+              "permissive": true,
+              "prefix": "company_tenant",
+              "roles": [
+                "stockledger_app"
+              ],
+              "tableName": "companies",
+              "using": "id = nullif(current_setting('app.current_company_id', true), '')::uuid",
+              "withCheck": "id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+            },
+            "inventory_item_tenant": {
+              "kind": "policy",
+              "name": "inventory_item_tenant_f6e81ebe",
+              "namespaceId": "public",
+              "operation": "all",
+              "permissive": true,
+              "prefix": "inventory_item_tenant",
+              "roles": [
+                "stockledger_app"
+              ],
+              "tableName": "inventory_items",
+              "using": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid",
+              "withCheck": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+            },
+            "location_stock_tenant": {
+              "kind": "policy",
+              "name": "location_stock_tenant_f6e81ebe",
+              "namespaceId": "public",
+              "operation": "all",
+              "permissive": true,
+              "prefix": "location_stock_tenant",
+              "roles": [
+                "stockledger_app"
+              ],
+              "tableName": "location_stocks",
+              "using": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid",
+              "withCheck": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+            },
+            "location_tenant": {
+              "kind": "policy",
+              "name": "location_tenant_f6e81ebe",
+              "namespaceId": "public",
+              "operation": "all",
+              "permissive": true,
+              "prefix": "location_tenant",
+              "roles": [
+                "stockledger_app"
+              ],
+              "tableName": "locations",
+              "using": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid",
+              "withCheck": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+            },
+            "refresh_session_tenant": {
+              "kind": "policy",
+              "name": "refresh_session_tenant_f6e81ebe",
+              "namespaceId": "public",
+              "operation": "all",
+              "permissive": true,
+              "prefix": "refresh_session_tenant",
+              "roles": [
+                "stockledger_app"
+              ],
+              "tableName": "refresh_sessions",
+              "using": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid",
+              "withCheck": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+            },
+            "stock_movement_tenant": {
+              "kind": "policy",
+              "name": "stock_movement_tenant_f6e81ebe",
+              "namespaceId": "public",
+              "operation": "all",
+              "permissive": true,
+              "prefix": "stock_movement_tenant",
+              "roles": [
+                "stockledger_app"
+              ],
+              "tableName": "stock_movements",
+              "using": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid",
+              "withCheck": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+            },
+            "user_tenant": {
+              "kind": "policy",
+              "name": "user_tenant_f6e81ebe",
+              "namespaceId": "public",
+              "operation": "all",
+              "permissive": true,
+              "prefix": "user_tenant",
+              "roles": [
+                "stockledger_app"
+              ],
+              "tableName": "users",
+              "using": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid",
+              "withCheck": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+            }
+          },
           "rls": {
+            "audit_events": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "audit_events"
+            },
             "companies": {
               "kind": "rls",
               "namespaceId": "public",
@@ -928,6 +1399,11 @@
               "namespaceId": "public",
               "tableName": "locations"
             },
+            "refresh_sessions": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "refresh_sessions"
+            },
             "stock_movements": {
               "kind": "rls",
               "namespaceId": "public",
@@ -940,6 +1416,116 @@
             }
           },
           "table": {
+            "audit_events": {
+              "columns": {
+                "action": {
+                  "codecId": "sql/varchar@1",
+                  "nativeType": "character varying",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 80
+                  }
+                },
+                "actor_user_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": true
+                },
+                "company_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "created_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "entity_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": true
+                },
+                "entity_type": {
+                  "codecId": "sql/varchar@1",
+                  "nativeType": "character varying",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 80
+                  }
+                },
+                "id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "metadata": {
+                  "codecId": "pg/jsonb@1",
+                  "nativeType": "jsonb",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "onDelete": "restrict",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "company_id",
+                      "actor_user_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "audit_events"
+                  },
+                  "target": {
+                    "columns": [
+                      "company_id",
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "users"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "actor_user_id"
+                  ],
+                  "name": "audit_events_actor_user_id_idx_c46ca325",
+                  "prefix": "audit_events_actor_user_id_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "company_id",
+                    "actor_user_id"
+                  ],
+                  "name": "audit_events_company_id_actor_user_id_idx_8c7112ea",
+                  "prefix": "audit_events_company_id_actor_user_id_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "company_id",
+                    "created_at"
+                  ],
+                  "name": "audit_events_company_id_created_at_idx_5ad0c8de",
+                  "prefix": "audit_events_company_id_created_at_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": []
+            },
             "companies": {
               "columns": {
                 "business_type": {
@@ -1140,6 +1726,12 @@
                     "company_id",
                     "sku"
                   ]
+                },
+                {
+                  "columns": [
+                    "company_id",
+                    "id"
+                  ]
                 }
               ]
             },
@@ -1152,6 +1744,11 @@
                 }
               ],
               "columns": {
+                "company_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
                 "created_at": {
                   "codecId": "pg/timestamptz-string@1",
                   "default": {
@@ -1197,6 +1794,7 @@
                   "onUpdate": "cascade",
                   "source": {
                     "columns": [
+                      "company_id",
                       "location_id"
                     ],
                     "namespaceId": "public",
@@ -1204,6 +1802,7 @@
                   },
                   "target": {
                     "columns": [
+                      "company_id",
                       "id"
                     ],
                     "namespaceId": "public",
@@ -1215,6 +1814,7 @@
                   "onUpdate": "cascade",
                   "source": {
                     "columns": [
+                      "company_id",
                       "item_id"
                     ],
                     "namespaceId": "public",
@@ -1222,6 +1822,7 @@
                   },
                   "target": {
                     "columns": [
+                      "company_id",
                       "id"
                     ],
                     "namespaceId": "public",
@@ -1232,18 +1833,36 @@
               "indexes": [
                 {
                   "columns": [
-                    "item_id"
+                    "company_id"
                   ],
-                  "name": "location_stocks_item_id_idx_4b8ce5fb",
-                  "prefix": "location_stocks_item_id_idx",
+                  "name": "location_stocks_company_id_idx_1303a718",
+                  "prefix": "location_stocks_company_id_idx",
                   "unique": false
                 },
                 {
                   "columns": [
+                    "company_id",
+                    "item_id"
+                  ],
+                  "name": "location_stocks_company_id_item_id_idx_a27622c0",
+                  "prefix": "location_stocks_company_id_item_id_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "company_id",
                     "location_id"
                   ],
-                  "name": "location_stocks_location_id_idx_6316b129",
-                  "prefix": "location_stocks_location_id_idx",
+                  "name": "location_stocks_company_id_location_id_idx_a140a7ef",
+                  "prefix": "location_stocks_company_id_location_id_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "item_id"
+                  ],
+                  "name": "location_stocks_item_id_idx_4b8ce5fb",
+                  "prefix": "location_stocks_item_id_idx",
                   "unique": false
                 }
               ],
@@ -1255,6 +1874,7 @@
               "uniques": [
                 {
                   "columns": [
+                    "company_id",
                     "location_id",
                     "item_id"
                   ]
@@ -1355,6 +1975,119 @@
                     "company_id",
                     "name"
                   ]
+                },
+                {
+                  "columns": [
+                    "company_id",
+                    "id"
+                  ]
+                }
+              ]
+            },
+            "refresh_sessions": {
+              "columns": {
+                "company_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "created_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "expires_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "token_hash": {
+                  "codecId": "sql/varchar@1",
+                  "nativeType": "character varying",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 64
+                  }
+                },
+                "updated_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "user_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "company_id",
+                      "user_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "refresh_sessions"
+                  },
+                  "target": {
+                    "columns": [
+                      "company_id",
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "users"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "company_id"
+                  ],
+                  "name": "refresh_sessions_company_id_idx_1303a718",
+                  "prefix": "refresh_sessions_company_id_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "company_id",
+                    "user_id"
+                  ],
+                  "name": "refresh_sessions_company_id_user_id_idx_4ba0b82c",
+                  "prefix": "refresh_sessions_company_id_user_id_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "user_id"
+                  ],
+                  "name": "refresh_sessions_user_id_idx_6c952402",
+                  "prefix": "refresh_sessions_user_id_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "token_hash"
+                  ]
                 }
               ]
             },
@@ -1382,6 +2115,11 @@
                 }
               ],
               "columns": {
+                "company_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
                 "created_at": {
                   "codecId": "pg/timestamptz-string@1",
                   "default": {
@@ -1460,6 +2198,7 @@
                   "onUpdate": "cascade",
                   "source": {
                     "columns": [
+                      "company_id",
                       "item_id"
                     ],
                     "namespaceId": "public",
@@ -1467,6 +2206,7 @@
                   },
                   "target": {
                     "columns": [
+                      "company_id",
                       "id"
                     ],
                     "namespaceId": "public",
@@ -1478,6 +2218,7 @@
                   "onUpdate": "cascade",
                   "source": {
                     "columns": [
+                      "company_id",
                       "location_id"
                     ],
                     "namespaceId": "public",
@@ -1485,6 +2226,7 @@
                   },
                   "target": {
                     "columns": [
+                      "company_id",
                       "id"
                     ],
                     "namespaceId": "public",
@@ -1496,6 +2238,7 @@
                   "onUpdate": "cascade",
                   "source": {
                     "columns": [
+                      "company_id",
                       "destination_location_id"
                     ],
                     "namespaceId": "public",
@@ -1503,6 +2246,7 @@
                   },
                   "target": {
                     "columns": [
+                      "company_id",
                       "id"
                     ],
                     "namespaceId": "public",
@@ -1511,6 +2255,41 @@
                 }
               ],
               "indexes": [
+                {
+                  "columns": [
+                    "company_id",
+                    "destination_location_id"
+                  ],
+                  "name": "stock_movements_company_id_destination_location_id_idx_6515c3e8",
+                  "prefix": "stock_movements_company_id_destination_location_id_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "company_id"
+                  ],
+                  "name": "stock_movements_company_id_idx_1303a718",
+                  "prefix": "stock_movements_company_id_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "company_id",
+                    "item_id"
+                  ],
+                  "name": "stock_movements_company_id_item_id_idx_a27622c0",
+                  "prefix": "stock_movements_company_id_item_id_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "company_id",
+                    "location_id"
+                  ],
+                  "name": "stock_movements_company_id_location_id_idx_a140a7ef",
+                  "prefix": "stock_movements_company_id_location_id_idx",
+                  "unique": false
+                },
                 {
                   "columns": [
                     "destination_location_id"
@@ -1587,6 +2366,24 @@
                     "length": 255
                   }
                 },
+                "email_verification_expires_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": true
+                },
+                "email_verification_token_hash": {
+                  "codecId": "sql/varchar@1",
+                  "nativeType": "character varying",
+                  "nullable": true,
+                  "typeParams": {
+                    "length": 64
+                  }
+                },
+                "email_verified_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": true
+                },
                 "full_name": {
                   "codecId": "sql/varchar@1",
                   "nativeType": "character varying",
@@ -1599,6 +2396,24 @@
                   "codecId": "pg/uuid@1",
                   "nativeType": "uuid",
                   "nullable": false
+                },
+                "invitation_accepted_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": true
+                },
+                "invitation_expires_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": true
+                },
+                "invitation_token_hash": {
+                  "codecId": "sql/varchar@1",
+                  "nativeType": "character varying",
+                  "nullable": true,
+                  "typeParams": {
+                    "length": 64
+                  }
                 },
                 "is_active": {
                   "codecId": "pg/bool@1",
@@ -1680,6 +2495,7 @@
                   "onUpdate": "cascade",
                   "source": {
                     "columns": [
+                      "company_id",
                       "location_id"
                     ],
                     "namespaceId": "public",
@@ -1687,6 +2503,7 @@
                   },
                   "target": {
                     "columns": [
+                      "company_id",
                       "id"
                     ],
                     "namespaceId": "public",
@@ -1705,10 +2522,11 @@
                 },
                 {
                   "columns": [
+                    "company_id",
                     "location_id"
                   ],
-                  "name": "users_location_id_idx_6316b129",
-                  "prefix": "users_location_id_idx",
+                  "name": "users_company_id_location_id_idx_a140a7ef",
+                  "prefix": "users_company_id_location_id_idx",
                   "unique": false
                 }
               ],
@@ -1725,7 +2543,23 @@
                 },
                 {
                   "columns": [
+                    "email_verification_token_hash"
+                  ]
+                },
+                {
+                  "columns": [
+                    "invitation_token_hash"
+                  ]
+                },
+                {
+                  "columns": [
                     "password_reset_token_hash"
+                  ]
+                },
+                {
+                  "columns": [
+                    "company_id",
+                    "id"
                   ]
                 }
               ]
@@ -1764,10 +2598,10 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "c350df09a975ceba80862f4ea14af9c48a699d85d7267df93381c23b49a0dbfe"
+    "storageHash": "76d4a739c3bb266665c8a9c4d6635e52602203a01c99bd7dd841d377f03a912a"
   },
   "execution": {
-    "executionHash": "a5c0df357ad692205cc2ebd15ee9b91f11720c1dfc0f9406e4e6f34f0729648f",
+    "executionHash": "05505ffcdc830b89bb1cb8cc894e38bdc8da7add468de58ddf76b36e3109745b",
     "mutations": {
       "defaults": [
         {
@@ -1778,6 +2612,17 @@
           "ref": {
             "column": "id",
             "namespace": "public",
+            "table": "audit_events"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "uuidv4",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "id",
+            "namespace": "public",
             "table": "companies"
           }
         },
@@ -1872,6 +2717,32 @@
             "column": "updated_at",
             "namespace": "public",
             "table": "locations"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "uuidv4",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "id",
+            "namespace": "public",
+            "table": "refresh_sessions"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "onUpdate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "updated_at",
+            "namespace": "public",
+            "table": "refresh_sessions"
           }
         },
         {

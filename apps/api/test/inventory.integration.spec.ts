@@ -18,10 +18,36 @@ if (!url || !/^stockledger_test_[a-f0-9]{32}$/.test(new URL(url).pathname.slice(
 // Separate pools model requests handled by separate API processes.
 const db = postgres<Contract>({ contractJson, url });
 const otherDb = postgres<Contract>({ contractJson, url });
-const service = new InventoryService({ client: db } as PrismaService);
-const otherService = new InventoryService({ client: otherDb } as PrismaService);
+type TestTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+function tenantPrisma(client: typeof db) {
+  return {
+    client,
+    withCompany: async <T>(companyId: string, work: (tx: TestTransaction) => Promise<T>) =>
+      client.transaction(async (tx) => {
+        await tx.query(client.raw.sql`
+          SELECT set_config('app.current_company_id', ${companyId}, true) AS company_id
+        `.returnsRow({ company_id: 'pg/text@1' }).build());
+        return work(tx);
+      }),
+  } as PrismaService;
+}
+const service = new InventoryService(tenantPrisma(db));
+const otherService = new InventoryService(tenantPrisma(otherDb));
 const varchar = <N extends number>(value: string) => value as Varchar<N>;
 const movementDate = '2026-09-23';
+
+async function asApplicationRole<T>(companyId: string | null, work: (tx: TestTransaction) => Promise<T>) {
+  return db.transaction(async (tx) => {
+    await tx.execute(db.raw.sql`SET LOCAL ROLE stockledger_app`.affectedCount().build());
+    if (companyId) {
+      await tx.query(db.raw.sql`
+        SELECT set_config('app.current_company_id', ${companyId}, true) AS company_id
+      `.returnsRow({ company_id: 'pg/text@1' }).build());
+    }
+    return work(tx);
+  });
+}
 
 afterAll(async () => {
   await Promise.all([db.close(), otherDb.close()]);
@@ -45,7 +71,7 @@ async function fixture(openingStock = 5) {
     email: varchar<255>(`${randomUUID()}@test.invalid`), passwordHash: varchar<255>('unused'),
     role: 'shop_attendant',
   });
-  const item = await service.createItem(admin.id, {
+  const item = await service.createItem(admin.id, company.id, {
     sku: 'TEST-ITEM', name: 'Test item', category: 'Test', unit: 'pcs',
     unitCostCents: 100, sellingPriceCents: 175, reorderLevel: 0, openingStock, locationId: warehouse.id,
   });
@@ -55,12 +81,12 @@ async function fixture(openingStock = 5) {
 type Fixture = Awaited<ReturnType<typeof fixture>>;
 
 async function balance(f: Fixture, locationId: string) {
-  const snapshot = await service.snapshot(f.admin.id, 30, locationId);
+  const snapshot = await service.snapshot(f.admin.id, f.company.id, 30, locationId);
   return snapshot.positions.find((position) => position.item.id === f.item.id)?.closing ?? 0;
 }
 
 async function transfer(f: Fixture, quantity: number) {
-  return service.createMovement(f.admin.id, {
+  return service.createMovement(f.admin.id, f.company.id, {
     itemId: f.item.id, locationId: f.warehouse.id, destinationLocationId: f.shop.id,
     type: Type.TRANSFER, quantity, movementDate,
   });
@@ -111,12 +137,12 @@ describe('inventory transactions with PostgreSQL', () => {
     const f = await fixture();
     await transfer(f, 5);
     const body = { itemId: f.item.id, locationId: f.shop.id, type: Type.SALE, quantity: 2, movementDate };
-    const first = await service.createMovement(f.attendant.id, body);
+    const first = await service.createMovement(f.attendant.id, f.company.id, body);
     expect(first.unitPriceCents).toBe(175);
-    await service.updateSellingPrice(f.admin.id, f.item.id, { sellingPriceCents: 250 });
-    const second = await service.createMovement(f.attendant.id, body);
+    await service.updateSellingPrice(f.admin.id, f.company.id, f.item.id, { sellingPriceCents: 250 });
+    const second = await service.createMovement(f.attendant.id, f.company.id, body);
     expect(second.unitPriceCents).toBe(250);
-    const snapshot = await service.snapshot(f.attendant.id);
+    const snapshot = await service.snapshot(f.attendant.id, f.company.id);
     expect(snapshot.movements.find((movement) => movement.id === first.id)).toMatchObject({ unitPriceCents: 175, saleTotalCents: 350 });
     expect(snapshot.movements.find((movement) => movement.id === second.id)).toMatchObject({ unitPriceCents: 250, saleTotalCents: 500 });
     expect(snapshot.items.find((item) => item.id === f.item.id)?.unitCostCents).toBe(100);
@@ -130,35 +156,35 @@ describe('inventory transactions with PostgreSQL', () => {
       email: varchar<255>(`${randomUUID()}@test.invalid`), passwordHash: varchar<255>('unused'),
     });
     for (const user of [f.attendant, manager]) {
-      await expect(service.updateSellingPrice(user.id, f.item.id, { sellingPriceCents: 200 }))
+      await expect(service.updateSellingPrice(user.id, f.company.id, f.item.id, { sellingPriceCents: 200 }))
         .rejects.toBeInstanceOf(ForbiddenException);
     }
-    await expect(service.updateSellingPrice(stranger.admin.id, f.item.id, { sellingPriceCents: 200 }))
+    await expect(service.updateSellingPrice(stranger.admin.id, stranger.company.id, f.item.id, { sellingPriceCents: 200 }))
       .rejects.toBeInstanceOf(NotFoundException);
     expect((await db.orm.public.InventoryItem.first({ id: f.item.id }))?.sellingPriceCents).toBe(175);
   });
 
   it('rejects sales without a price but supports an explicit zero price', async () => {
     const f = await fixture();
-    const item = await service.createItem(f.admin.id, {
+    const item = await service.createItem(f.admin.id, f.company.id, {
       sku: 'UNPRICED', name: 'Unpriced', category: 'Test', unit: 'pcs',
       unitCostCents: 100, reorderLevel: 0, openingStock: 3, locationId: f.shop.id,
     });
     expect(item.sellingPriceCents).toBeNull();
     const sale = { itemId: item.id, locationId: f.shop.id, type: Type.SALE, quantity: 1, movementDate };
-    await expect(service.createMovement(f.attendant.id, sale)).rejects.toBeInstanceOf(ConflictException);
+    await expect(service.createMovement(f.attendant.id, f.company.id, sale)).rejects.toBeInstanceOf(ConflictException);
     expect(await db.orm.public.StockMovement.where({ itemId: item.id }).all()).toHaveLength(0);
-    await service.updateSellingPrice(f.admin.id, item.id, { sellingPriceCents: 0 });
-    const sold = await service.createMovement(f.attendant.id, { ...sale, expectedUnitPriceCents: 0 });
+    await service.updateSellingPrice(f.admin.id, f.company.id, item.id, { sellingPriceCents: 0 });
+    const sold = await service.createMovement(f.attendant.id, f.company.id, { ...sale, expectedUnitPriceCents: 0 });
     expect(sold.unitPriceCents).toBe(0);
-    expect((await service.snapshot(f.attendant.id)).movements.find((movement) => movement.id === sold.id)?.saleTotalCents).toBe(0);
+    expect((await service.snapshot(f.attendant.id, f.company.id)).movements.find((movement) => movement.id === sold.id)?.saleTotalCents).toBe(0);
   });
 
   it('rejects a stale displayed price without consuming stock', async () => {
     const f = await fixture();
     await transfer(f, 5);
-    await service.updateSellingPrice(f.admin.id, f.item.id, { sellingPriceCents: 250 });
-    await expect(service.createMovement(f.attendant.id, {
+    await service.updateSellingPrice(f.admin.id, f.company.id, f.item.id, { sellingPriceCents: 250 });
+    await expect(service.createMovement(f.attendant.id, f.company.id, {
       itemId: f.item.id, locationId: f.shop.id, type: Type.SALE, quantity: 1,
       expectedUnitPriceCents: 175, movementDate,
     })).rejects.toBeInstanceOf(ConflictException);
@@ -169,8 +195,8 @@ describe('inventory transactions with PostgreSQL', () => {
     const f = await fixture();
     await transfer(f, 5);
     const results = await race(f.item.id, [
-      () => service.updateSellingPrice(f.admin.id, f.item.id, { sellingPriceCents: 250 }),
-      () => otherService.createMovement(f.attendant.id, {
+      () => service.updateSellingPrice(f.admin.id, f.company.id, f.item.id, { sellingPriceCents: 250 }),
+      () => otherService.createMovement(f.attendant.id, f.company.id, {
         itemId: f.item.id, locationId: f.shop.id, type: Type.SALE, quantity: 1,
         expectedUnitPriceCents: 175, movementDate,
       }),
@@ -194,10 +220,10 @@ describe('inventory transactions with PostgreSQL', () => {
     const moved = await transfer(f, 5);
     expect(moved.unitPriceCents).toBeNull();
     const legacySale = await db.orm.public.StockMovement.create({
-      itemId: f.item.id, locationId: f.shop.id, type: 'sale', quantity: 1, movementDate,
+      companyId: f.company.id, itemId: f.item.id, locationId: f.shop.id, type: 'sale', quantity: 1, movementDate,
     });
-    await service.updateSellingPrice(f.admin.id, f.item.id, { sellingPriceCents: 250 });
-    const snapshot = await service.snapshot(f.admin.id);
+    await service.updateSellingPrice(f.admin.id, f.company.id, f.item.id, { sellingPriceCents: 250 });
+    const snapshot = await service.snapshot(f.admin.id, f.company.id);
     expect(snapshot.movements.find((movement) => movement.id === legacySale.id))
       .toMatchObject({ unitPriceCents: null, saleTotalCents: null });
     expect(snapshot.movements.find((movement) => movement.id === moved.id)?.saleTotalCents).toBeNull();
@@ -205,8 +231,8 @@ describe('inventory transactions with PostgreSQL', () => {
 
   it('includes zero-stock items in the catalog so an administrator can price them', async () => {
     const f = await fixture(0);
-    await service.updateSellingPrice(f.admin.id, f.item.id, { sellingPriceCents: 350 });
-    expect((await service.snapshot(f.admin.id)).items.find((item) => item.id === f.item.id)?.sellingPriceCents).toBe(350);
+    await service.updateSellingPrice(f.admin.id, f.company.id, f.item.id, { sellingPriceCents: 350 });
+    expect((await service.snapshot(f.admin.id, f.company.id)).items.find((item) => item.id === f.item.id)?.sellingPriceCents).toBe(350);
   });
 
   it('allows only one of two sales competing for the last units', async () => {
@@ -216,8 +242,8 @@ describe('inventory transactions with PostgreSQL', () => {
       itemId: f.item.id, locationId: f.shop.id, type: Type.SALE, quantity: 4, movementDate,
     };
     const results = await race(f.item.id, [
-      () => service.createMovement(f.attendant.id, sale),
-      () => otherService.createMovement(f.attendant.id, sale),
+      () => service.createMovement(f.attendant.id, f.company.id, sale),
+      () => otherService.createMovement(f.attendant.id, f.company.id, sale),
     ]);
     expectOneConflict(results);
     expect(await balance(f, f.shop.id)).toBe(1);
@@ -231,8 +257,8 @@ describe('inventory transactions with PostgreSQL', () => {
       type: Type.TRANSFER, quantity: 4, movementDate,
     };
     expectOneConflict(await race(f.item.id, [
-      () => service.createMovement(f.admin.id, body),
-      () => otherService.createMovement(f.admin.id, body),
+      () => service.createMovement(f.admin.id, f.company.id, body),
+      () => otherService.createMovement(f.admin.id, f.company.id, body),
     ]));
     expect(await balance(f, f.warehouse.id)).toBe(1);
     expect(await balance(f, f.shop.id)).toBe(4);
@@ -243,12 +269,12 @@ describe('inventory transactions with PostgreSQL', () => {
     const receipt = {
       itemId: f.item.id, locationId: f.warehouse.id, type: Type.PURCHASE, quantity: 5, movementDate,
     };
-    const first = await service.createMovement(f.admin.id, receipt);
-    const second = await service.createMovement(f.admin.id, receipt);
-    await service.createMovement(f.admin.id, { ...receipt, type: Type.DAMAGE });
+    const first = await service.createMovement(f.admin.id, f.company.id, receipt);
+    const second = await service.createMovement(f.admin.id, f.company.id, receipt);
+    await service.createMovement(f.admin.id, f.company.id, { ...receipt, type: Type.DAMAGE });
     expectOneConflict(await race(f.item.id, [
-      () => service.deleteMovement(f.admin.id, first.id),
-      () => otherService.deleteMovement(f.admin.id, second.id),
+      () => service.deleteMovement(f.admin.id, f.company.id, first.id),
+      () => otherService.deleteMovement(f.admin.id, f.company.id, second.id),
     ]));
     expect(await balance(f, f.warehouse.id)).toBe(0);
   });
@@ -257,8 +283,8 @@ describe('inventory transactions with PostgreSQL', () => {
     const f = await fixture();
     const moved = await transfer(f, 5);
     const results = await race(f.item.id, [
-      () => service.deleteMovement(f.admin.id, moved.id),
-      () => otherService.createMovement(f.attendant.id, {
+      () => service.deleteMovement(f.admin.id, f.company.id, moved.id),
+      () => otherService.createMovement(f.attendant.id, f.company.id, {
         itemId: f.item.id, locationId: f.shop.id, type: Type.SALE, quantity: 5, movementDate,
       }),
     ]);
@@ -271,8 +297,8 @@ describe('inventory transactions with PostgreSQL', () => {
     const f = await fixture();
     const moved = await transfer(f, 5);
     const results = await race(f.item.id, [
-      () => service.deleteMovement(f.admin.id, moved.id),
-      () => otherService.deleteMovement(f.admin.id, moved.id),
+      () => service.deleteMovement(f.admin.id, f.company.id, moved.id),
+      () => otherService.deleteMovement(f.admin.id, f.company.id, moved.id),
     ]);
     expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
     const failure = results.find((result) => result.status === 'rejected');
@@ -283,8 +309,8 @@ describe('inventory transactions with PostgreSQL', () => {
   it('releases the lock after rejecting an overdraw, allowing a valid movement', async () => {
     const f = await fixture();
     const body = { itemId: f.item.id, locationId: f.warehouse.id, type: Type.DAMAGE, quantity: 6, movementDate };
-    await expect(service.createMovement(f.admin.id, body)).rejects.toBeInstanceOf(ConflictException);
-    await otherService.createMovement(f.admin.id, { ...body, quantity: 5 });
+    await expect(service.createMovement(f.admin.id, f.company.id, body)).rejects.toBeInstanceOf(ConflictException);
+    await otherService.createMovement(f.admin.id, f.company.id, { ...body, quantity: 5 });
     expect(await balance(f, f.warehouse.id)).toBe(0);
   });
 
@@ -292,27 +318,27 @@ describe('inventory transactions with PostgreSQL', () => {
     const f = await fixture();
     const stranger = await fixture();
     const moved = await transfer(f, 5);
-    await expect(service.createMovement(stranger.admin.id, {
+    await expect(service.createMovement(stranger.admin.id, stranger.company.id, {
       itemId: f.item.id, locationId: f.warehouse.id, type: Type.PURCHASE, quantity: 10, movementDate,
     })).rejects.toBeInstanceOf(NotFoundException);
-    await expect(service.deleteMovement(stranger.admin.id, moved.id)).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.deleteMovement(stranger.admin.id, stranger.company.id, moved.id)).rejects.toBeInstanceOf(NotFoundException);
     expect(await balance(f, f.shop.id)).toBe(5);
   });
 
   it('keeps an attendant sale at their assigned shop and forbids deleting movements', async () => {
     const f = await fixture();
     await transfer(f, 5);
-    const sold = await service.createMovement(f.attendant.id, {
+    const sold = await service.createMovement(f.attendant.id, f.company.id, {
       itemId: f.item.id, locationId: f.warehouse.id, type: Type.SALE, quantity: 1, movementDate,
     });
     expect(sold.locationId).toBe(f.shop.id);
-    await expect(service.deleteMovement(f.attendant.id, sold.id)).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.deleteMovement(f.attendant.id, f.company.id, sold.id)).rejects.toBeInstanceOf(ForbiddenException);
     expect(await balance(f, f.shop.id)).toBe(4);
   });
 
   it('rolls back the item if its opening balance fails database validation', async () => {
     const f = await fixture();
-    await expect(service.createItem(f.admin.id, {
+    await expect(service.createItem(f.admin.id, f.company.id, {
       sku: 'ROLLBACK-ITEM', name: 'Invalid opening stock', category: 'Test', unit: 'pcs',
       unitCostCents: 100, reorderLevel: 0, openingStock: -1, locationId: f.warehouse.id,
     })).rejects.toThrow();
@@ -321,7 +347,7 @@ describe('inventory transactions with PostgreSQL', () => {
 
   it('imports a spreadsheet catalog and its opening balances together', async () => {
     const f = await fixture();
-    const result = await service.importItems(f.admin.id, {
+    const result = await service.importItems(f.admin.id, f.company.id, {
       locationId: f.warehouse.id,
       rows: [
         { sku: ' bulk-1 ', name: 'Imported rice', category: 'Grocery', unit: 'bag', reorderLevel: 10, unitCostCents: 1250, sellingPriceCents: 1800, openingStock: 24 },
@@ -329,7 +355,7 @@ describe('inventory transactions with PostgreSQL', () => {
       ],
     });
     expect(result).toEqual({ imported: 2 });
-    const snapshot = await service.snapshot(f.admin.id, 30, f.warehouse.id);
+    const snapshot = await service.snapshot(f.admin.id, f.company.id, 30, f.warehouse.id);
     expect(snapshot.positions.find((position) => position.item.sku === 'BULK-1')).toMatchObject({
       closing: 24,
       item: { name: 'Imported rice', sellingPriceCents: 1800 },
@@ -342,7 +368,7 @@ describe('inventory transactions with PostgreSQL', () => {
 
   it('rejects duplicate spreadsheet SKUs before writing any rows', async () => {
     const f = await fixture();
-    await expect(service.importItems(f.admin.id, {
+    await expect(service.importItems(f.admin.id, f.company.id, {
       locationId: f.warehouse.id,
       rows: [
         { sku: 'DUPLICATE', name: 'First', category: 'Test', unit: 'pcs', reorderLevel: 0, unitCostCents: 10, openingStock: 1 },
@@ -354,7 +380,7 @@ describe('inventory transactions with PostgreSQL', () => {
 
   it('keeps spreadsheet import under administrator control', async () => {
     const f = await fixture();
-    await expect(service.importItems(f.attendant.id, {
+    await expect(service.importItems(f.attendant.id, f.company.id, {
       locationId: f.shop.id,
       rows: [{ sku: 'STAFF-BULK', name: 'Staff item', category: 'Test', unit: 'pcs', reorderLevel: 0, unitCostCents: 10, openingStock: 1 }],
     })).rejects.toBeInstanceOf(ForbiddenException);
@@ -363,7 +389,7 @@ describe('inventory transactions with PostgreSQL', () => {
 
   it('rolls back the whole spreadsheet when an opening balance fails', async () => {
     const f = await fixture();
-    await expect(service.importItems(f.admin.id, {
+    await expect(service.importItems(f.admin.id, f.company.id, {
       locationId: f.warehouse.id,
       rows: [
         { sku: 'ROLLBACK-BULK-1', name: 'Valid first row', category: 'Test', unit: 'pcs', reorderLevel: 0, unitCostCents: 10, openingStock: 1 },
@@ -380,10 +406,121 @@ describe('inventory transactions with PostgreSQL', () => {
       await tx.query(db.raw.sql`
         SELECT id FROM public.inventory_items WHERE id = ${lockedFixture.item.id}::uuid FOR UPDATE
       `.returnsRow({ id: 'pg/uuid@1' }).build());
-      await otherService.createMovement(f.admin.id, {
+      await otherService.createMovement(f.admin.id, f.company.id, {
         itemId: f.item.id, locationId: f.warehouse.id, type: Type.DAMAGE, quantity: 1, movementDate,
       });
     });
     expect(await balance(f, f.warehouse.id)).toBe(4);
+  });
+
+  it('lets the application role see only the company set on its transaction', async () => {
+    const firstCompany = await fixture();
+    const secondCompany = await fixture();
+
+    const withoutContext = await asApplicationRole(null, (tx) => tx.orm.public.InventoryItem.all());
+    expect(withoutContext).toEqual([]);
+
+    const firstItems = await asApplicationRole(firstCompany.company.id, (tx) => tx.orm.public.InventoryItem.all());
+    expect(firstItems.map((item) => item.id)).toEqual([firstCompany.item.id]);
+
+    const secondItems = await asApplicationRole(secondCompany.company.id, (tx) => tx.orm.public.InventoryItem.all());
+    expect(secondItems.map((item) => item.id)).toEqual([secondCompany.item.id]);
+  });
+
+  it('rejects an application-role write for another company', async () => {
+    const firstCompany = await fixture();
+    const secondCompany = await fixture();
+
+    await expect(asApplicationRole(firstCompany.company.id, (tx) => tx.orm.public.InventoryItem.create({
+      companyId: secondCompany.company.id,
+      sku: varchar<40>('CROSS-TENANT'),
+      name: varchar<120>('Cross tenant item'),
+      category: varchar<80>('Test'),
+      unit: varchar<20>('pcs'),
+      reorderLevel: 0,
+      unitCostCents: 1,
+      sellingPriceCents: null,
+    }))).rejects.toThrow();
+
+    expect(await db.orm.public.InventoryItem.where({ sku: varchar<40>('CROSS-TENANT') }).all()).toHaveLength(0);
+  });
+
+  it('rejects mixed-company stock, movement, and staff location relationships', async () => {
+    const firstCompany = await fixture();
+    const secondCompany = await fixture();
+
+    await expect(db.orm.public.LocationStock.create({
+      companyId: firstCompany.company.id,
+      locationId: secondCompany.shop.id,
+      itemId: firstCompany.item.id,
+      openingStock: 1,
+    })).rejects.toThrow();
+
+    await expect(db.orm.public.StockMovement.create({
+      companyId: firstCompany.company.id,
+      itemId: firstCompany.item.id,
+      locationId: firstCompany.warehouse.id,
+      destinationLocationId: secondCompany.shop.id,
+      type: 'transfer',
+      quantity: 1,
+      movementDate,
+    })).rejects.toThrow();
+
+    await expect(db.orm.public.User.create({
+      companyId: firstCompany.company.id,
+      locationId: secondCompany.shop.id,
+      fullName: varchar<120>('Cross tenant attendant'),
+      email: varchar<255>(`${randomUUID()}@test.invalid`),
+      passwordHash: varchar<255>('unused'),
+      role: 'shop_attendant',
+    })).rejects.toThrow();
+  });
+
+  it('records price, import, and movement-deletion audit events in the same tenant', async () => {
+    const f = await fixture();
+    await service.updateSellingPrice(f.admin.id, f.company.id, f.item.id, { sellingPriceCents: 225 });
+    await service.importItems(f.admin.id, f.company.id, {
+      locationId: f.warehouse.id,
+      rows: [{ sku: 'AUDIT-IMPORT', name: 'Audited item', category: 'Test', unit: 'pcs', reorderLevel: 0, unitCostCents: 10, openingStock: 2 }],
+    });
+    const receipt = await service.createMovement(f.admin.id, f.company.id, {
+      itemId: f.item.id, locationId: f.warehouse.id, type: Type.PURCHASE, quantity: 1, movementDate,
+    });
+    await service.deleteMovement(f.admin.id, f.company.id, receipt.id);
+
+    const events = await db.orm.public.AuditEvent.where({ companyId: f.company.id }).all();
+    expect(events.map((event) => event.action)).toEqual(expect.arrayContaining([
+      'inventory.selling_price_changed',
+      'inventory.items_imported',
+      'inventory.movement_deleted',
+    ]));
+    expect(events.find((event) => event.action === 'inventory.selling_price_changed')?.metadata)
+      .toEqual({ previousSellingPriceCents: 175, sellingPriceCents: 225 });
+  });
+
+  it('isolates refresh sessions and audit records under the application role', async () => {
+    const firstCompany = await fixture();
+    const secondCompany = await fixture();
+    await asApplicationRole(firstCompany.company.id, async (tx) => {
+      await tx.orm.public.RefreshSession.create({
+        companyId: firstCompany.company.id,
+        userId: firstCompany.admin.id,
+        tokenHash: varchar<64>('a'.repeat(64)),
+        expiresAt: '2099-01-01T00:00:00.000Z',
+      });
+      await tx.orm.public.AuditEvent.create({
+        companyId: firstCompany.company.id,
+        actorUserId: firstCompany.admin.id,
+        action: varchar<80>('test.created'),
+        entityType: varchar<80>('test'),
+        entityId: null,
+        metadata: { source: 'integration' },
+      });
+    });
+
+    expect(await asApplicationRole(secondCompany.company.id, (tx) => tx.orm.public.RefreshSession.all())).toEqual([]);
+    expect(await asApplicationRole(secondCompany.company.id, (tx) => tx.orm.public.AuditEvent.all())).toEqual([]);
+    await expect(asApplicationRole(firstCompany.company.id, (tx) => tx.orm.public.AuditEvent.where({ companyId: firstCompany.company.id }).delete()))
+      .rejects.toThrow();
   });
 });

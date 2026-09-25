@@ -12,21 +12,21 @@ export class OnboardingController {
 
   @Get()
   status(@Req() request: AuthenticatedRequest) {
-    return this.onboarding.status(request.user.sub);
+    return this.onboarding.status(request.user.sub, request.user.companyId);
   }
 
   @Patch('business-type')
   updateBusinessType(@Req() request: AuthenticatedRequest, @Body() body: UpdateBusinessTypeDto) {
-    return this.onboarding.updateBusinessType(request.user.sub, body.businessType);
+    return this.onboarding.updateBusinessType(request.user.sub, request.user.companyId, body.businessType);
   }
 
   @Patch('inventory-source')
   updateInventorySource(@Req() request: AuthenticatedRequest, @Body() body: UpdateInventorySourceDto) {
-    return this.onboarding.updateInventorySource(request.user.sub, body.inventorySource);
+    return this.onboarding.updateInventorySource(request.user.sub, request.user.companyId, body.inventorySource);
   }
 
   @Post('complete')
   complete(@Req() request: AuthenticatedRequest) {
-    return this.onboarding.complete(request.user.sub);
+    return this.onboarding.complete(request.user.sub, request.user.companyId);
   }
 }

@@ -4,6 +4,7 @@ export type UserRole = 'administrator' | 'inventory_manager' | 'shop_attendant';
 
 export interface AccessTokenPayload {
   sub: string;
+  companyId: string;
   role: UserRole;
   iat: number;
   exp: number;

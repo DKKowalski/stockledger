@@ -15,13 +15,15 @@ export function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [verificationEmail, setVerificationEmail] = useState<string | null>(null);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     setSubmitting(true);
     setError(null);
     try {
-      await registerOwner({ fullName, businessName, email, password });
+      const result = await registerOwner({ fullName, businessName, email, password });
+      setVerificationEmail(result.email);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not create your workspace');
     } finally {
@@ -38,6 +40,7 @@ export function SignupPage() {
     <section className="signup-form-pane">
       <Link className="signup-back" to="/login"><ArrowLeft size={15} />Back to sign in</Link>
       <div className="signup-form-wrap">
+        {verificationEmail ? <div className="login-heading"><h2>Check your email</h2><p>We sent a verification link to <strong>{verificationEmail}</strong>. Open it to finish creating your workspace.</p><Link className="button login-submit" to="/login">Back to sign in</Link></div> : <>
         <div className="login-heading"><h2>Create your workspace</h2><p>Set up the owner account for your business.</p></div>
         <form className="login-form signup-form" onSubmit={(event) => void submit(event)}>
           {error && <div className="login-error" role="alert">{error}</div>}
@@ -53,6 +56,7 @@ export function SignupPage() {
           <button className="button login-submit" disabled={submitting}>{submitting ? <><StockLedgerMark animated size={20} />Creating workspace</> : <>Continue to setup<ArrowUpRight size={17} /></>}</button>
         </form>
         <p className="signup-signin">Already have an account? <Link to="/login">Sign in</Link></p>
+        </>}
       </div>
     </section>
   </main>;

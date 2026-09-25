@@ -24,8 +24,11 @@ export class AuthGuard implements CanActivate {
 
     try {
       const payload = await this.jwt.verifyAsync<AccessTokenPayload>(token);
-      const user = await this.prisma.client.orm.public.User.first({ id: payload.sub });
+      const user = await this.prisma.withCompany(payload.companyId, (tx) =>
+        tx.orm.public.User.first({ id: payload.sub, companyId: payload.companyId }),
+      );
       if (!user || user.isActive === false) throw new Error('Account unavailable');
+      if (user.role !== payload.role) throw new Error('Account permissions changed');
       request.user = payload;
       return true;
     } catch {

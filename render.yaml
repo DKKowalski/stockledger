@@ -21,12 +21,20 @@ services:
         value: https://stockledger-dkk-web.onrender.com
       - key: DATABASE_URL
         sync: false
+      - key: DIRECT_DATABASE_URL
+        sync: false
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_ACCESS_TTL_SECONDS
-        value: 28800
+        value: 900
+      - key: REFRESH_TOKEN_TTL_DAYS
+        value: 30
       - key: PASSWORD_RESET_TTL_MINUTES
         value: 30
+      - key: EMAIL_VERIFICATION_TTL_HOURS
+        value: 24
+      - key: INVITATION_TTL_HOURS
+        value: 72
       - key: RESEND_API_KEY
         sync: false
       - key: EMAIL_FROM

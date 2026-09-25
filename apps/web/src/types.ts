@@ -9,9 +9,11 @@ export type User = {
   email: string;
   role: UserRole;
   isActive: boolean;
+  setupPending: boolean;
   createdAt: string;
 };
 export type LoginResponse = { accessToken: string; user: User };
+export type RegistrationResponse = { verificationRequired: true; email: string };
 export type BusinessType = 'retail' | 'wholesale' | 'warehouse' | 'mixed';
 export type InventorySource = 'spreadsheet' | 'another_system' | 'paper' | 'starting_fresh';
 export type OnboardingStatus = {

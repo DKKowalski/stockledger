@@ -1,0 +1,1077 @@
+[
+  {
+    "id": "table.audit_events",
+    "label": "Create table \"audit_events\"",
+    "summary": "Creates table \"audit_events\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "audit_events"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"audit_events\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"audit_events\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"audit_events\"",
+        "sql": "CREATE TABLE \"public\".\"audit_events\" (\n  \"action\" character varying(80) NOT NULL,\n  \"actor_user_id\" uuid,\n  \"company_id\" uuid NOT NULL,\n  \"created_at\" timestamptz DEFAULT (now()) NOT NULL,\n  \"entity_id\" uuid,\n  \"entity_type\" character varying(80) NOT NULL,\n  \"id\" uuid NOT NULL,\n  \"metadata\" jsonb NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"audit_events\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"audit_events\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.refresh_sessions",
+    "label": "Create table \"refresh_sessions\"",
+    "summary": "Creates table \"refresh_sessions\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "refresh_sessions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"refresh_sessions\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"refresh_sessions\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"refresh_sessions\"",
+        "sql": "CREATE TABLE \"public\".\"refresh_sessions\" (\n  \"company_id\" uuid NOT NULL,\n  \"created_at\" timestamptz DEFAULT (now()) NOT NULL,\n  \"expires_at\" timestamptz NOT NULL,\n  \"id\" uuid NOT NULL,\n  \"token_hash\" character varying(64) NOT NULL,\n  \"updated_at\" timestamptz NOT NULL,\n  \"user_id\" uuid NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"refresh_sessions\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"refresh_sessions\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.users.email_verification_expires_at",
+    "label": "Add column \"email_verification_expires_at\" to \"users\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "email_verification_expires_at",
+        "table": "users"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"email_verification_expires_at\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "users",
+          "email_verification_expires_at"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"email_verification_expires_at\"",
+        "sql": "ALTER TABLE \"public\".\"users\" ADD COLUMN \"email_verification_expires_at\" timestamptz"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"email_verification_expires_at\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "users",
+          "email_verification_expires_at"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.users.email_verification_token_hash",
+    "label": "Add column \"email_verification_token_hash\" to \"users\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "email_verification_token_hash",
+        "table": "users"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"email_verification_token_hash\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "users",
+          "email_verification_token_hash"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"email_verification_token_hash\"",
+        "sql": "ALTER TABLE \"public\".\"users\" ADD COLUMN \"email_verification_token_hash\" character varying(64)"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"email_verification_token_hash\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "users",
+          "email_verification_token_hash"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.users.email_verified_at",
+    "label": "Add column \"email_verified_at\" to \"users\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "email_verified_at",
+        "table": "users"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"email_verified_at\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "users",
+          "email_verified_at"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"email_verified_at\"",
+        "sql": "ALTER TABLE \"public\".\"users\" ADD COLUMN \"email_verified_at\" timestamptz"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"email_verified_at\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "users",
+          "email_verified_at"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.users.invitation_accepted_at",
+    "label": "Add column \"invitation_accepted_at\" to \"users\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "invitation_accepted_at",
+        "table": "users"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"invitation_accepted_at\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "users",
+          "invitation_accepted_at"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"invitation_accepted_at\"",
+        "sql": "ALTER TABLE \"public\".\"users\" ADD COLUMN \"invitation_accepted_at\" timestamptz"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"invitation_accepted_at\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "users",
+          "invitation_accepted_at"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.users.invitation_expires_at",
+    "label": "Add column \"invitation_expires_at\" to \"users\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "invitation_expires_at",
+        "table": "users"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"invitation_expires_at\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "users",
+          "invitation_expires_at"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"invitation_expires_at\"",
+        "sql": "ALTER TABLE \"public\".\"users\" ADD COLUMN \"invitation_expires_at\" timestamptz"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"invitation_expires_at\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "users",
+          "invitation_expires_at"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.users.invitation_token_hash",
+    "label": "Add column \"invitation_token_hash\" to \"users\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "invitation_token_hash",
+        "table": "users"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"invitation_token_hash\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "users",
+          "invitation_token_hash"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"invitation_token_hash\"",
+        "sql": "ALTER TABLE \"public\".\"users\" ADD COLUMN \"invitation_token_hash\" character varying(64)"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"invitation_token_hash\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "users",
+          "invitation_token_hash"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "accounts.backfill_existing_account_state",
+    "label": "Keep existing accounts usable after verification and invitation enforcement",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres"
+    },
+    "precheck": [
+      {
+        "description": "Existing accounts still need their account state backfilled",
+        "sql": "SELECT EXISTS (\n            SELECT 1\n            FROM public.users\n            WHERE email_verified_at IS NULL\n               OR (role <> 'administrator' AND invitation_accepted_at IS NULL)\n          ) AS result"
+      }
+    ],
+    "execute": [
+      {
+        "description": "Mark existing emails as verified and existing staff accounts as accepted",
+        "sql": "UPDATE public.users\n            SET email_verified_at = COALESCE(email_verified_at, created_at),\n                invitation_accepted_at = CASE\n                  WHEN role <> 'administrator' THEN COALESCE(invitation_accepted_at, created_at)\n                  ELSE invitation_accepted_at\n                END"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "Every existing account can continue signing in",
+        "sql": "SELECT NOT EXISTS (\n            SELECT 1\n            FROM public.users\n            WHERE email_verified_at IS NULL\n               OR (role <> 'administrator' AND invitation_accepted_at IS NULL)\n          ) AS result"
+      }
+    ]
+  },
+  {
+    "id": "unique.refresh_sessions.refresh_sessions_token_hash_key",
+    "label": "Add unique constraint on \"refresh_sessions\" (token_hash)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "refresh_sessions_token_hash_key",
+        "table": "refresh_sessions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"refresh_sessions_token_hash_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "refresh_sessions_token_hash_key",
+          "public",
+          "\"public\".\"refresh_sessions\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"refresh_sessions_token_hash_key\"",
+        "sql": "ALTER TABLE \"public\".\"refresh_sessions\" ADD CONSTRAINT \"refresh_sessions_token_hash_key\" UNIQUE (\"token_hash\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"refresh_sessions_token_hash_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "refresh_sessions_token_hash_key",
+          "public",
+          "\"public\".\"refresh_sessions\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.users.users_company_id_id_key",
+    "label": "Add unique constraint on \"users\" (company_id, id)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "users_company_id_id_key",
+        "table": "users"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"users_company_id_id_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "users_company_id_id_key",
+          "public",
+          "\"public\".\"users\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"users_company_id_id_key\"",
+        "sql": "ALTER TABLE \"public\".\"users\" ADD CONSTRAINT \"users_company_id_id_key\" UNIQUE (\"company_id\", \"id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"users_company_id_id_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "users_company_id_id_key",
+          "public",
+          "\"public\".\"users\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.users.users_email_verification_token_hash_key",
+    "label": "Add unique constraint on \"users\" (email_verification_token_hash)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "users_email_verification_token_hash_key",
+        "table": "users"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"users_email_verification_token_hash_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "users_email_verification_token_hash_key",
+          "public",
+          "\"public\".\"users\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"users_email_verification_token_hash_key\"",
+        "sql": "ALTER TABLE \"public\".\"users\" ADD CONSTRAINT \"users_email_verification_token_hash_key\" UNIQUE (\"email_verification_token_hash\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"users_email_verification_token_hash_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "users_email_verification_token_hash_key",
+          "public",
+          "\"public\".\"users\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.users.users_invitation_token_hash_key",
+    "label": "Add unique constraint on \"users\" (invitation_token_hash)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "users_invitation_token_hash_key",
+        "table": "users"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"users_invitation_token_hash_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "users_invitation_token_hash_key",
+          "public",
+          "\"public\".\"users\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"users_invitation_token_hash_key\"",
+        "sql": "ALTER TABLE \"public\".\"users\" ADD CONSTRAINT \"users_invitation_token_hash_key\" UNIQUE (\"invitation_token_hash\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"users_invitation_token_hash_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "users_invitation_token_hash_key",
+          "public",
+          "\"public\".\"users\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.audit_events.audit_events_actor_user_id_idx_c46ca325",
+    "label": "Create index \"audit_events_actor_user_id_idx_c46ca325\" on \"audit_events\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "audit_events_actor_user_id_idx_c46ca325",
+        "table": "audit_events"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"audit_events_actor_user_id_idx_c46ca325\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"audit_events_actor_user_id_idx_c46ca325\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"audit_events_actor_user_id_idx_c46ca325\"",
+        "sql": "CREATE INDEX \"audit_events_actor_user_id_idx_c46ca325\" ON \"public\".\"audit_events\" (\"actor_user_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"audit_events_actor_user_id_idx_c46ca325\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"audit_events_actor_user_id_idx_c46ca325\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.audit_events.audit_events_company_id_actor_user_id_idx_8c7112ea",
+    "label": "Create index \"audit_events_company_id_actor_user_id_idx_8c7112ea\" on \"audit_events\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "audit_events_company_id_actor_user_id_idx_8c7112ea",
+        "table": "audit_events"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"audit_events_company_id_actor_user_id_idx_8c7112ea\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"audit_events_company_id_actor_user_id_idx_8c7112ea\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"audit_events_company_id_actor_user_id_idx_8c7112ea\"",
+        "sql": "CREATE INDEX \"audit_events_company_id_actor_user_id_idx_8c7112ea\" ON \"public\".\"audit_events\" (\"company_id\", \"actor_user_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"audit_events_company_id_actor_user_id_idx_8c7112ea\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"audit_events_company_id_actor_user_id_idx_8c7112ea\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.audit_events.audit_events_company_id_created_at_idx_5ad0c8de",
+    "label": "Create index \"audit_events_company_id_created_at_idx_5ad0c8de\" on \"audit_events\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "audit_events_company_id_created_at_idx_5ad0c8de",
+        "table": "audit_events"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"audit_events_company_id_created_at_idx_5ad0c8de\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"audit_events_company_id_created_at_idx_5ad0c8de\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"audit_events_company_id_created_at_idx_5ad0c8de\"",
+        "sql": "CREATE INDEX \"audit_events_company_id_created_at_idx_5ad0c8de\" ON \"public\".\"audit_events\" (\"company_id\", \"created_at\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"audit_events_company_id_created_at_idx_5ad0c8de\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"audit_events_company_id_created_at_idx_5ad0c8de\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.refresh_sessions.refresh_sessions_company_id_idx_1303a718",
+    "label": "Create index \"refresh_sessions_company_id_idx_1303a718\" on \"refresh_sessions\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "refresh_sessions_company_id_idx_1303a718",
+        "table": "refresh_sessions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"refresh_sessions_company_id_idx_1303a718\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"refresh_sessions_company_id_idx_1303a718\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"refresh_sessions_company_id_idx_1303a718\"",
+        "sql": "CREATE INDEX \"refresh_sessions_company_id_idx_1303a718\" ON \"public\".\"refresh_sessions\" (\"company_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"refresh_sessions_company_id_idx_1303a718\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"refresh_sessions_company_id_idx_1303a718\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.refresh_sessions.refresh_sessions_company_id_user_id_idx_4ba0b82c",
+    "label": "Create index \"refresh_sessions_company_id_user_id_idx_4ba0b82c\" on \"refresh_sessions\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "refresh_sessions_company_id_user_id_idx_4ba0b82c",
+        "table": "refresh_sessions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"refresh_sessions_company_id_user_id_idx_4ba0b82c\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"refresh_sessions_company_id_user_id_idx_4ba0b82c\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"refresh_sessions_company_id_user_id_idx_4ba0b82c\"",
+        "sql": "CREATE INDEX \"refresh_sessions_company_id_user_id_idx_4ba0b82c\" ON \"public\".\"refresh_sessions\" (\"company_id\", \"user_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"refresh_sessions_company_id_user_id_idx_4ba0b82c\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"refresh_sessions_company_id_user_id_idx_4ba0b82c\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.refresh_sessions.refresh_sessions_user_id_idx_6c952402",
+    "label": "Create index \"refresh_sessions_user_id_idx_6c952402\" on \"refresh_sessions\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "refresh_sessions_user_id_idx_6c952402",
+        "table": "refresh_sessions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"refresh_sessions_user_id_idx_6c952402\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"refresh_sessions_user_id_idx_6c952402\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"refresh_sessions_user_id_idx_6c952402\"",
+        "sql": "CREATE INDEX \"refresh_sessions_user_id_idx_6c952402\" ON \"public\".\"refresh_sessions\" (\"user_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"refresh_sessions_user_id_idx_6c952402\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"refresh_sessions_user_id_idx_6c952402\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.audit_events.audit_events_company_id_actor_user_id_fkey",
+    "label": "Add foreign key \"audit_events_company_id_actor_user_id_fkey\" on \"audit_events\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "audit_events_company_id_actor_user_id_fkey",
+        "table": "audit_events"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"audit_events_company_id_actor_user_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "audit_events_company_id_actor_user_id_fkey",
+          "public",
+          "\"public\".\"audit_events\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"audit_events_company_id_actor_user_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"audit_events\"\nADD CONSTRAINT \"audit_events_company_id_actor_user_id_fkey\"\nFOREIGN KEY (\"company_id\", \"actor_user_id\")\nREFERENCES \"public\".\"users\" (\"company_id\", \"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"audit_events_company_id_actor_user_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "audit_events_company_id_actor_user_id_fkey",
+          "public",
+          "\"public\".\"audit_events\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.refresh_sessions.refresh_sessions_company_id_user_id_fkey",
+    "label": "Add foreign key \"refresh_sessions_company_id_user_id_fkey\" on \"refresh_sessions\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "refresh_sessions_company_id_user_id_fkey",
+        "table": "refresh_sessions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"refresh_sessions_company_id_user_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "refresh_sessions_company_id_user_id_fkey",
+          "public",
+          "\"public\".\"refresh_sessions\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"refresh_sessions_company_id_user_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"refresh_sessions\"\nADD CONSTRAINT \"refresh_sessions_company_id_user_id_fkey\"\nFOREIGN KEY (\"company_id\", \"user_id\")\nREFERENCES \"public\".\"users\" (\"company_id\", \"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"refresh_sessions_company_id_user_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "refresh_sessions_company_id_user_id_fkey",
+          "public",
+          "\"public\".\"refresh_sessions\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "accounts.grant_runtime_access",
+    "label": "Grant the application role narrow session and audit permissions",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres"
+    },
+    "precheck": [
+      {
+        "description": "Runtime grants are missing",
+        "sql": "SELECT NOT (\n            has_table_privilege('stockledger_app', 'public.refresh_sessions', 'SELECT,INSERT,UPDATE,DELETE')\n            AND has_table_privilege('stockledger_app', 'public.audit_events', 'SELECT,INSERT')\n          ) AS result"
+      }
+    ],
+    "execute": [
+      {
+        "description": "Allow session rotation and append-only audit writes",
+        "sql": "GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.refresh_sessions TO stockledger_app;\n            GRANT SELECT, INSERT ON TABLE public.audit_events TO stockledger_app;\n            REVOKE UPDATE, DELETE, TRUNCATE ON TABLE public.audit_events FROM stockledger_app"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "Runtime access is narrow and audit events remain append-only",
+        "sql": "SELECT (\n            has_table_privilege('stockledger_app', 'public.refresh_sessions', 'SELECT,INSERT,UPDATE,DELETE')\n            AND has_table_privilege('stockledger_app', 'public.audit_events', 'SELECT,INSERT')\n            AND NOT has_table_privilege('stockledger_app', 'public.audit_events', 'UPDATE,DELETE,TRUNCATE')\n          ) AS result"
+      }
+    ]
+  },
+  {
+    "id": "rowLevelSecurity.public.audit_events",
+    "label": "Enable row-level security on \"audit_events\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rowLevelSecurity",
+        "name": "audit_events"
+      }
+    },
+    "precheck": [
+      {
+        "description": "check RLS is not already enabled on \"audit_events\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND NOT (\"c\".\"relrowsecurity\"))) AS \"result\"",
+        "params": [
+          "public",
+          "audit_events"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "enable row-level security on \"audit_events\"",
+        "sql": "ALTER TABLE \"public\".\"audit_events\" ENABLE ROW LEVEL SECURITY"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify row-level security is enabled on \"audit_events\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"c\".\"relrowsecurity\")) AS \"result\"",
+        "params": [
+          "public",
+          "audit_events"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rowLevelSecurity.public.refresh_sessions",
+    "label": "Enable row-level security on \"refresh_sessions\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rowLevelSecurity",
+        "name": "refresh_sessions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "check RLS is not already enabled on \"refresh_sessions\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND NOT (\"c\".\"relrowsecurity\"))) AS \"result\"",
+        "params": [
+          "public",
+          "refresh_sessions"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "enable row-level security on \"refresh_sessions\"",
+        "sql": "ALTER TABLE \"public\".\"refresh_sessions\" ENABLE ROW LEVEL SECURITY"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify row-level security is enabled on \"refresh_sessions\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"c\".\"relrowsecurity\")) AS \"result\"",
+        "params": [
+          "public",
+          "refresh_sessions"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.audit_events.audit_event_read_10e0fa81",
+    "label": "Create RLS policy \"audit_event_read_10e0fa81\" on \"audit_events\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "audit_event_read_10e0fa81",
+        "table": "audit_events"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"audit_event_read_10e0fa81\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "audit_events",
+          "audit_event_read_10e0fa81"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"audit_event_read_10e0fa81\"",
+        "sql": "CREATE POLICY \"audit_event_read_10e0fa81\" ON \"public\".\"audit_events\" AS PERMISSIVE FOR SELECT TO stockledger_app USING (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"audit_event_read_10e0fa81\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "audit_events",
+          "audit_event_read_10e0fa81"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.audit_events.audit_event_write_1c87de9a",
+    "label": "Create RLS policy \"audit_event_write_1c87de9a\" on \"audit_events\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "audit_event_write_1c87de9a",
+        "table": "audit_events"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"audit_event_write_1c87de9a\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "audit_events",
+          "audit_event_write_1c87de9a"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"audit_event_write_1c87de9a\"",
+        "sql": "CREATE POLICY \"audit_event_write_1c87de9a\" ON \"public\".\"audit_events\" AS PERMISSIVE FOR INSERT TO stockledger_app WITH CHECK (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"audit_event_write_1c87de9a\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "audit_events",
+          "audit_event_write_1c87de9a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.refresh_sessions.refresh_session_tenant_f6e81ebe",
+    "label": "Create RLS policy \"refresh_session_tenant_f6e81ebe\" on \"refresh_sessions\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "refresh_session_tenant_f6e81ebe",
+        "table": "refresh_sessions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"refresh_session_tenant_f6e81ebe\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "refresh_sessions",
+          "refresh_session_tenant_f6e81ebe"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"refresh_session_tenant_f6e81ebe\"",
+        "sql": "CREATE POLICY \"refresh_session_tenant_f6e81ebe\" ON \"public\".\"refresh_sessions\" AS PERMISSIVE FOR ALL TO stockledger_app USING (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid) WITH CHECK (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"refresh_session_tenant_f6e81ebe\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "refresh_sessions",
+          "refresh_session_tenant_f6e81ebe"
+        ]
+      }
+    ]
+  }
+]

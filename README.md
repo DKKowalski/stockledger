@@ -90,10 +90,23 @@ The repository includes a `render.yaml` Blueprint for:
 - `stockledger-dkk-api`, a free NestJS web service in Frankfurt
 - `stockledger-dkk-web`, a free React static site
 
-Create the Supabase project first. In **Connect**, copy the **Session pooler** URL on port `5432`. Use that value for the Blueprint's `DATABASE_URL` prompt. The Render build applies committed migrations, and the first successful deploy seeds the demo account and inventory data.
+Create the Supabase project first. Keep two database URLs in Render:
+
+- `DIRECT_DATABASE_URL` uses the database owner and is available only to the build migration.
+- `DATABASE_URL` uses the restricted `stockledger_runtime` login for the running NestJS process.
+
+Apply the migrations with the owner URL first. Then create or rotate the runtime login without committing its password:
+
+```bash
+psql "$DIRECT_DATABASE_URL" -v runtime_password='generate-a-long-random-password' -f docs/production-database-role.sql
+```
+
+Build `DATABASE_URL` with that runtime login and the Supabase Session pooler connection details. The migration-created `stockledger_app` group has only the grants needed by the API. Its row-level security policies require each transaction to set `app.current_company_id`.
 
 For local migration work, copy Supabase's direct connection URL into `DIRECT_DATABASE_URL`. The API runtime continues to use `DATABASE_URL`.
 
 In Render, choose **New > Blueprint**, connect `DKKowalski/stockledger`, and apply `render.yaml`. Render generates `JWT_SECRET`; do not enter one manually.
 
-Password-reset email uses the Resend HTTP API. Add `RESEND_API_KEY` and `EMAIL_FROM` to the API service in Render. `EMAIL_FROM` must use a sender address verified in Resend, for example `StockLedger <accounts@example.com>`. Reset links expire after 30 minutes by default; change `PASSWORD_RESET_TTL_MINUTES` only if the account policy changes.
+Account email uses the Resend HTTP API. Add `RESEND_API_KEY` and `EMAIL_FROM` to the API service in Render. `EMAIL_FROM` must use a sender address verified in Resend, for example `StockLedger <accounts@example.com>`. Owner verification links last 24 hours, staff invitations last 72 hours, and password-reset links last 30 minutes by default.
+
+Browser access tokens live only in React memory and expire after 15 minutes. A rotating 30-day token stays in a secure HTTP-only cookie. Render and the API must use HTTPS for the cross-origin cookie.

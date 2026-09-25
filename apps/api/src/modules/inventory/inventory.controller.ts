@@ -16,36 +16,36 @@ export class InventoryController {
 
   @Get('snapshot')
   snapshot(@Req() request: AuthenticatedRequest, @Query() query: SnapshotQueryDto) {
-    return this.inventory.snapshot(request.user.sub, query.days, query.locationId);
+    return this.inventory.snapshot(request.user.sub, request.user.companyId, query.days, query.locationId);
   }
 
   @Post('locations')
   createLocation(@Req() request: AuthenticatedRequest, @Body() body: CreateLocationDto) {
-    return this.inventory.createLocation(request.user.sub, body);
+    return this.inventory.createLocation(request.user.sub, request.user.companyId, body);
   }
 
   @Post('items')
   createItem(@Req() request: AuthenticatedRequest, @Body() body: CreateItemDto) {
-    return this.inventory.createItem(request.user.sub, body);
+    return this.inventory.createItem(request.user.sub, request.user.companyId, body);
   }
 
   @Post('items/import')
   importItems(@Req() request: AuthenticatedRequest, @Body() body: ImportItemsDto) {
-    return this.inventory.importItems(request.user.sub, body);
+    return this.inventory.importItems(request.user.sub, request.user.companyId, body);
   }
 
   @Post('movements')
   createMovement(@Req() request: AuthenticatedRequest, @Body() body: CreateMovementDto) {
-    return this.inventory.createMovement(request.user.sub, body);
+    return this.inventory.createMovement(request.user.sub, request.user.companyId, body);
   }
 
   @Patch('items/:id/selling-price')
   updateSellingPrice(@Req() request: AuthenticatedRequest, @Param('id', ParseUUIDPipe) id: string, @Body() body: UpdateSellingPriceDto) {
-    return this.inventory.updateSellingPrice(request.user.sub, id, body);
+    return this.inventory.updateSellingPrice(request.user.sub, request.user.companyId, id, body);
   }
 
   @Delete('movements/:id')
   deleteMovement(@Req() request: AuthenticatedRequest, @Param('id', ParseUUIDPipe) id: string) {
-    return this.inventory.deleteMovement(request.user.sub, id);
+    return this.inventory.deleteMovement(request.user.sub, request.user.companyId, id);
   }
 }

@@ -6,8 +6,10 @@ import { RoleWorkspace } from './app/role-workspace';
 import { useAuth } from './auth-context';
 import { StockLedgerMark } from './components/stockledger-mark';
 import { LoginPage } from './features/auth/login-page';
+import { AcceptInvitationPage } from './features/auth/accept-invitation-page';
 import { ResetPasswordPage } from './features/auth/reset-password-page';
 import { SignupPage } from './features/auth/signup-page';
+import { VerifyEmailPage } from './features/auth/verify-email-page';
 import { LandingPage } from './features/marketing/landing-page';
 import { OnboardingPage } from './features/onboarding/onboarding-page';
 import type { OnboardingStatus } from './types';
@@ -15,6 +17,8 @@ import type { OnboardingStatus } from './types';
 export function App() {
   return <Routes>
     <Route path="/reset-password" element={<ResetPasswordPage />} />
+    <Route path="/verify-email" element={<VerifyEmailPage />} />
+    <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
     <Route path="*" element={<AuthenticatedApp />} />
   </Routes>;
 }

@@ -1,27 +1,27 @@
 enum StockMovementType {
   @@type("pg/text@1")
 
-  purchase   = "purchase"
-  transfer   = "transfer"
-  return_in  = "return_in"
+  purchase = "purchase"
+  transfer = "transfer"
+  return_in = "return_in"
   return_out = "return_out"
-  damage     = "damage"
-  sale       = "sale"
+  damage = "damage"
+  sale = "sale"
 }
 
 enum UserRole {
   @@type("pg/text@1")
 
-  administrator     = "administrator"
+  administrator = "administrator"
   inventory_manager = "inventory_manager"
-  shop_attendant    = "shop_attendant"
+  shop_attendant = "shop_attendant"
 }
 
 enum LocationType {
   @@type("pg/text@1")
 
   warehouse = "warehouse"
-  shop      = "shop"
+  shop = "shop"
 }
 
 model Company {
@@ -45,73 +45,62 @@ model Location {
   createdAt TimestamptzString          @default(now()) @map("created_at")
   updatedAt temporal.updatedAtString() @map("updated_at")
 
-  company Company @relation(
-    fields: [companyId],
-    references: [id],
-    onDelete: Restrict,
-    onUpdate: Cascade
-  )
+  company   Company                    @relation(fields:[companyId], references:[id], onDelete: Restrict, onUpdate: Cascade)
 
   @@unique([companyId, name])
+  @@unique([companyId, id])
   @@index([companyId])
   @@rls
   @@map("locations")
 }
 
 model User {
-  id                     Uuid                       @id @default(uuid())
-  companyId              Uuid                       @map("company_id")
-  locationId             Uuid?                      @map("location_id")
-  fullName               VarChar(120)               @map("full_name")
-  email                  VarChar(255)               @unique
-  passwordHash           VarChar(255)               @map("password_hash")
-  role                   UserRole                   @default(inventory_manager)
-  isActive               Boolean                    @default(true) @map("is_active")
-  passwordResetTokenHash VarChar(64)?               @unique @map("password_reset_token_hash")
-  passwordResetExpiresAt TimestamptzString?         @map("password_reset_expires_at")
-  createdAt              TimestamptzString          @default(now()) @map("created_at")
-  updatedAt              temporal.updatedAtString() @map("updated_at")
+  id                         Uuid                       @id @default(uuid())
+  companyId                  Uuid                       @map("company_id")
+  locationId                 Uuid?                      @map("location_id")
+  fullName                   VarChar(120)               @map("full_name")
+  email                      VarChar(255)               @unique
+  passwordHash               VarChar(255)               @map("password_hash")
+  role                       UserRole                   @default(inventory_manager)
+  isActive                   Boolean                    @default(true) @map("is_active")
+  emailVerifiedAt            TimestamptzString?         @map("email_verified_at")
+  emailVerificationTokenHash VarChar(64)?               @unique @map("email_verification_token_hash")
+  emailVerificationExpiresAt TimestamptzString?         @map("email_verification_expires_at")
+  invitationAcceptedAt       TimestamptzString?         @map("invitation_accepted_at")
+  invitationTokenHash        VarChar(64)?               @unique @map("invitation_token_hash")
+  invitationExpiresAt        TimestamptzString?         @map("invitation_expires_at")
+  passwordResetTokenHash     VarChar(64)?               @unique @map("password_reset_token_hash")
+  passwordResetExpiresAt     TimestamptzString?         @map("password_reset_expires_at")
+  createdAt                  TimestamptzString          @default(now()) @map("created_at")
+  updatedAt                  temporal.updatedAtString() @map("updated_at")
 
-  company  Company   @relation(
-    fields: [companyId],
-    references: [id],
-    onDelete: Restrict,
-    onUpdate: Cascade
-  )
-  location Location? @relation(
-    fields: [locationId],
-    references: [id],
-    onDelete: Restrict,
-    onUpdate: Cascade
-  )
+  company                    Company                    @relation(fields:[companyId], references:[id], onDelete: Restrict, onUpdate: Cascade)
+  location                   Location?                  @relation(fields:[companyId, locationId], references:[companyId, id], onDelete: Restrict, onUpdate: Cascade)
 
   @@check(expression: "role <> 'shop_attendant' OR location_id IS NOT NULL", name: "user_shop_attendant_has_location")
+  @@unique([companyId, id])
   @@index([companyId])
   @@rls
   @@map("users")
 }
 
 model InventoryItem {
-  id            Uuid                       @id @default(uuid())
-  companyId     Uuid                       @map("company_id")
-  sku           VarChar(40)
-  name          VarChar(120)
-  category      VarChar(80)
-  unit          VarChar(20)
-  reorderLevel  Int                        @default(0) @map("reorder_level")
-  unitCostCents Int                        @default(0) @map("unit_cost_cents")
-  sellingPriceCents Int?                   @map("selling_price_cents")
-  createdAt     TimestamptzString          @default(now()) @map("created_at")
-  updatedAt     temporal.updatedAtString() @map("updated_at")
+  id                Uuid                       @id @default(uuid())
+  companyId         Uuid                       @map("company_id")
+  sku               VarChar(40)
+  name              VarChar(120)
+  category          VarChar(80)
+  unit              VarChar(20)
+  reorderLevel      Int                        @default(0) @map("reorder_level")
+  unitCostCents     Int                        @default(0) @map("unit_cost_cents")
+  sellingPriceCents Int?                       @map("selling_price_cents")
+  createdAt         TimestamptzString          @default(now()) @map("created_at")
+  updatedAt         temporal.updatedAtString() @map("updated_at")
 
-  company Company @relation(
-    fields: [companyId],
-    references: [id],
-    onDelete: Restrict,
-    onUpdate: Cascade
-  )
+  company           Company                    @relation(fields:[companyId], references:[id], onDelete: Restrict, onUpdate: Cascade)
 
   @@unique([companyId, sku])
+  @@unique([companyId, id])
   @@check(expression: "reorder_level >= 0", name: "inventory_item_reorder_level_nonnegative")
   @@check(expression: "unit_cost_cents >= 0", name: "inventory_item_unit_cost_nonnegative")
   @@check(expression: "selling_price_cents IS NULL OR selling_price_cents >= 0", name: "inventory_item_selling_price_nonnegative")
@@ -122,27 +111,19 @@ model InventoryItem {
 
 model LocationStock {
   id           Uuid                       @id @default(uuid())
+  companyId    Uuid                       @map("company_id")
   locationId   Uuid                       @map("location_id")
   itemId       Uuid                       @map("item_id")
   openingStock Int                        @default(0) @map("opening_stock")
   createdAt    TimestamptzString          @default(now()) @map("created_at")
   updatedAt    temporal.updatedAtString() @map("updated_at")
 
-  location Location      @relation(
-    fields: [locationId],
-    references: [id],
-    onDelete: Cascade,
-    onUpdate: Cascade
-  )
-  item     InventoryItem @relation(
-    fields: [itemId],
-    references: [id],
-    onDelete: Cascade,
-    onUpdate: Cascade
-  )
+  location     Location                   @relation(fields:[companyId, locationId], references:[companyId, id], onDelete: Cascade, onUpdate: Cascade)
+  item         InventoryItem              @relation(fields:[companyId, itemId], references:[companyId, id], onDelete: Cascade, onUpdate: Cascade)
 
-  @@unique([locationId, itemId])
+  @@unique([companyId, locationId, itemId])
   @@check(expression: "opening_stock >= 0", name: "location_stock_opening_nonnegative")
+  @@index([companyId])
   @@index([itemId])
   @@rls
   @@map("location_stocks")
@@ -150,6 +131,7 @@ model LocationStock {
 
 model StockMovement {
   id                    Uuid              @id @default(uuid())
+  companyId             Uuid              @map("company_id")
   itemId                Uuid              @map("item_id")
   locationId            Uuid              @map("location_id")
   destinationLocationId Uuid?             @map("destination_location_id")
@@ -161,34 +143,119 @@ model StockMovement {
   note                  VarChar(500)?
   createdAt             TimestamptzString @default(now()) @map("created_at")
 
-  item        InventoryItem @relation(
-    fields: [itemId],
-    references: [id],
-    onDelete: Cascade,
-    onUpdate: Cascade
-  )
-  location    Location      @relation(
-    "movement_source",
-    fields: [locationId],
-    references: [id],
-    onDelete: Restrict,
-    onUpdate: Cascade
-  )
-  destination Location?     @relation(
-    "movement_destination",
-    fields: [destinationLocationId],
-    references: [id],
-    onDelete: Restrict,
-    onUpdate: Cascade
-  )
+  item                  InventoryItem     @relation(fields:[companyId, itemId], references:[companyId, id], onDelete: Cascade, onUpdate: Cascade)
+  location              Location          @relation("movement_source", fields:[companyId, locationId], references:[companyId, id], onDelete: Restrict, onUpdate: Cascade)
+  destination           Location?         @relation("movement_destination", fields:[companyId, destinationLocationId], references:[companyId, id], onDelete: Restrict, onUpdate: Cascade)
 
   @@check(expression: "quantity > 0", name: "stock_movement_quantity_positive")
   @@check(expression: "unit_price_cents IS NULL OR (type = 'sale' AND unit_price_cents >= 0)", name: "stock_movement_sale_price_valid")
   @@check(expression: "destination_location_id IS NULL OR destination_location_id <> location_id", name: "stock_movement_destination_differs")
+  @@index([companyId])
   @@index([itemId])
   @@index([locationId])
   @@index([destinationLocationId])
   @@index([movementDate])
   @@rls
   @@map("stock_movements")
+}
+
+model RefreshSession {
+  id        Uuid                       @id @default(uuid())
+  companyId Uuid                       @map("company_id")
+  userId    Uuid                       @map("user_id")
+  tokenHash VarChar(64)                @unique @map("token_hash")
+  expiresAt TimestamptzString          @map("expires_at")
+  createdAt TimestamptzString          @default(now()) @map("created_at")
+  updatedAt temporal.updatedAtString() @map("updated_at")
+
+  user      User                       @relation(fields:[companyId, userId], references:[companyId, id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([companyId])
+  @@index([userId])
+  @@rls
+  @@map("refresh_sessions")
+}
+
+model AuditEvent {
+  id          Uuid              @id @default(uuid())
+  companyId   Uuid              @map("company_id")
+  actorUserId Uuid?             @map("actor_user_id")
+  action      VarChar(80)
+  entityType  VarChar(80)       @map("entity_type")
+  entityId    Uuid?             @map("entity_id")
+  metadata    Jsonb
+  createdAt   TimestamptzString @default(now()) @map("created_at")
+
+  actor       User?             @relation(fields:[companyId, actorUserId], references:[companyId, id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([companyId, createdAt])
+  @@index([actorUserId])
+  @@rls
+  @@map("audit_events")
+}
+
+namespace unbound {
+  role stockledger_app {
+  }
+}
+
+policy_all company_tenant {
+  target = Company
+  roles =[stockledger_app]
+  using = "id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+  withCheck = "id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+}
+
+policy_all location_tenant {
+  target = Location
+  roles =[stockledger_app]
+  using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+  withCheck = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+}
+
+policy_all user_tenant {
+  target = User
+  roles =[stockledger_app]
+  using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+  withCheck = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+}
+
+policy_all inventory_item_tenant {
+  target = InventoryItem
+  roles =[stockledger_app]
+  using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+  withCheck = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+}
+
+policy_all location_stock_tenant {
+  target = LocationStock
+  roles =[stockledger_app]
+  using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+  withCheck = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+}
+
+policy_all stock_movement_tenant {
+  target = StockMovement
+  roles =[stockledger_app]
+  using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+  withCheck = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+}
+
+policy_all refresh_session_tenant {
+  target = RefreshSession
+  roles =[stockledger_app]
+  using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+  withCheck = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+}
+
+policy_select audit_event_read {
+  target = AuditEvent
+  roles =[stockledger_app]
+  using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+}
+
+policy_insert audit_event_write {
+  target = AuditEvent
+  roles =[stockledger_app]
+  withCheck = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
 }

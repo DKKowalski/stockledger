@@ -71,6 +71,7 @@ async function seed() {
         email: varchar<255>(DEMO_EMAIL),
         passwordHash: varchar<255>(passwordHash),
         role: 'administrator',
+        emailVerifiedAt: new Date().toISOString(),
       },
       update: {
         companyId: COMPANY_ID,
@@ -78,6 +79,7 @@ async function seed() {
         email: varchar<255>(DEMO_EMAIL),
         passwordHash: varchar<255>(passwordHash),
         role: 'administrator',
+        emailVerifiedAt: new Date().toISOString(),
       },
     });
 
@@ -93,9 +95,9 @@ async function seed() {
       };
       await tx.orm.public.InventoryItem.upsert({ create: { id, ...values }, update: values });
       await tx.orm.public.LocationStock.upsert({
-        create: { id: stockId, locationId: WAREHOUSE_ID, itemId: id, openingStock },
+        create: { id: stockId, companyId: COMPANY_ID, locationId: WAREHOUSE_ID, itemId: id, openingStock },
         update: { openingStock },
-        conflictOn: { locationId: WAREHOUSE_ID, itemId: id },
+        conflictOn: { companyId: COMPANY_ID, locationId: WAREHOUSE_ID, itemId: id },
       });
     }
 
@@ -110,7 +112,7 @@ async function seed() {
         reference: varchar<80>(reference),
         note: note ? varchar<500>(note) : null,
       };
-      await tx.orm.public.StockMovement.upsert({ create: { id, ...values }, update: values });
+      await tx.orm.public.StockMovement.upsert({ create: { id, companyId: COMPANY_ID, ...values }, update: values });
     }
   });
   console.log(`Seeded ${items.length} items and ${movements.length} movements.`);

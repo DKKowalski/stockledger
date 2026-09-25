@@ -84,6 +84,7 @@ h1, h2, .brand, .login-brand, .mobile-login-brand { font-family: var(--font-disp
 .login-submit { width: 100%; min-height: 52px; margin-top: 5px; justify-content: space-between; padding-inline: 20px; color: #fff; border-color: var(--ink); background: var(--ink); }
 .login-submit:hover { border-color: #252720; background: #252720; }
 .login-error, .form-error { padding: 11px 13px; border: 1px solid #e3b8b2; border-radius: 9px; color: #8b312b; background: #fff0ee; font-size: 13px; }
+.login-error .text-button { display: block; margin-top: 7px; padding: 0; border: 0; color: inherit; background: transparent; font: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .form-error { grid-column: 1 / -1; }
 .demo-login { width: 100%; margin-top: 18px; padding: 14px 15px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #d8d9d0; border-radius: 11px; color: #2c382f; background: transparent; text-align: left; cursor: pointer; transition: border-color 160ms ease, background-color 160ms ease, transform 140ms var(--ease-out); }
 .demo-login span { display: grid; gap: 3px; }
@@ -598,6 +599,8 @@ th:last-child, td:last-child { padding-right: 22px; }
 .account-status.active i { background: var(--success); box-shadow: 0 0 0 3px rgb(113 129 57 / 12%); }
 .account-status.inactive { color: #858a82; }
 .account-status.inactive i { background: #adb1aa; }
+.account-status.pending { color: #8a651a; }
+.account-status.pending i { background: #d8a62a; box-shadow: 0 0 0 3px rgb(216 166 42 / 13%); }
 .account-owner-label { color: #8a8f86; font-size: 10px; }
 .row-menu-trigger { width: 32px; height: 32px; display: inline-grid; place-items: center; border: 1px solid transparent; border-radius: 8px; color: #727870; background: transparent; cursor: pointer; transition: color 150ms ease, border-color 150ms ease, background-color 150ms ease, transform 140ms var(--ease-out); }
 .row-menu-trigger:active { transform: scale(.95); }

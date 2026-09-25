@@ -16,8 +16,11 @@ export default z.object({
   DATABASE_URL: postgresUrl,
   DIRECT_DATABASE_URL: postgresUrl.optional(),
   JWT_SECRET: z.string().min(32),
-  JWT_ACCESS_TTL_SECONDS: z.coerce.number().int().positive().default(28_800),
+  JWT_ACCESS_TTL_SECONDS: z.coerce.number().int().min(300).max(3_600).default(900),
+  REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().min(1).max(90).default(30),
   PASSWORD_RESET_TTL_MINUTES: z.coerce.number().int().min(5).max(120).default(30),
+  EMAIL_VERIFICATION_TTL_HOURS: z.coerce.number().int().min(1).max(72).default(24),
+  INVITATION_TTL_HOURS: z.coerce.number().int().min(1).max(168).default(72),
   RESEND_API_KEY: optionalSetting(1),
   EMAIL_FROM: optionalSetting(3),
 });

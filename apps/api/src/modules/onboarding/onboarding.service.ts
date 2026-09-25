@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import type { Varchar } from '@prisma/orm-postgres/target/codec-types';
-import { PrismaService } from '../../prisma/prisma.service.js';
+import { PrismaService, type PrismaTransaction } from '../../prisma/prisma.service.js';
 import type { BusinessType } from './dto/update-business-type.dto.js';
 import type { InventorySource } from './dto/update-inventory-source.dto.js';
 
@@ -8,20 +8,59 @@ import type { InventorySource } from './dto/update-inventory-source.dto.js';
 export class OnboardingService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async status(userId: string) {
-    const actor = await this.owner(userId);
-    const [company, locations, items, users] = await Promise.all([
-      this.prisma.client.orm.public.Company.first({ id: actor.companyId }),
-      this.prisma.client.orm.public.Location.where({ companyId: actor.companyId }).all(),
-      this.prisma.client.orm.public.InventoryItem.where({ companyId: actor.companyId }).all(),
-      this.prisma.client.orm.public.User.where({ companyId: actor.companyId }).all(),
+  async status(userId: string, companyId: string) {
+    return this.prisma.withCompany(companyId, async (tx) => {
+      await this.owner(tx, companyId, userId);
+      return this.statusInTransaction(tx, companyId);
+    });
+  }
+
+  async updateBusinessType(userId: string, companyId: string, businessType: BusinessType) {
+    return this.prisma.withCompany(companyId, async (tx) => {
+      await this.owner(tx, companyId, userId);
+      await tx.orm.public.Company.where({ id: companyId }).update({
+        businessType: businessType as Varchar<40>,
+      });
+      return this.statusInTransaction(tx, companyId);
+    });
+  }
+
+  async updateInventorySource(userId: string, companyId: string, inventorySource: InventorySource) {
+    return this.prisma.withCompany(companyId, async (tx) => {
+      await this.owner(tx, companyId, userId);
+      await tx.orm.public.Company.where({ id: companyId }).update({
+        inventorySource: inventorySource as Varchar<40>,
+      });
+      return this.statusInTransaction(tx, companyId);
+    });
+  }
+
+  async complete(userId: string, companyId: string) {
+    return this.prisma.withCompany(companyId, async (tx) => {
+      await this.owner(tx, companyId, userId);
+      const [company, locations] = await Promise.all([
+        tx.orm.public.Company.first({ id: companyId }),
+        tx.orm.public.Location.where({ companyId }).all(),
+      ]);
+      if (!company?.businessType || !company.inventorySource || locations.length === 0) {
+        throw new BadRequestException('Finish each setup step before opening your workspace');
+      }
+      await tx.orm.public.Company.where({ id: companyId }).update({
+        onboardingCompletedAt: new Date().toISOString(),
+      });
+      return this.statusInTransaction(tx, companyId);
+    });
+  }
+
+  private async statusInTransaction(tx: PrismaTransaction, companyId: string) {
+    const [company, locations, items, users, movements] = await Promise.all([
+      tx.orm.public.Company.first({ id: companyId }),
+      tx.orm.public.Location.where({ companyId }).all(),
+      tx.orm.public.InventoryItem.where({ companyId }).all(),
+      tx.orm.public.User.where({ companyId }).all(),
+      tx.orm.public.StockMovement.where({ companyId }).all(),
     ]);
     if (!company) throw new UnauthorizedException('Business no longer exists');
-
-    const itemIds = items.map((item) => item.id);
-    const movements = itemIds.length
-      ? await this.prisma.client.orm.public.StockMovement.where((movement) => movement.itemId.in(itemIds)).all()
-      : [];
 
     return {
       company: {
@@ -41,39 +80,8 @@ export class OnboardingService {
     };
   }
 
-  async updateBusinessType(userId: string, businessType: BusinessType) {
-    const actor = await this.owner(userId);
-    await this.prisma.client.orm.public.Company.where({ id: actor.companyId }).update({
-      businessType: businessType as Varchar<40>,
-    });
-    return this.status(userId);
-  }
-
-  async updateInventorySource(userId: string, inventorySource: InventorySource) {
-    const actor = await this.owner(userId);
-    await this.prisma.client.orm.public.Company.where({ id: actor.companyId }).update({
-      inventorySource: inventorySource as Varchar<40>,
-    });
-    return this.status(userId);
-  }
-
-  async complete(userId: string) {
-    const actor = await this.owner(userId);
-    const [company, locations] = await Promise.all([
-      this.prisma.client.orm.public.Company.first({ id: actor.companyId }),
-      this.prisma.client.orm.public.Location.where({ companyId: actor.companyId }).all(),
-    ]);
-    if (!company?.businessType || !company.inventorySource || locations.length === 0) {
-      throw new BadRequestException('Finish each setup step before opening your workspace');
-    }
-    await this.prisma.client.orm.public.Company.where({ id: actor.companyId }).update({
-      onboardingCompletedAt: new Date().toISOString(),
-    });
-    return this.status(userId);
-  }
-
-  private async owner(userId: string) {
-    const user = await this.prisma.client.orm.public.User.first({ id: userId });
+  private async owner(tx: PrismaTransaction, companyId: string, userId: string) {
+    const user = await tx.orm.public.User.first({ id: userId, companyId });
     if (!user || user.isActive === false) throw new UnauthorizedException('Account is not available');
     if (user.role !== 'administrator') throw new ForbiddenException('Only the business owner can manage setup');
     return user;

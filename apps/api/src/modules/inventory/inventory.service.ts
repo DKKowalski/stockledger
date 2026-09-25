@@ -7,7 +7,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import type { Varchar } from '@prisma/orm-postgres/target/codec-types';
-import { PrismaService } from '../../prisma/prisma.service.js';
+import { PrismaService, type PrismaTransaction } from '../../prisma/prisma.service.js';
 import type { UserRole } from '../auth/auth.types.js';
 import { buildSnapshot, type ItemRecord, type LocationRecord, type MovementRecord, type StockRecord } from './inventory-calculations.js';
 import { CreateItemDto } from './dto/create-item.dto.js';
@@ -24,56 +24,59 @@ type Actor = {
   locationId: string | null;
 };
 
-type InventoryClient = Pick<PrismaService['client'], 'orm'>;
-type InventoryTransaction = Parameters<Parameters<PrismaService['client']['transaction']>[0]>[0];
+type AuditJson = string | number | boolean | null | readonly AuditJson[] | { readonly [key: string]: AuditJson };
 
 @Injectable()
 export class InventoryService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async snapshot(userId: string, days = 30, locationId?: string) {
-    const actor = await this.actor(userId);
-    const scope = await this.scope(actor.companyId);
-    const selected = this.visibleLocation(actor, scope.locations, locationId);
-    return buildSnapshot(
-      scope.items,
-      actor.role === 'shop_attendant' ? scope.locations.filter((location) => location.id === selected) : scope.locations,
-      scope.stocks,
-      scope.movements,
-      days,
-      selected,
-    );
-  }
-
-  async createLocation(userId: string, body: CreateLocationDto) {
-    const actor = await this.actor(userId);
-    this.assertAdministrator(actor);
-    const name = body.name.trim();
-    const existing = await this.prisma.client.orm.public.Location.first({
-      companyId: actor.companyId,
-      name: name as Varchar<120>,
+  async snapshot(userId: string, companyId: string, days = 30, locationId?: string) {
+    return this.prisma.withCompany(companyId, async (tx) => {
+      const actor = await this.actor(tx, companyId, userId);
+      const scope = await this.scope(tx, companyId);
+      const selected = this.visibleLocation(actor, scope.locations, locationId);
+      return buildSnapshot(
+        scope.items,
+        actor.role === 'shop_attendant' ? scope.locations.filter((location) => location.id === selected) : scope.locations,
+        scope.stocks,
+        scope.movements,
+        days,
+        selected,
+      );
     });
-    if (existing) throw new ConflictException(`${name} already exists`);
-
-    return this.presentLocation(await this.prisma.client.orm.public.Location.create({
-      companyId: actor.companyId,
-      name: name as Varchar<120>,
-      type: body.type,
-    }));
   }
 
-  async createItem(userId: string, body: CreateItemDto) {
-    const actor = await this.actor(userId);
-    this.assertAdministrator(actor);
-    const scope = await this.scope(actor.companyId);
-    this.knownLocation(scope.locations, body.locationId);
-    const sku = body.sku.trim().toUpperCase();
-    const existing = scope.items.find((item) => item.sku.toLowerCase() === sku.toLowerCase());
-    if (existing) throw new ConflictException(`SKU ${sku} already exists`);
+  async createLocation(userId: string, companyId: string, body: CreateLocationDto) {
+    return this.prisma.withCompany(companyId, async (tx) => {
+      const actor = await this.actor(tx, companyId, userId);
+      this.assertAdministrator(actor);
+      const name = body.name.trim();
+      const existing = await tx.orm.public.Location.first({
+        companyId,
+        name: name as Varchar<120>,
+      });
+      if (existing) throw new ConflictException(`${name} already exists`);
 
-    return this.prisma.client.transaction(async (tx) => {
+      return this.presentLocation(await tx.orm.public.Location.create({
+        companyId,
+        name: name as Varchar<120>,
+        type: body.type,
+      }));
+    });
+  }
+
+  async createItem(userId: string, companyId: string, body: CreateItemDto) {
+    return this.prisma.withCompany(companyId, async (tx) => {
+      const actor = await this.actor(tx, companyId, userId);
+      this.assertAdministrator(actor);
+      const scope = await this.scope(tx, companyId);
+      this.knownLocation(scope.locations, body.locationId);
+      const sku = body.sku.trim().toUpperCase();
+      const existing = scope.items.find((item) => item.sku.toLowerCase() === sku.toLowerCase());
+      if (existing) throw new ConflictException(`SKU ${sku} already exists`);
+
       const item = await tx.orm.public.InventoryItem.create({
-        companyId: actor.companyId,
+        companyId,
         sku: sku as Varchar<40>,
         name: body.name.trim() as Varchar<120>,
         category: body.category.trim() as Varchar<80>,
@@ -83,6 +86,7 @@ export class InventoryService {
         sellingPriceCents: body.sellingPriceCents ?? null,
       });
       await tx.orm.public.LocationStock.create({
+        companyId,
         locationId: body.locationId,
         itemId: item.id,
         openingStock: body.openingStock,
@@ -91,23 +95,23 @@ export class InventoryService {
     });
   }
 
-  async importItems(userId: string, body: ImportItemsDto) {
-    const actor = await this.actor(userId);
-    this.assertAdministrator(actor);
-    const scope = await this.scope(actor.companyId);
-    this.knownLocation(scope.locations, body.locationId);
+  async importItems(userId: string, companyId: string, body: ImportItemsDto) {
+    return this.prisma.withCompany(companyId, async (tx) => {
+      const actor = await this.actor(tx, companyId, userId);
+      this.assertAdministrator(actor);
+      const scope = await this.scope(tx, companyId);
+      this.knownLocation(scope.locations, body.locationId);
 
-    const rows = body.rows.map((row) => ({ ...row, sku: row.sku.trim().toUpperCase() }));
-    const duplicateInFile = rows.find((row, index) => rows.findIndex((candidate) => candidate.sku === row.sku) !== index);
-    if (duplicateInFile) throw new ConflictException(`SKU ${duplicateInFile.sku} appears more than once in the spreadsheet`);
-    const existingSkus = new Set(scope.items.map((item) => item.sku.toUpperCase()));
-    const existing = rows.find((row) => existingSkus.has(row.sku));
-    if (existing) throw new ConflictException(`SKU ${existing.sku} already exists`);
+      const rows = body.rows.map((row) => ({ ...row, sku: row.sku.trim().toUpperCase() }));
+      const duplicateInFile = rows.find((row, index) => rows.findIndex((candidate) => candidate.sku === row.sku) !== index);
+      if (duplicateInFile) throw new ConflictException(`SKU ${duplicateInFile.sku} appears more than once in the spreadsheet`);
+      const existingSkus = new Set(scope.items.map((item) => item.sku.toUpperCase()));
+      const existing = rows.find((row) => existingSkus.has(row.sku));
+      if (existing) throw new ConflictException(`SKU ${existing.sku} already exists`);
 
-    return this.prisma.client.transaction(async (tx) => {
       for (const row of rows) {
         const item = await tx.orm.public.InventoryItem.create({
-          companyId: actor.companyId,
+          companyId,
           sku: row.sku as Varchar<40>,
           name: row.name.trim() as Varchar<120>,
           category: row.category.trim() as Varchar<80>,
@@ -117,43 +121,54 @@ export class InventoryService {
           sellingPriceCents: row.sellingPriceCents ?? null,
         });
         await tx.orm.public.LocationStock.create({
+          companyId,
           locationId: body.locationId,
           itemId: item.id,
           openingStock: row.openingStock,
         });
       }
+      await this.audit(tx, actor, 'inventory.items_imported', 'location', body.locationId, {
+        imported: rows.length,
+        skus: rows.map((row) => row.sku),
+      });
       return { imported: rows.length };
     });
   }
 
-  async updateSellingPrice(userId: string, itemId: string, body: UpdateSellingPriceDto) {
-    const actor = await this.actor(userId);
-    this.assertAdministrator(actor);
-    return this.prisma.client.transaction(async (tx) => {
-      await this.lockItem(tx, actor.companyId, itemId);
-      await tx.orm.public.InventoryItem.where({ id: itemId, companyId: actor.companyId })
+  async updateSellingPrice(userId: string, companyId: string, itemId: string, body: UpdateSellingPriceDto) {
+    return this.prisma.withCompany(companyId, async (tx) => {
+      const actor = await this.actor(tx, companyId, userId);
+      this.assertAdministrator(actor);
+      await this.lockItem(tx, companyId, itemId);
+      const item = await tx.orm.public.InventoryItem.first({ id: itemId, companyId });
+      if (!item) throw new NotFoundException('Inventory item not found');
+      await tx.orm.public.InventoryItem.where({ id: itemId, companyId })
         .update({ sellingPriceCents: body.sellingPriceCents });
-      return tx.orm.public.InventoryItem.first({ id: itemId, companyId: actor.companyId });
+      await this.audit(tx, actor, 'inventory.selling_price_changed', 'inventory_item', itemId, {
+        previousSellingPriceCents: item.sellingPriceCents,
+        sellingPriceCents: body.sellingPriceCents,
+      });
+      return tx.orm.public.InventoryItem.first({ id: itemId, companyId });
     });
   }
 
-  async createMovement(userId: string, body: CreateMovementDto) {
-    const actor = await this.actor(userId);
-    if (body.type === StockMovementType.SALE) {
-      if (actor.role !== 'shop_attendant' || !actor.locationId) {
-        throw new ForbiddenException('Only a shop attendant can record a sale');
+  async createMovement(userId: string, companyId: string, body: CreateMovementDto) {
+    return this.prisma.withCompany(companyId, async (tx) => {
+      const actor = await this.actor(tx, companyId, userId);
+      if (body.type === StockMovementType.SALE) {
+        if (actor.role !== 'shop_attendant' || !actor.locationId) {
+          throw new ForbiddenException('Only a shop attendant can record a sale');
+        }
+      } else if (actor.role === 'shop_attendant') {
+        throw new ForbiddenException('Shop attendants can only record a sale');
       }
-    } else if (actor.role === 'shop_attendant') {
-      throw new ForbiddenException('Shop attendants can only record a sale');
-    }
-    return this.prisma.client.transaction(async (tx) => {
-      await this.lockItem(tx, actor.companyId, body.itemId);
+      await this.lockItem(tx, companyId, body.itemId);
       return this.recordMovement(tx, actor, body);
     });
   }
 
-  private async recordMovement(tx: InventoryTransaction, actor: Actor, body: CreateMovementDto) {
-    const scope = await this.scope(actor.companyId, tx, body.itemId);
+  private async recordMovement(tx: PrismaTransaction, actor: Actor, body: CreateMovementDto) {
+    const scope = await this.scope(tx, actor.companyId, body.itemId);
     const item = scope.items.find((candidate) => candidate.id === body.itemId);
     if (!item) throw new NotFoundException('Inventory item not found');
     const unitPriceCents = body.type === StockMovementType.SALE ? item.sellingPriceCents : null;
@@ -162,7 +177,7 @@ export class InventoryService {
       if (body.expectedUnitPriceCents !== undefined && body.expectedUnitPriceCents !== unitPriceCents) {
         throw new ConflictException('The selling price has changed. Refresh and review the price before recording this sale');
       }
-      if (!Number.isSafeInteger(unitPriceCents! * body.quantity)) {
+      if (!Number.isSafeInteger(unitPriceCents * body.quantity)) {
         throw new BadRequestException('The sale total is too large');
       }
     }
@@ -190,6 +205,7 @@ export class InventoryService {
     }
 
     return tx.orm.public.StockMovement.create({
+      companyId: actor.companyId,
       itemId: body.itemId,
       locationId,
       destinationLocationId: destinationId,
@@ -202,23 +218,21 @@ export class InventoryService {
     });
   }
 
-  async deleteMovement(userId: string, id: string) {
-    const actor = await this.actor(userId);
-    if (actor.role === 'shop_attendant') {
-      throw new ForbiddenException('Shop attendants cannot remove stock movements');
-    }
-    // The first read only identifies the item to lock. Re-read the ledger after
-    // acquiring that lock, since another request may have removed this movement.
-    const target = await this.prisma.client.orm.public.StockMovement.first({ id });
-    if (!target) throw new NotFoundException('Stock movement not found');
-    return this.prisma.client.transaction(async (tx) => {
-      await this.lockItem(tx, actor.companyId, target.itemId);
+  async deleteMovement(userId: string, companyId: string, id: string) {
+    return this.prisma.withCompany(companyId, async (tx) => {
+      const actor = await this.actor(tx, companyId, userId);
+      if (actor.role === 'shop_attendant') {
+        throw new ForbiddenException('Shop attendants cannot remove stock movements');
+      }
+      const target = await tx.orm.public.StockMovement.first({ id, companyId });
+      if (!target) throw new NotFoundException('Stock movement not found');
+      await this.lockItem(tx, companyId, target.itemId);
       return this.removeMovement(tx, actor, id, target.itemId);
     });
   }
 
-  private async removeMovement(tx: InventoryTransaction, actor: Actor, id: string, itemId: string) {
-    const scope = await this.scope(actor.companyId, tx, itemId);
+  private async removeMovement(tx: PrismaTransaction, actor: Actor, id: string, itemId: string) {
+    const scope = await this.scope(tx, actor.companyId, itemId);
     const movement = scope.movements.find((candidate) => candidate.id === id);
     if (!movement) throw new NotFoundException('Stock movement not found');
 
@@ -230,17 +244,23 @@ export class InventoryService {
       if (negative) throw new ConflictException('Later movements depend on this stock');
     }
 
-    await tx.orm.public.StockMovement.where({ id }).delete();
+    await tx.orm.public.StockMovement.where({ id, companyId: actor.companyId }).delete();
+    await this.audit(tx, actor, 'inventory.movement_deleted', 'stock_movement', id, {
+      itemId: movement.itemId,
+      locationId: movement.locationId,
+      destinationLocationId: movement.destinationLocationId,
+      type: movement.type,
+      quantity: movement.quantity,
+      unitPriceCents: movement.unitPriceCents,
+      movementDate: movement.movementDate,
+      reference: movement.reference,
+      note: movement.note,
+    });
     return { id };
   }
 
-  private async lockItem(tx: InventoryTransaction, companyId: string, itemId: string) {
-    // Every stock mutation locks the same item, including transfers and deletes.
-    // One row covers both ends of a transfer and locations without an opening
-    // balance. Different items can still be changed concurrently.
-    const raw = this.prisma.client.raw;
-    await tx.execute(raw.sql`SET TRANSACTION ISOLATION LEVEL READ COMMITTED`.affectedCount().build());
-    const rows = await tx.query(raw.sql`
+  private async lockItem(tx: PrismaTransaction, companyId: string, itemId: string) {
+    const rows = await tx.query(this.prisma.client.raw.sql`
       SELECT id FROM public.inventory_items
       WHERE id = ${itemId}::uuid AND company_id = ${companyId}::uuid
       FOR UPDATE
@@ -248,9 +268,9 @@ export class InventoryService {
     if (rows.length === 0) throw new NotFoundException('Inventory item not found');
   }
 
-  private async actor(userId: string): Promise<Actor> {
-    const user = await this.prisma.client.orm.public.User.first({ id: userId });
-    if (!user) throw new UnauthorizedException('Account no longer exists');
+  private async actor(tx: PrismaTransaction, companyId: string, userId: string): Promise<Actor> {
+    const user = await tx.orm.public.User.first({ id: userId, companyId });
+    if (!user || user.isActive === false) throw new UnauthorizedException('Account no longer exists');
     return {
       id: user.id,
       role: user.role,
@@ -259,23 +279,25 @@ export class InventoryService {
     };
   }
 
-  private async scope(companyId: string, client: InventoryClient = this.prisma.client, itemId?: string) {
-    const itemQuery = client.orm.public.InventoryItem.where({ companyId });
+  private async scope(tx: PrismaTransaction, companyId: string, itemId?: string) {
+    const itemQuery = tx.orm.public.InventoryItem.where({ companyId });
     const [items, locations] = await Promise.all([
       (itemId ? itemQuery.where({ id: itemId }) : itemQuery).all(),
-      client.orm.public.Location.where({ companyId }).all(),
+      tx.orm.public.Location.where({ companyId }).all(),
     ]);
-    const itemIds = new Set(items.map((item) => item.id));
-    const locationIds = new Set(locations.map((location) => location.id));
     const [stocks, movements] = await Promise.all([
-      itemIds.size ? client.orm.public.LocationStock.where((stock) => stock.itemId.in([...itemIds])).all() : [],
-      itemIds.size ? client.orm.public.StockMovement.where((movement) => movement.itemId.in([...itemIds])).all() : [],
+      itemId
+        ? tx.orm.public.LocationStock.where({ companyId, itemId }).all()
+        : tx.orm.public.LocationStock.where({ companyId }).all(),
+      itemId
+        ? tx.orm.public.StockMovement.where({ companyId, itemId }).all()
+        : tx.orm.public.StockMovement.where({ companyId }).all(),
     ]);
     return {
       items: items as ItemRecord[],
       locations: locations.map((location) => this.presentLocation(location)),
-      stocks: (stocks as StockRecord[]).filter((stock) => itemIds.has(stock.itemId) && locationIds.has(stock.locationId)),
-      movements: (movements as MovementRecord[]).filter((movement) => itemIds.has(movement.itemId)),
+      stocks: stocks as StockRecord[],
+      movements: movements as MovementRecord[],
     };
   }
 
@@ -301,5 +323,23 @@ export class InventoryService {
 
   private presentLocation(location: { id: string; name: string; type: 'warehouse' | 'shop' }): LocationRecord {
     return { id: location.id, name: location.name, type: location.type };
+  }
+
+  private async audit(
+    tx: PrismaTransaction,
+    actor: Actor,
+    action: string,
+    entityType: string,
+    entityId: string,
+    metadata: { readonly [key: string]: AuditJson },
+  ) {
+    await tx.orm.public.AuditEvent.create({
+      companyId: actor.companyId,
+      actorUserId: actor.id,
+      action: action as Varchar<80>,
+      entityType: entityType as Varchar<80>,
+      entityId,
+      metadata,
+    });
   }
 }

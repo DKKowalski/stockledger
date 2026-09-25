@@ -12,18 +12,20 @@ describe('OnboardingService', () => {
   const itemAll = vi.fn();
   const usersAll = vi.fn();
   const movementAll = vi.fn();
-  const prisma = {
-    client: {
-      orm: {
-        public: {
-          User: { first: userFirst, where: vi.fn(() => ({ all: usersAll })) },
-          Company: { first: companyFirst, where: vi.fn(() => ({ update: companyUpdate })) },
-          Location: { where: vi.fn(() => ({ all: locationAll })) },
-          InventoryItem: { where: vi.fn(() => ({ all: itemAll })) },
-          StockMovement: { where: vi.fn(() => ({ all: movementAll })) },
-        },
+  const transactionClient = {
+    orm: {
+      public: {
+        User: { first: userFirst, where: vi.fn(() => ({ all: usersAll })) },
+        Company: { first: companyFirst, where: vi.fn(() => ({ update: companyUpdate })) },
+        Location: { where: vi.fn(() => ({ all: locationAll })) },
+        InventoryItem: { where: vi.fn(() => ({ all: itemAll })) },
+        StockMovement: { where: vi.fn(() => ({ all: movementAll })) },
       },
     },
+  };
+  const withCompany = vi.fn(async (_companyId: string, callback: (tx: typeof transactionClient) => Promise<unknown>) => callback(transactionClient));
+  const prisma = {
+    withCompany,
   } as unknown as PrismaService;
   const service = new OnboardingService(prisma);
 
@@ -44,7 +46,7 @@ describe('OnboardingService', () => {
   });
 
   it('derives launch progress from real company records', async () => {
-    const result = await service.status('owner-id');
+    const result = await service.status('owner-id', companyId);
 
     expect(result.completed).toBe(false);
     expect(result.company.name).toBe('Mensah Trading');
@@ -54,14 +56,14 @@ describe('OnboardingService', () => {
   it('does not let a staff account manage owner onboarding', async () => {
     userFirst.mockResolvedValue({ id: 'manager-id', companyId, role: 'inventory_manager', isActive: true });
 
-    await expect(service.status('manager-id')).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.status('manager-id', companyId)).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('requires a business type, inventory source and location before completion', async () => {
     companyFirst.mockResolvedValue({ id: companyId, name: 'Mensah Trading', businessType: null, inventorySource: null });
     locationAll.mockResolvedValue([]);
 
-    await expect(service.complete('owner-id')).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.complete('owner-id', companyId)).rejects.toBeInstanceOf(BadRequestException);
     expect(companyUpdate).not.toHaveBeenCalled();
   });
 
@@ -71,7 +73,7 @@ describe('OnboardingService', () => {
       .mockResolvedValueOnce({ id: companyId, name: 'Mensah Trading', businessType: 'retail', inventorySource: 'spreadsheet' })
       .mockResolvedValueOnce({ id: companyId, name: 'Mensah Trading', businessType: 'retail', inventorySource: 'spreadsheet', onboardingCompletedAt: '2026-09-24T16:00:00.000Z' });
 
-    const result = await service.complete('owner-id');
+    const result = await service.complete('owner-id', companyId);
 
     expect(companyUpdate).toHaveBeenCalledWith({ onboardingCompletedAt: expect.any(String) });
     expect(result.completed).toBe(true);
