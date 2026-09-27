@@ -15,6 +15,51 @@ test('opens the login page from the public landing page', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
 });
 
+test('resends verification from the signup confirmation', async ({ page }) => {
+  let resentEmail = '';
+  await page.route('**/auth/register', (route) => route.fulfill({
+    contentType: 'application/json',
+    body: JSON.stringify({ verificationRequired: true, email: 'ama@example.com' }),
+  }));
+  await page.route('**/auth/email/resend', async (route) => {
+    resentEmail = (await route.request().postDataJSON() as { email: string }).email;
+    await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ sent: true }) });
+  });
+
+  await page.goto('/signup', { waitUntil: 'domcontentloaded' });
+  await page.getByLabel('Your name').fill('Ama Mensah');
+  await page.getByLabel('Business name').fill('Mensah Trading');
+  await page.getByLabel('Work email').fill('ama@example.com');
+  await page.getByPlaceholder('At least 8 characters').fill('StockLedger123!');
+  await page.getByRole('button', { name: 'Continue to setup' }).click();
+
+  await expect(page.getByRole('heading', { name: 'Check your email' })).toBeVisible();
+  await page.getByRole('button', { name: 'Send another link' }).click();
+  await expect(page.getByRole('status')).toContainText('a fresh link is on the way');
+  expect(resentEmail).toBe('ama@example.com');
+});
+
+test('requests a fresh link from an invalid verification page', async ({ page }) => {
+  let resentEmail = '';
+  await page.route('**/auth/email/verify', (route) => route.fulfill({
+    status: 400,
+    contentType: 'application/json',
+    body: JSON.stringify({ message: 'This verification link is invalid or has expired' }),
+  }));
+  await page.route('**/auth/email/resend', async (route) => {
+    resentEmail = (await route.request().postDataJSON() as { email: string }).email;
+    await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ sent: true }) });
+  });
+
+  await page.goto('/verify-email?token=expired', { waitUntil: 'domcontentloaded' });
+  await expect(page.getByRole('heading', { name: 'Link not accepted' })).toBeVisible();
+  await page.getByLabel('Email address').fill('ama@example.com');
+  await page.getByRole('button', { name: 'Send another link' }).click();
+
+  await expect(page.getByRole('status')).toContainText('a fresh link is on the way');
+  expect(resentEmail).toBe('ama@example.com');
+});
+
 test('publishes the privacy notice and terms without requiring an account', async ({ page }) => {
   await page.goto('/privacy');
   await expect(page.getByRole('heading', { name: 'Privacy notice' })).toBeVisible();
@@ -42,6 +87,14 @@ test('leaves the demo session to create a workspace', async ({ page }) => {
   await expect(page).toHaveURL('/signup');
   await expect(page.getByRole('heading', { name: 'Create your workspace' })).toBeVisible();
   await page.reload();
+  await expect(page.getByRole('heading', { name: 'Create your workspace' })).toBeVisible();
+});
+
+test('allows the signup route while the demo session is still authenticated', async ({ page }) => {
+  await signIntoDemo(page);
+
+  await page.goto('/signup');
+
   await expect(page.getByRole('heading', { name: 'Create your workspace' })).toBeVisible();
 });
 

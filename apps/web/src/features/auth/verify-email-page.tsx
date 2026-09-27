@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../auth-context';
 import { StockLedgerMark } from '../../components/stockledger-mark';
+import { VerificationResend } from './verification-resend';
 
 export function VerifyEmailPage() {
   const { verifyEmail } = useAuth();
@@ -31,7 +32,7 @@ export function VerifyEmailPage() {
 function AuthLinkPage({ error, pendingTitle, pendingCopy }: { error: string | null; pendingTitle: string; pendingCopy: string }) {
   return <main className="reset-page"><section className="reset-card">
     <Link className="login-brand" to="/"><span className="brand-mark"><StockLedgerMark /></span>StockLedger</Link>
-    {error ? <div className="reset-success"><CircleX size={32} /><h1>Link not accepted</h1><p>{error}</p><Link className="button" to="/login">Back to sign in</Link></div>
+    {error ? <div className="reset-success verification-link-error"><CircleX size={32} /><h1>Link not accepted</h1><p>{error}</p><p className="verification-recovery-copy">Enter your email and we’ll send a fresh verification link.</p><VerificationResend editable /><Link className="verification-signin-link" to="/login">Back to sign in</Link></div>
       : <div className="reset-success"><StockLedgerMark animated size={36} /><h1>{pendingTitle}</h1><p>{pendingCopy}</p></div>}
   </section></main>;
 }

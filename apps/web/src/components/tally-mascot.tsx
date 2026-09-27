@@ -27,29 +27,33 @@ export function TallyMascot({ step = 0, compact = false, celebrating = false }: 
       type="button"
     >
       <svg aria-hidden="true" className="tally-art" viewBox="0 0 240 270" xmlns="http://www.w3.org/2000/svg">
-        <ellipse className="tally-shadow" cx="120" cy="244" rx="58" ry="10" />
+        <ellipse className="tally-shadow" cx="120" cy="245" rx="52" ry="9" />
         <g className="tally-character">
-          <path className="tally-leg tally-leg-left" d="M95 216v22l-13 5" />
-          <path className="tally-leg tally-leg-right" d="M145 216v22l13 5" />
-          <path className="tally-arm tally-arm-left" d="M66 132c-16 8-21 22-12 33" />
-          <path className="tally-arm tally-arm-right" d="M174 132c16 8 21 22 12 33" />
-          <g className="tally-stack">
-            <path className="tally-sheet tally-sheet-back" d="M72 61c0-8 6-14 14-14h82v52H86c-8 0-14-6-14-14V61Z" />
-            <path className="tally-sheet tally-sheet-middle" d="M60 98c0-8 6-14 14-14h94v58H74c-8 0-14-6-14-14V98Z" />
-            <path className="tally-sheet tally-sheet-face" d="M68 136c0-8 6-14 14-14h98v66c0 18-14 32-32 32H94c-14 0-26-12-26-26v-58Z" />
-            <path className="tally-fold" d="M154 122v22c0 7 5 12 12 12h14" />
-            <path className="tally-rule tally-rule-one" d="M91 70h48" />
-            <path className="tally-rule tally-rule-two" d="M82 105h57" />
-            <path className="tally-rule tally-rule-three" d="M91 177h58" />
+          <path className="tally-leg tally-leg-left" d="M96 217v18" />
+          <path className="tally-leg tally-leg-right" d="M144 217v18" />
+          <path className="tally-foot tally-foot-left" d="M96 234c-5 0-10 3-12 8h21c0-4-4-8-9-8Z" />
+          <path className="tally-foot tally-foot-right" d="M144 234c5 0 10 3 12 8h-21c0-4 4-8 9-8Z" />
+          <path className="tally-arm tally-arm-left" d="M58 137c-17 6-22 20-14 31" />
+          <path className="tally-arm tally-arm-right" d="M182 137c18-2 26-14 23-27" />
+          <circle className="tally-hand tally-hand-left" cx="45" cy="168" r="4" />
+          <circle className="tally-hand tally-hand-right" cx="205" cy="107" r="4" />
+          <g className="tally-tag">
+            <path className="tally-tag-body" d="M89 42h62l34 40v109c0 19-15 34-34 34H89c-19 0-34-15-34-34V82l34-40Z" />
+            <circle className="tally-tag-eyelet" cx="120" cy="69" r="10" />
+            <path className="tally-tag-eyelet-shine" d="M116 65c2-2 5-2 7 0" />
+            <rect className="tally-label" x="75" y="99" width="90" height="96" rx="25" />
             <g className="tally-face">
-              <path className="tally-eye tally-eye-left" d="M96 151h1" />
-              <path className="tally-eye tally-eye-right" d="M128 151h1" />
-              <path className="tally-mouth" d="M105 164c5 5 11 5 16 0" />
+              <circle className="tally-eye tally-eye-left" cx="103" cy="132" r="4.5" />
+              <circle className="tally-eye tally-eye-right" cx="137" cy="132" r="4.5" />
+              <path className="tally-mouth" d="M109 147c7 7 15 7 22 0" />
             </g>
-          </g>
-          <g className="tally-count-tag">
-            <path d="M154 51h29c6 0 11 5 11 11v25c0 6-5 11-11 11h-29V51Z" />
-            <path d="M165 68h17M165 79h11" />
+            <g className="tally-marks">
+              <path className="tally-mark" d="M101 166v15" />
+              <path className="tally-mark" d="M112 166v15" />
+              <path className="tally-mark" d="M123 166v15" />
+              <path className="tally-mark" d="M134 166v15" />
+              <path className="tally-mark tally-mark-slash" d="m98 180 39-13" />
+            </g>
           </g>
         </g>
         {celebrating && <g className="tally-sparks">

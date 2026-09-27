@@ -26,10 +26,20 @@ export function App() {
     <Route path="/forgot-password" element={<ForgotPasswordPage />} />
     <Route path="/verify-email" element={<VerifyEmailPage />} />
     <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
+    <Route path="/signup" element={<SignupRoute />} />
     <Route path="/privacy" element={<PrivacyPage />} />
     <Route path="/terms" element={<TermsPage />} />
     <Route path="*" element={<AuthenticatedApp />} />
   </Routes>;
+}
+
+function SignupRoute() {
+  const { accessToken, restoring, user } = useAuth();
+
+  if (restoring || (accessToken && !user)) return <AppLoader />;
+  if (accessToken && !user?.isDemo) return <Navigate to="/" replace />;
+
+  return <SignupPage />;
 }
 
 function WorkspaceErrorPreview() {
@@ -53,7 +63,6 @@ function AuthenticatedApp() {
     return <Routes>
       <Route index element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/signup" element={<SignupPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>;
   }

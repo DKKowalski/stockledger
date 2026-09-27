@@ -5,6 +5,7 @@ import { useAuth } from '../../auth-context';
 import { StockLedgerMark } from '../../components/stockledger-mark';
 import { TallyMascot } from '../../components/tally-mascot';
 import { InputControl } from '../../components/ui/input-control';
+import { VerificationResend } from './verification-resend';
 
 export function SignupPage() {
   const { registerOwner } = useAuth();
@@ -40,7 +41,7 @@ export function SignupPage() {
     <section className="signup-form-pane">
       <Link className="signup-back" to="/login"><ArrowLeft size={15} />Back to sign in</Link>
       <div className="signup-form-wrap">
-        {verificationEmail ? <div className="login-heading"><h2>Check your email</h2><p>We sent a verification link to <strong>{verificationEmail}</strong>. Open it to finish creating your workspace.</p><Link className="button login-submit" to="/login">Back to sign in</Link></div> : <>
+        {verificationEmail ? <div className="login-heading verification-confirmation"><h2>Check your email</h2><p>We sent a verification link to <strong>{verificationEmail}</strong>. Open it to finish creating your workspace.</p><VerificationResend email={verificationEmail} /><Link className="verification-signin-link" to="/login">Back to sign in</Link></div> : <>
         <div className="login-heading"><h2>Create your workspace</h2><p>Set up the owner account for your business.</p></div>
         <form className="login-form signup-form" onSubmit={(event) => void submit(event)}>
           {error && <div className="login-error" role="alert">{error}</div>}
