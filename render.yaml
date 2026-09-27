@@ -61,7 +61,7 @@ services:
       - key: VITE_SENTRY_DSN
         sync: false
       - key: VITE_SUPPORT_EMAIL
-        value: accounts@e9magazine.com
+        value: sewunakpandana5@gmail.com
     routes:
       - type: rewrite
         source: /*

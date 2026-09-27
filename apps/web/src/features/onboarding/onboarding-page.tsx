@@ -49,11 +49,11 @@ export function OnboardingPage({ initialStatus, onComplete }: OnboardingPageProp
   const [error, setError] = useState<string | null>(null);
 
   const stepCopy = useMemo(() => [
-    { eyebrow: 'Your business', title: 'What kind of business do you run?', description: 'We will use this to put the most useful setup tasks first.' },
-    { eyebrow: 'Your first place', title: 'Where do you keep stock?', description: 'Every quantity in StockLedger belongs to a shop or warehouse.' },
-    { eyebrow: 'Your inventory', title: 'Where are your stock records today?', description: 'This changes what we recommend when you enter the workspace.' },
-    { eyebrow: 'Bring your inventory', title: 'Start with the stock you already have.', description: 'Upload Excel or CSV, review the rows, then add them to your first place.' },
-    { eyebrow: 'Setup complete', title: 'Your ledger is live.', description: `Your first place is ready inside ${initialStatus.company.name}.` },
+    { title: 'What kind of business do you run?', description: 'We will use this to put the most useful setup tasks first.' },
+    { title: 'Where do you keep stock?', description: 'Every quantity in StockLedger belongs to a shop or warehouse.' },
+    { title: 'Where are your stock records today?', description: 'This changes what we recommend when you enter the workspace.' },
+    { title: 'Start with the stock you already have.', description: 'Upload Excel or CSV, review the rows, then add them to your first place.' },
+    { title: 'Your ledger is live.', description: `Your first place is ready inside ${initialStatus.company.name}.` },
   ][step], [initialStatus.company.name, step]);
 
   useEffect(() => {
@@ -148,7 +148,7 @@ export function OnboardingPage({ initialStatus, onComplete }: OnboardingPageProp
     <div className="onboarding-layout">
       <section className="onboarding-form-card">
         <div className="onboarding-copy" key={step}>
-          <span className="onboarding-eyebrow">{stepCopy.eyebrow}{step < 4 && <small>{progressStep + 1} of {totalSteps}</small>}</span>
+          {step < 4 && <span className="onboarding-step-count">Step {progressStep + 1} of {totalSteps}</span>}
           <h1>{stepCopy.title}</h1>
           <p>{stepCopy.description}</p>
         </div>
@@ -204,7 +204,6 @@ export function OnboardingPage({ initialStatus, onComplete }: OnboardingPageProp
         </div>
       </section>
       <aside className="onboarding-tally-panel">
-        <div className="tally-stage-copy"><span>{step === 4 ? 'All set' : 'Your setup guide'}</span><p>{step === 4 ? 'Tally will stay nearby while you finish the first few tasks.' : 'Tally only speaks when you ask.'}</p></div>
         <TallyMascot celebrating={step === 4} step={step} />
         <div className="tally-ledger-lines" aria-hidden="true"><span /><span /><span /><span /></div>
       </aside>

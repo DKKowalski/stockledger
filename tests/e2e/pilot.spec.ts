@@ -64,10 +64,12 @@ test('publishes the privacy notice and terms without requiring an account', asyn
   await page.goto('/privacy');
   await expect(page.getByRole('heading', { name: 'Privacy notice' })).toBeVisible();
   await expect(page.getByText('We do not sell personal information.')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'sewunakpandana5@gmail.com' })).toHaveAttribute('href', 'mailto:sewunakpandana5@gmail.com');
 
   await page.getByRole('link', { name: 'Back home' }).click();
   await page.getByRole('link', { name: 'Terms' }).click();
   await expect(page.getByRole('heading', { name: 'Terms of use' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'sewunakpandana5@gmail.com' })).toHaveAttribute('href', 'mailto:sewunakpandana5@gmail.com');
 });
 
 test('opens the seeded demo and restores its secure session after reload', async ({ page }) => {

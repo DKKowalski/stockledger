@@ -33,10 +33,10 @@ export function SignupPage() {
   };
 
   return <main className="signup-page">
-    <section className="signup-story" aria-label="Meet Tally, your StockLedger setup guide">
+    <section className="signup-story" aria-label="StockLedger setup guide">
       <Link className="signup-brand" to="/"><span className="brand-mark"><StockLedgerMark /></span>StockLedger</Link>
       <div className="signup-mascot"><TallyMascot /></div>
-      <div className="signup-story-copy"><span>Meet Tally</span><h1>Start with the stock you have today.</h1><p>Three quick choices after this and your workspace is ready.</p></div>
+      <div className="signup-story-copy"><h1>Start with the stock you have today.</h1><p>Three quick choices after this and your workspace is ready.</p></div>
     </section>
     <section className="signup-form-pane">
       <Link className="signup-back" to="/login"><ArrowLeft size={15} />Back to sign in</Link>

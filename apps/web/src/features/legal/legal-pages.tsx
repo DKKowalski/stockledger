@@ -2,7 +2,7 @@ import { ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { StockLedgerMark } from '../../components/stockledger-mark';
 
-const contactEmail = import.meta.env.VITE_SUPPORT_EMAIL ?? 'accounts@e9magazine.com';
+const contactEmail = import.meta.env.VITE_SUPPORT_EMAIL ?? 'sewunakpandana5@gmail.com';
 
 export function PrivacyPage() {
   return <LegalPage title="Privacy notice">
@@ -37,6 +37,6 @@ export function TermsPage() {
 function LegalPage({ title, children }: { title: string; children: React.ReactNode }) {
   return <main className="legal-page">
     <header className="legal-header"><Link className="landing-brand" to="/"><span className="brand-mark"><StockLedgerMark size={24} /></span><span>StockLedger</span></Link><Link to="/"><ArrowLeft size={15} />Back home</Link></header>
-    <article className="legal-document"><p className="legal-kicker">StockLedger pilot</p><h1>{title}</h1><time dateTime="2026-09-25">Effective 25 September 2026</time>{children}</article>
+    <article className="legal-document"><h1>{title}</h1><time dateTime="2026-09-25">Effective 25 September 2026</time>{children}</article>
   </main>;
 }

@@ -14,29 +14,31 @@ import {
   UsersRound,
   Warehouse,
 } from 'lucide-react';
-import { useEffect } from 'react';
+import { gsap } from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { SplitText } from 'gsap/SplitText';
+import { useEffect, useLayoutEffect, useRef, type RefObject } from 'react';
 import { Link } from 'react-router-dom';
 import { StockLedgerMark } from '../../components/stockledger-mark';
+
+gsap.registerPlugin(ScrollTrigger, SplitText);
 
 const workflowDetails = [
   {
     icon: PackagePlus,
     step: 'Receive',
-    label: 'Purchase recorded',
     copy: 'Add delivered stock to the warehouse or shop where it arrived.',
     tone: 'olive',
   },
   {
     icon: ArrowLeftRight,
     step: 'Move',
-    label: 'Balances transferred',
     copy: 'Move units between places while both sides of the ledger stay connected.',
     tone: 'sand',
   },
   {
     icon: BadgeDollarSign,
     step: 'Sell',
-    label: 'Price captured',
     copy: 'Reduce shop stock and preserve the selling price used for that transaction.',
     tone: 'clay',
   },
@@ -61,9 +63,11 @@ const roleDetails = [
 ] as const;
 
 export function LandingPage() {
-  useLandingScrollReveals();
+  const pageRef = useRef<HTMLDivElement>(null);
+  useLandingTextReveals(pageRef);
+  useLandingScrollReveals(pageRef);
 
-  return <div className="landing-page">
+  return <div className="landing-page" ref={pageRef}>
     <header className="landing-nav">
       <div className="landing-nav-inner">
         <Link className="landing-brand" to="/" aria-label="StockLedger home">
@@ -85,14 +89,20 @@ export function LandingPage() {
     <main>
       <section className="landing-hero">
         <div className="landing-hero-copy">
-          <p className="landing-eyebrow"><span />Inventory control for growing teams</p>
-          <h1>Know what came in.<br />What went out.<br /><em>What remains.</em></h1>
+          <RevealHeading as="h1" first="Every item," second="accounted for." hero />
           <p className="landing-lede">StockLedger keeps your warehouses, shops, movements, and selling prices in one shared record your team can trust.</p>
           <div className="landing-hero-actions">
             <Link className="landing-button" to="/signup">Create your workspace<ArrowUpRight size={17} /></Link>
             <a className="landing-text-link" href="#product">See the product<ArrowRight size={15} /></a>
           </div>
           <p className="landing-hero-note"><Check size={14} />Start with a spreadsheet or a clean catalog.</p>
+        </div>
+
+        <div className="landing-proof" aria-label="StockLedger capabilities">
+          <span><Warehouse size={16} />Warehouses</span>
+          <span><Store size={16} />Shops</span>
+          <span><MapPin size={16} />Every place</span>
+          <span><UsersRound size={16} />The whole team</span>
         </div>
 
         <ProductFrame
@@ -103,36 +113,28 @@ export function LandingPage() {
         />
       </section>
 
-      <section className="landing-proof" aria-label="StockLedger capabilities" data-reveal>
-        <span><Warehouse size={17} />Warehouse stock</span>
-        <span><Store size={17} />Shop inventory</span>
-        <span><MapPin size={17} />Per-place balances</span>
-        <span><UsersRound size={17} />Role-based access</span>
-      </section>
-
       <section className="landing-section landing-flow-section" id="workflow">
-        <div className="landing-flow-heading" data-reveal>
-          <div><p className="landing-kicker">A clear operating line</p><h2>From delivery to shelf, every change has a place.</h2></div>
-          <p>StockLedger follows the work your team already does. Each action updates the right balance and leaves a record behind.</p>
+        <div className="landing-flow-heading">
+          <div><RevealHeading as="h2" first="A straight line between stock arriving" second="and stock being sold." /></div>
+          <p>No separate books, mystery adjustments, or balances that only one person understands. Every action updates the right place and leaves a record behind.</p>
         </div>
         <div className="landing-flow-grid">
-          {workflowDetails.map(({ icon: Icon, step, label, copy, tone }) => <article className={`landing-flow-card is-${tone}`} data-reveal key={step}>
-            <div className="landing-flow-visual" aria-hidden="true">
-              <span className="landing-flow-icon"><Icon size={20} /></span>
-              <span className="landing-flow-path"><i /></span>
-              <span className="landing-flow-check"><Check size={14} /></span>
+          {workflowDetails.map(({ icon: Icon, step, copy, tone }, index) => <article className={`landing-flow-card is-${tone}`} data-reveal key={step}>
+            <div className="landing-flow-card-top">
+              <span className="landing-flow-number" aria-hidden="true">0{index + 1}</span>
+              <span className="landing-flow-icon" aria-hidden="true"><Icon size={22} /></span>
             </div>
-            <p>{label}</p>
-            <h3>{step}</h3>
-            <span>{copy}</span>
+            <div className="landing-flow-card-copy">
+              <h3>{step}</h3>
+              <p>{copy}</p>
+            </div>
           </article>)}
         </div>
       </section>
 
       <section className="landing-section landing-product-story" id="product">
-        <div className="landing-section-heading" data-reveal>
-          <p className="landing-kicker">One source of truth</p>
-          <h2>See every movement without chasing a spreadsheet.</h2>
+        <div className="landing-section-heading">
+          <RevealHeading as="h2" first="One ledger." second="Every movement, place, and reason." />
         </div>
         <div className="landing-product-grid">
           <div className="landing-product-copy" data-reveal>
@@ -154,10 +156,9 @@ export function LandingPage() {
 
       <section className="landing-import-section">
         <div className="landing-import-inner">
-          <div className="landing-import-copy" data-reveal>
+          <div className="landing-import-copy">
             <span className="landing-import-icon"><FileSpreadsheet size={24} /></span>
-            <p className="landing-kicker">A quicker first day</p>
-            <h2>Bring your spreadsheet. Leave it behind.</h2>
+            <RevealHeading as="h2" first="Bring the stock list" second="you already have." />
             <p>Upload Excel or CSV, choose the opening place, and review each row before it becomes stock. You can also build the catalog by hand.</p>
             <Link className="landing-dark-link" to="/signup">Set up your inventory<ArrowUpRight size={16} /></Link>
           </div>
@@ -171,9 +172,8 @@ export function LandingPage() {
       </section>
 
       <section className="landing-section landing-roles" id="roles">
-        <div className="landing-section-heading landing-roles-heading" data-reveal>
-          <p className="landing-kicker">Clear responsibilities</p>
-          <h2>Every person sees the work they are meant to do.</h2>
+        <div className="landing-section-heading landing-roles-heading">
+          <RevealHeading as="h2" first="Clear access." second="No crossed wires." />
           <p>Owners keep control. The team gets focused screens for daily stock work and sales.</p>
         </div>
         <div className="landing-role-grid">
@@ -185,10 +185,9 @@ export function LandingPage() {
         </div>
       </section>
 
-      <section className="landing-cta" data-reveal>
+      <section className="landing-cta">
         <div>
-          <p className="landing-kicker">Your first ledger starts here</p>
-          <h2>Start with the stock you have today.</h2>
+          <RevealHeading as="h2" first="Know what remains" second="before the day ends." />
         </div>
         <div className="landing-cta-actions">
           <Link className="landing-button landing-button-light" to="/signup">Create your workspace<ArrowUpRight size={17} /></Link>
@@ -213,19 +212,87 @@ function ProductFrame({ image, alt, className, priority = false, dark = false, r
   dark?: boolean;
   reveal?: boolean;
 }) {
-  return <figure className={['landing-product-frame', dark ? 'is-dark' : '', className].filter(Boolean).join(' ')} data-reveal={reveal ? '' : undefined}>
+  return <figure className={['landing-product-frame', dark ? 'is-dark' : '', className].filter(Boolean).join(' ')} data-reveal={reveal ? 'product' : undefined} data-scroll-motion="">
     <div className="landing-browser-bar" aria-hidden="true">
-      <span className="landing-browser-dots"><i /><i /><i /></span>
-      <span className="landing-browser-address"><StockLedgerMark size={13} />stockledger.app</span>
-      <span className="landing-browser-spacer" />
+      <span className="landing-browser-address"><StockLedgerMark size={13} />Live workspace</span>
+      <span className="landing-browser-context">Updated by every movement</span>
     </div>
     <img src={image} alt={alt} loading={priority ? 'eager' : 'lazy'} fetchPriority={priority ? 'high' : 'auto'} />
   </figure>;
 }
 
-function useLandingScrollReveals() {
+function RevealHeading({ as: Heading, first, second, hero = false }: {
+  as: 'h1' | 'h2';
+  first: string;
+  second: string;
+  hero?: boolean;
+}) {
+  return <Heading data-text-reveal={hero ? 'hero' : 'section'}>{first}<br /><em>{second}</em></Heading>;
+}
+
+function useLandingTextReveals(pageRef: RefObject<HTMLDivElement | null>) {
+  useLayoutEffect(() => {
+    const page = pageRef.current;
+    if (!page || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    const context = gsap.context(() => {
+      const heroHeading = page.querySelector<HTMLElement>('[data-text-reveal="hero"]');
+      if (heroHeading) {
+        const supportingCopy = page.querySelectorAll<HTMLElement>('.landing-lede, .landing-hero-actions, .landing-hero-note');
+        SplitText.create(heroHeading, {
+          type: 'lines',
+          mask: 'lines',
+          linesClass: 'landing-reveal-line',
+          autoSplit: true,
+          onSplit: (split) => gsap.timeline({ delay: 0.08 })
+            .from(split.lines, {
+              yPercent: 102,
+              duration: 0.78,
+              stagger: 0.075,
+              ease: 'power3.out',
+            })
+            .from(supportingCopy, {
+              autoAlpha: 0,
+              y: 8,
+              duration: 0.45,
+              stagger: 0.045,
+              ease: 'power2.out',
+            }, '>-0.1'),
+        });
+      }
+
+      page.querySelectorAll<HTMLElement>('[data-text-reveal="section"]').forEach((heading) => {
+        SplitText.create(heading, {
+          type: 'lines',
+          mask: 'lines',
+          linesClass: 'landing-reveal-line',
+          autoSplit: true,
+          onSplit: (split) => gsap.from(split.lines, {
+            yPercent: 102,
+            duration: 0.72,
+            stagger: 0.065,
+            ease: 'power3.out',
+            scrollTrigger: {
+              trigger: heading,
+              start: 'top 78%',
+              once: true,
+            },
+          }),
+        });
+      });
+    }, page);
+
+    return () => context.revert();
+  }, [pageRef]);
+}
+
+function useLandingScrollReveals(pageRef: RefObject<HTMLDivElement | null>) {
   useEffect(() => {
-    const elements = Array.from(document.querySelectorAll<HTMLElement>('[data-reveal]'));
+    const page = pageRef.current;
+    if (!page) return;
+
+    const elements = Array.from(page.querySelectorAll<HTMLElement>('[data-reveal]'));
+    const motionFrames = Array.from(page.querySelectorAll<HTMLElement>('[data-scroll-motion]'));
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     if (reducedMotion || !('IntersectionObserver' in window)) {
@@ -243,6 +310,28 @@ function useLandingScrollReveals() {
     }, { rootMargin: '0px 0px -12% 0px', threshold: 0.08 });
 
     elements.forEach((element) => observer.observe(element));
-    return () => observer.disconnect();
-  }, []);
+    let frame = 0;
+    const updateMotion = () => {
+      const viewportHeight = window.innerHeight;
+      motionFrames.forEach((element) => {
+        const bounds = element.getBoundingClientRect();
+        const progress = Math.max(0, Math.min(1, (viewportHeight - bounds.top) / (viewportHeight + bounds.height)));
+        element.style.setProperty('--landing-parallax', `${(progress - .5) * -18}px`);
+      });
+      frame = 0;
+    };
+    const requestMotionUpdate = () => {
+      if (!frame) frame = window.requestAnimationFrame(updateMotion);
+    };
+
+    updateMotion();
+    window.addEventListener('scroll', requestMotionUpdate, { passive: true });
+    window.addEventListener('resize', requestMotionUpdate);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('scroll', requestMotionUpdate);
+      window.removeEventListener('resize', requestMotionUpdate);
+      if (frame) window.cancelAnimationFrame(frame);
+    };
+  }, [pageRef]);
 }
