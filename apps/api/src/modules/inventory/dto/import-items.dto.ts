@@ -18,15 +18,16 @@ export class ImportItemRowDto {
   @MaxLength(80)
   category!: string;
 
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
   @MaxLength(20)
-  unit!: string;
+  unit?: string;
 
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(0)
-  reorderLevel!: number;
+  reorderLevel?: number;
 
   @Type(() => Number)
   @IsInt()
@@ -47,8 +48,14 @@ export class ImportItemRowDto {
 }
 
 export class ImportItemsDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  fileName?: string;
+
+  @IsOptional()
   @IsUUID()
-  locationId!: string;
+  locationId?: string;
 
   @IsArray()
   @ArrayMinSize(1)

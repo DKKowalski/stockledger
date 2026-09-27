@@ -1,4 +1,4 @@
-import { Body, Controller, ForbiddenException, Get, Header, HttpCode, HttpStatus, Param, ParseUUIDPipe, Patch, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, ForbiddenException, Get, Header, HttpCode, HttpStatus, Param, ParseUUIDPipe, Patch, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { minutes, Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
@@ -15,6 +15,7 @@ import { ResetPasswordDto } from './dto/reset-password.dto.js';
 import { SetAccountStatusDto } from './dto/set-account-status.dto.js';
 import { AcceptInvitationDto, TokenDto } from './dto/token.dto.js';
 import { UpdateProfileDto } from './dto/update-profile.dto.js';
+import { TransferOwnershipDto } from './dto/transfer-ownership.dto.js';
 
 @Controller('auth')
 export class AuthController {
@@ -23,8 +24,8 @@ export class AuthController {
   @Post('login')
   @Throttle({ default: { limit: 8, ttl: minutes(1), blockDuration: minutes(5) } })
   @HttpCode(HttpStatus.OK)
-  async login(@Body() body: LoginDto, @Res({ passthrough: true }) response: Response) {
-    return this.withRefreshCookie(response, await this.auth.login(body));
+  async login(@Body() body: LoginDto, @Res({ passthrough: true }) response: Response, @Req() request?: Request) {
+    return this.withRefreshCookie(response, await this.auth.login(body, this.sessionContext(request)));
   }
 
   @Post('register')
@@ -36,8 +37,8 @@ export class AuthController {
   @Post('email/verify')
   @Throttle({ default: { limit: 6, ttl: minutes(15), blockDuration: minutes(15) } })
   @HttpCode(HttpStatus.OK)
-  async verifyEmail(@Body() body: TokenDto, @Res({ passthrough: true }) response: Response) {
-    return this.withRefreshCookie(response, await this.auth.verifyEmail(body));
+  async verifyEmail(@Body() body: TokenDto, @Res({ passthrough: true }) response: Response, @Req() request?: Request) {
+    return this.withRefreshCookie(response, await this.auth.verifyEmail(body, this.sessionContext(request)));
   }
 
   @Post('email/resend')
@@ -50,8 +51,8 @@ export class AuthController {
   @Post('invitations/accept')
   @Throttle({ default: { limit: 6, ttl: minutes(15), blockDuration: minutes(15) } })
   @HttpCode(HttpStatus.OK)
-  async acceptInvitation(@Body() body: AcceptInvitationDto, @Res({ passthrough: true }) response: Response) {
-    return this.withRefreshCookie(response, await this.auth.acceptInvitation(body));
+  async acceptInvitation(@Body() body: AcceptInvitationDto, @Res({ passthrough: true }) response: Response, @Req() request?: Request) {
+    return this.withRefreshCookie(response, await this.auth.acceptInvitation(body, this.sessionContext(request)));
   }
 
   @Post('refresh')
@@ -59,7 +60,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async refresh(@Req() request: Request, @Res({ passthrough: true }) response: Response) {
     this.assertTrustedOrigin(request);
-    return this.withRefreshCookie(response, await this.auth.refresh(this.refreshCookie(request)));
+    return this.withRefreshCookie(response, await this.auth.refresh(this.refreshCookie(request), this.sessionContext(request)));
   }
 
   @Post('logout')
@@ -107,6 +108,34 @@ export class AuthController {
   @UseGuards(AuthGuard)
   listUsers(@Req() request: AuthenticatedRequest) {
     return this.auth.listUsers(request.user.sub, request.user.companyId);
+  }
+
+  @Get('security')
+  @Header('Cache-Control', 'no-store')
+  @UseGuards(AuthGuard)
+  security(@Req() request: AuthenticatedRequest) {
+    return this.auth.securityOverview(request.user.sub, request.user.companyId, this.refreshCookie(request));
+  }
+
+  @Delete('sessions/:id')
+  @UseGuards(AuthGuard)
+  revokeSession(@Req() request: AuthenticatedRequest, @Param('id', new ParseUUIDPipe()) sessionId: string) {
+    this.assertTrustedOrigin(request);
+    return this.auth.revokeSession(request.user.sub, request.user.companyId, sessionId, this.refreshCookie(request));
+  }
+
+  @Delete('sessions')
+  @UseGuards(AuthGuard)
+  revokeOtherSessions(@Req() request: AuthenticatedRequest) {
+    this.assertTrustedOrigin(request);
+    return this.auth.revokeOtherSessions(request.user.sub, request.user.companyId, this.refreshCookie(request));
+  }
+
+  @Post('ownership-transfer')
+  @UseGuards(AuthGuard)
+  transferOwnership(@Req() request: AuthenticatedRequest, @Body() body: TransferOwnershipDto) {
+    this.assertTrustedOrigin(request);
+    return this.auth.transferOwnership(request.user.sub, request.user.companyId, body.targetUserId, body.currentPassword);
   }
 
   @Post('users')
@@ -199,5 +228,12 @@ export class AuthController {
     if (origin && origin !== this.config.getOrThrow<string>('app.webOrigin').replace(/\/$/, '')) {
       throw new ForbiddenException('Request origin is not allowed');
     }
+  }
+
+  private sessionContext(request?: Request) {
+    return {
+      userAgent: request?.headers?.['user-agent'] || undefined,
+      ipAddress: request?.ip || undefined,
+    };
   }
 }

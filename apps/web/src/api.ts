@@ -1,6 +1,6 @@
-import type { AccountAccessLink, ActivityEvent, BusinessType, CompanySettings, CreateUserResponse, InventorySource, Item, LocationType, LoginResponse, MovementType, OnboardingStatus, Place, Profitability, ProfitabilityFilters, RegistrationResponse, Snapshot, StockCount, Supplier, User, UserRole } from './types';
+import type { AccountAccessLink, ActivityEvent, BusinessType, CompanyProfileSettings, CompanySettings, CreateUserResponse, DataSummary, InventorySettings, InventorySource, Item, LocationType, LoginResponse, MovementType, OnboardingStatus, Place, Profitability, ProfitabilityFilters, RegistrationResponse, SecurityOverview, Snapshot, StockCount, Supplier, TerminologySettings, User, UserRole } from './types';
 
-export type DataExportType = 'inventory' | 'movements' | 'activity';
+export type DataExportType = 'workspace' | 'inventory' | 'movements' | 'activity';
 
 const base = (import.meta.env.VITE_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 
@@ -76,6 +76,10 @@ export const api = {
     request<{ sent: true }>(`/auth/users/${userId}/invitation`, { method: 'POST' }, accessToken),
   createInvitationLink: (accessToken: string, userId: string) =>
     request<AccountAccessLink>(`/auth/users/${userId}/invitation-link`, { method: 'POST' }, accessToken),
+  securityOverview: (accessToken: string) => request<SecurityOverview>('/auth/security', undefined, accessToken),
+  revokeSession: (accessToken: string, sessionId: string) => request<{ revoked: true }>(`/auth/sessions/${sessionId}`, { method: 'DELETE' }, accessToken),
+  revokeOtherSessions: (accessToken: string) => request<{ revoked: number }>('/auth/sessions', { method: 'DELETE' }, accessToken),
+  transferOwnership: (accessToken: string, targetUserId: string, currentPassword: string) => request<{ transferred: true }>('/auth/ownership-transfer', { method: 'POST', body: JSON.stringify({ targetUserId, currentPassword }) }, accessToken),
   onboardingStatus: (accessToken: string) =>
     request<OnboardingStatus>('/onboarding', undefined, accessToken),
   setBusinessType: (accessToken: string, businessType: BusinessType) =>
@@ -85,9 +89,14 @@ export const api = {
   completeOnboarding: (accessToken: string) =>
     request<OnboardingStatus>('/onboarding/complete', { method: 'POST' }, accessToken),
   companySettings: (accessToken: string) => request<CompanySettings>('/settings', undefined, accessToken),
-  updateCompanySettings: (accessToken: string, body: Omit<CompanySettings, 'id'>) =>
+  updateCompanySettings: (accessToken: string, body: CompanyProfileSettings) =>
     request<CompanySettings>('/settings', { method: 'PATCH', body: JSON.stringify(body) }, accessToken),
+  updateInventorySettings: (accessToken: string, body: InventorySettings) =>
+    request<CompanySettings>('/settings/inventory', { method: 'PATCH', body: JSON.stringify(body) }, accessToken),
+  updateTerminologySettings: (accessToken: string, body: TerminologySettings) =>
+    request<CompanySettings>('/settings/terminology', { method: 'PATCH', body: JSON.stringify(body) }, accessToken),
   activity: (accessToken: string) => request<ActivityEvent[]>('/settings/activity', undefined, accessToken),
+  dataSummary: (accessToken: string) => request<DataSummary>('/settings/data-summary', undefined, accessToken),
   exportData: (accessToken: string, type: DataExportType) => download(`/settings/exports/${type}`, accessToken),
   deleteWorkspace: (accessToken: string, body: { currentPassword: string; confirmation: string }) =>
     request<{ deleted: true }>('/settings/account', { method: 'DELETE', body: JSON.stringify(body) }, accessToken),
@@ -99,7 +108,7 @@ export const api = {
     request('/inventory/items', { method: 'POST', body: JSON.stringify(body) }, accessToken),
   updateItem: (accessToken: string, itemId: string, body: Partial<Pick<Item, 'sku' | 'name' | 'category' | 'unit' | 'reorderLevel' | 'unitCostCents' | 'sellingPriceCents' | 'isActive'>>) =>
     request<Item>(`/inventory/items/${itemId}`, { method: 'PATCH', body: JSON.stringify(body) }, accessToken),
-  importItems: (accessToken: string, body: { locationId: string; rows: Array<Record<string, string | number>> }) =>
+  importItems: (accessToken: string, body: { locationId?: string; fileName?: string; rows: Array<Record<string, string | number>> }) =>
     request<{ imported: number }>('/inventory/items/import', { method: 'POST', body: JSON.stringify(body) }, accessToken),
   updateSellingPrice: (accessToken: string, itemId: string, sellingPriceCents: number) =>
     request(`/inventory/items/${itemId}/selling-price`, { method: 'PATCH', body: JSON.stringify({ sellingPriceCents }) }, accessToken),

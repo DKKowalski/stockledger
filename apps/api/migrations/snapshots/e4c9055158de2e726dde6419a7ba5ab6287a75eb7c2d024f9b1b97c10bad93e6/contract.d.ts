@@ -34,7 +34,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'af0f799e84bed462c8c7be7ef11cd3ccc5971603b3c727b8ef34b4b55918fb19'>;
+  StorageHashBase<'e4c9055158de2e726dde6419a7ba5ab6287a75eb7c2d024f9b1b97c10bad93e6'>;
 export type ExecutionHash =
   ExecutionHashBase<'b43e3bc4b16addb2d1b967638641ba478fb9e6d206de9632cbb70e7e68055c8e'>;
 export type ProfileHash =
@@ -315,9 +315,6 @@ export type FieldOutputTypes = {
       readonly userId: CodecTypes['pg/uuid@1']['output'];
       readonly tokenHash: Varchar<64>;
       readonly expiresAt: CodecTypes['pg/timestamptz-string@1']['output'];
-      readonly userAgent: Varchar<300> | null;
-      readonly ipAddress: Varchar<64> | null;
-      readonly lastUsedAt: CodecTypes['pg/timestamptz-string@1']['output'];
       readonly createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
       readonly updatedAt: CodecTypes['pg/timestamptz-string@1']['output'];
     };
@@ -469,9 +466,6 @@ export type FieldInputTypes = {
       readonly userId: CodecTypes['pg/uuid@1']['input'];
       readonly tokenHash: CodecTypes['sql/varchar@1']['input'];
       readonly expiresAt: CodecTypes['pg/timestamptz-string@1']['input'];
-      readonly userAgent: CodecTypes['sql/varchar@1']['input'] | null;
-      readonly ipAddress: CodecTypes['sql/varchar@1']['input'] | null;
-      readonly lastUsedAt: CodecTypes['pg/timestamptz-string@1']['input'];
       readonly createdAt: CodecTypes['pg/timestamptz-string@1']['input'];
       readonly updatedAt: CodecTypes['pg/timestamptz-string@1']['input'];
     };
@@ -623,11 +617,8 @@ export type StorageColumnTypes = {
       readonly created_at: CodecTypes['pg/timestamptz-string@1']['output'];
       readonly expires_at: CodecTypes['pg/timestamptz-string@1']['output'];
       readonly id: CodecTypes['pg/uuid@1']['output'];
-      readonly ip_address: Varchar<64> | null;
-      readonly last_used_at: CodecTypes['pg/timestamptz-string@1']['output'];
       readonly token_hash: Varchar<64>;
       readonly updated_at: CodecTypes['pg/timestamptz-string@1']['output'];
-      readonly user_agent: Varchar<300> | null;
       readonly user_id: CodecTypes['pg/uuid@1']['output'];
     };
     readonly stock_counts: {
@@ -779,11 +770,8 @@ export type StorageColumnInputTypes = {
       readonly created_at: CodecTypes['pg/timestamptz-string@1']['input'];
       readonly expires_at: CodecTypes['pg/timestamptz-string@1']['input'];
       readonly id: CodecTypes['pg/uuid@1']['input'];
-      readonly ip_address: CodecTypes['sql/varchar@1']['input'] | null;
-      readonly last_used_at: CodecTypes['pg/timestamptz-string@1']['input'];
       readonly token_hash: CodecTypes['sql/varchar@1']['input'];
       readonly updated_at: CodecTypes['pg/timestamptz-string@1']['input'];
-      readonly user_agent: CodecTypes['sql/varchar@1']['input'] | null;
       readonly user_id: CodecTypes['pg/uuid@1']['input'];
     };
     readonly stock_counts: {
@@ -1020,9 +1008,6 @@ export namespace Models {
     userId: CodecTypes['pg/uuid@1']['output'];
     tokenHash: Varchar<64>;
     expiresAt: CodecTypes['pg/timestamptz-string@1']['output'];
-    userAgent: Varchar<300> | null;
-    ipAddress: Varchar<64> | null;
-    lastUsedAt: CodecTypes['pg/timestamptz-string@1']['output'];
     createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
     updatedAt: CodecTypes['pg/timestamptz-string@1']['output'];
     user: public_User;
@@ -1656,24 +1641,6 @@ type ContractBase = Omit<
                   readonly nativeType: 'timestamptz';
                   readonly codecId: 'pg/timestamptz-string@1';
                   readonly nullable: false;
-                };
-                readonly user_agent: {
-                  readonly nativeType: 'character varying';
-                  readonly codecId: 'sql/varchar@1';
-                  readonly nullable: true;
-                  readonly typeParams: { readonly length: 300 };
-                };
-                readonly ip_address: {
-                  readonly nativeType: 'character varying';
-                  readonly codecId: 'sql/varchar@1';
-                  readonly nullable: true;
-                  readonly typeParams: { readonly length: 64 };
-                };
-                readonly last_used_at: {
-                  readonly nativeType: 'timestamptz';
-                  readonly codecId: 'pg/timestamptz-string@1';
-                  readonly nullable: false;
-                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
                 };
                 readonly created_at: {
                   readonly nativeType: 'timestamptz';
@@ -2976,29 +2943,6 @@ type ContractBase = Omit<
                   readonly codecId: 'pg/timestamptz-string@1';
                 };
               };
-              readonly userAgent: {
-                readonly nullable: true;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'sql/varchar@1';
-                  readonly typeParams: { readonly length: 300 };
-                };
-              };
-              readonly ipAddress: {
-                readonly nullable: true;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'sql/varchar@1';
-                  readonly typeParams: { readonly length: 64 };
-                };
-              };
-              readonly lastUsedAt: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-string@1';
-                };
-              };
               readonly createdAt: {
                 readonly nullable: false;
                 readonly type: {
@@ -3034,9 +2978,6 @@ type ContractBase = Omit<
                 readonly userId: { readonly column: 'user_id' };
                 readonly tokenHash: { readonly column: 'token_hash' };
                 readonly expiresAt: { readonly column: 'expires_at' };
-                readonly userAgent: { readonly column: 'user_agent' };
-                readonly ipAddress: { readonly column: 'ip_address' };
-                readonly lastUsedAt: { readonly column: 'last_used_at' };
                 readonly createdAt: { readonly column: 'created_at' };
                 readonly updatedAt: { readonly column: 'updated_at' };
               };

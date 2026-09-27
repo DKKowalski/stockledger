@@ -1,12 +1,13 @@
-import { ArrowLeftRight, Download, FileClock, Package, ShieldCheck, Trash2, type LucideIcon } from 'lucide-react';
-import { useState } from 'react';
+import { ArrowLeftRight, Database, Download, FileClock, Package, ShieldCheck, Trash2, Upload, type LucideIcon } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { ApiError, api, type DataExportType } from '../../api';
 import { useAuth } from '../../auth-context';
 import { useCompanySettings } from '../../app/company-settings-store';
-import { PageHeader } from '../../components/inventory-ui';
+import { EmptyState, PageHeader, Panel } from '../../components/inventory-ui';
 import { StockLedgerMark } from '../../components/stockledger-mark';
 import { InputControl } from '../../components/ui/input-control';
+import type { DataSummary } from '../../types';
 import { SettingsNavigation } from './settings-navigation';
 
 const exports: Array<{
@@ -14,13 +15,23 @@ const exports: Array<{
   title: string;
   description: string;
   detail: string;
+  format: 'CSV' | 'JSON';
   icon: LucideIcon;
 }> = [
+  {
+    type: 'workspace',
+    title: 'Complete workspace',
+    description: 'A portable archive of the business and all of its records.',
+    detail: 'Includes settings, places, team accounts, inventory, movements, suppliers, counts, and activity history. Passwords and session tokens are excluded.',
+    format: 'JSON',
+    icon: Database,
+  },
   {
     type: 'inventory',
     title: 'Inventory balances',
     description: 'Current stock position for every item and place.',
     detail: 'Includes opening stock, movement totals, closing stock, reorder levels, costs, prices, and stock value.',
+    format: 'CSV',
     icon: Package,
   },
   {
@@ -28,6 +39,7 @@ const exports: Array<{
     title: 'Movement ledger',
     description: 'The complete history of stock moving in and out.',
     detail: 'Includes movement dates, places, quantities, references, notes, and recorded sale values.',
+    format: 'CSV',
     icon: ArrowLeftRight,
   },
   {
@@ -35,19 +47,35 @@ const exports: Array<{
     title: 'Activity history',
     description: 'Administrative and security events for this business.',
     detail: 'Includes the actor, timestamp, action, affected record, and recorded event details.',
+    format: 'CSV',
     icon: FileClock,
   },
 ];
 
 export function DataExportsPage() {
   const { accessToken, user, signOut } = useAuth();
-  const { settings } = useCompanySettings();
+  const { settings, dateTime } = useCompanySettings();
   const [downloading, setDownloading] = useState<DataExportType | null>(null);
+  const [summary, setSummary] = useState<DataSummary | null>(null);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
   const [deletionOpen, setDeletionOpen] = useState(false);
   const [confirmation, setConfirmation] = useState('');
   const [password, setPassword] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [deletionError, setDeletionError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!accessToken) return;
+    let active = true;
+    void api.dataSummary(accessToken).then((result) => {
+      if (active) setSummary(result);
+    }).catch((caught: unknown) => {
+      if (!active) return;
+      if (caught instanceof ApiError && caught.status === 401) signOut();
+      else setSummaryError(caught instanceof Error ? caught.message : 'Could not load data history');
+    });
+    return () => { active = false; };
+  }, [accessToken, signOut]);
 
   const exportFile = async (type: DataExportType) => {
     if (!accessToken || downloading) return;
@@ -55,7 +83,8 @@ export function DataExportsPage() {
     try {
       const file = await api.exportData(accessToken, type);
       saveFile(file.blob, file.filename);
-      toast.success('CSV export ready', { description: `${file.filename} has been downloaded.` });
+      toast.success('Data export ready', { description: `${file.filename} has been downloaded.` });
+      void api.dataSummary(accessToken).then(setSummary).catch(() => undefined);
     } catch (caught) {
       if (caught instanceof ApiError && caught.status === 401) signOut();
       else toast.error('Could not export data', { description: caught instanceof Error ? caught.message : 'Try again in a moment.' });
@@ -81,25 +110,42 @@ export function DataExportsPage() {
   };
 
   return <>
-    <PageHeader title="Data exports" subtitle="Download a portable copy of your business records." />
+    <PageHeader title="Data controls" subtitle="Export portable records, review import history, or remove this workspace." />
     <SettingsNavigation />
+    {summaryError && <div className="form-error settings-page-error" role="alert">{summaryError}</div>}
     <div className="data-export-grid">
-      {exports.map(({ type, title, description, detail, icon: Icon }) => <article className="panel data-export-card" key={type}>
+      {exports.map(({ type, title, description, detail, format, icon: Icon }) => <article className="panel data-export-card" key={type}>
         <div className="data-export-card-top">
           <span className="data-export-icon"><Icon size={20} /></span>
-          <span className="csv-badge">CSV</span>
+          <span className="csv-badge">{format}</span>
         </div>
         <h2>{title}</h2>
         <p>{description}</p>
         <small>{detail}</small>
         <button className="button secondary data-export-button" disabled={downloading !== null} onClick={() => void exportFile(type)} type="button">
-          {downloading === type ? <><StockLedgerMark animated size={19} />Preparing file</> : <><Download size={16} />Download CSV</>}
+          {downloading === type ? <><StockLedgerMark animated size={19} />Preparing file</> : <><Download size={16} />Download {format}</>}
         </button>
       </article>)}
     </div>
     <div className="export-security-note">
       <ShieldCheck size={18} />
       <div><h2>Administrator access only</h2><p>Each file contains records from this business only. StockLedger records the export in your activity history.</p></div>
+    </div>
+    <div className="data-history-grid">
+      <Panel title="Latest export" subtitle="The most recent data file prepared for this workspace.">
+        {summary?.lastExport ? <article className="data-history-row">
+          <span><Download size={17} /></span>
+          <div><h3>{exportLabel(summary.lastExport.type)}</h3><p>{summary.lastExport.rowCount.toLocaleString()} records · {summary.lastExport.actorName}</p></div>
+          <time>{dateTime(summary.lastExport.createdAt)}</time>
+        </article> : summary ? <EmptyState text="No workspace data has been exported yet." /> : <div className="empty"><StockLedgerMark animated size={28} /><p>Loading export history</p></div>}
+      </Panel>
+      <Panel title="Spreadsheet imports" subtitle="The latest catalog files added to inventory.">
+        {summary?.imports.length ? <div className="data-import-list">{summary.imports.map((entry) => <article className="data-history-row" key={entry.id}>
+          <span><Upload size={17} /></span>
+          <div><h3>{entry.fileName || 'Spreadsheet import'}</h3><p>{entry.imported.toLocaleString()} {entry.imported === 1 ? 'item' : 'items'} · {entry.actorName}</p></div>
+          <time>{dateTime(entry.createdAt)}</time>
+        </article>)}</div> : summary ? <EmptyState text="No spreadsheet imports have been recorded yet." /> : <div className="empty"><StockLedgerMark animated size={28} /><p>Loading import history</p></div>}
+      </Panel>
     </div>
     <section className="panel workspace-danger-zone">
       <div className="workspace-danger-copy"><span><Trash2 size={18} /></span><div><h2>Delete workspace</h2><p>Permanently remove this business, its team, inventory, movements, and activity history.</p></div></div>
@@ -112,6 +158,11 @@ export function DataExportsPage() {
       </div>}
     </section>
   </>;
+}
+
+function exportLabel(type: string) {
+  if (type === 'workspace') return 'Complete workspace';
+  return exports.find((entry) => entry.type === type)?.title ?? 'Data export';
 }
 
 function saveFile(blob: Blob, filename: string) {

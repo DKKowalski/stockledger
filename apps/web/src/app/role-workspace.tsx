@@ -5,6 +5,9 @@ import { AccountSettingsPage } from '../features/account/account-settings-page';
 import { BusinessSettingsPage } from '../features/settings/business-settings-page';
 import { ActivityLogPage } from '../features/settings/activity-log-page';
 import { DataExportsPage } from '../features/settings/data-exports-page';
+import { InventorySettingsPage } from '../features/settings/inventory-settings-page';
+import { SecuritySettingsPage } from '../features/settings/security-settings-page';
+import { TerminologySettingsPage } from '../features/settings/terminology-settings-page';
 import { PlacesPage } from '../features/admin/places-page';
 import { TeamPage } from '../features/admin/team-page';
 import { OperationsDashboardPage, ShopDashboardPage } from '../features/dashboard/dashboard-pages';
@@ -68,6 +71,9 @@ function AdministratorWorkspace() {
     <Route path="team" element={<TeamPage />} />
     <Route path="account" element={<AccountSettingsPage />} />
     <Route path="settings" element={<BusinessSettingsPage />} />
+    <Route path="settings/inventory" element={<InventorySettingsPage />} />
+    <Route path="settings/security" element={<SecuritySettingsPage />} />
+    <Route path="settings/terminology" element={<TerminologySettingsPage />} />
     <Route path="settings/activity" element={<ActivityLogPage />} />
     <Route path="settings/data" element={<DataExportsPage />} />
     <Route path="*" element={<Navigate to="/" replace />} />

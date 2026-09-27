@@ -246,6 +246,13 @@
                   }
                 }
               },
+              "allowNegativeStock": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/bool@1",
+                  "kind": "scalar"
+                }
+              },
               "businessType": {
                 "nullable": true,
                 "type": {
@@ -293,6 +300,30 @@
                   }
                 }
               },
+              "defaultLocationId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "defaultReorderLevel": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "defaultUnit": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 20
+                  }
+                }
+              },
               "id": {
                 "nullable": false,
                 "type": {
@@ -310,6 +341,16 @@
                   }
                 }
               },
+              "itemTerm": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 20
+                  }
+                }
+              },
               "name": {
                 "nullable": false,
                 "type": {
@@ -318,6 +359,13 @@
                   "typeParams": {
                     "length": 120
                   }
+                }
+              },
+              "nextSkuNumber": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
                 }
               },
               "onboardingCompletedAt": {
@@ -337,6 +385,40 @@
                   }
                 }
               },
+              "requireAdjustmentReason": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/bool@1",
+                  "kind": "scalar"
+                }
+              },
+              "requirePurchaseSource": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/bool@1",
+                  "kind": "scalar"
+                }
+              },
+              "shopTerm": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 20
+                  }
+                }
+              },
+              "skuPrefix": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 12
+                  }
+                }
+              },
               "timeZone": {
                 "nullable": false,
                 "type": {
@@ -353,6 +435,16 @@
                   "codecId": "pg/timestamptz-string@1",
                   "kind": "scalar"
                 }
+              },
+              "warehouseTerm": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 20
+                  }
+                }
               }
             },
             "relations": {},
@@ -360,6 +452,9 @@
               "fields": {
                 "address": {
                   "column": "address"
+                },
+                "allowNegativeStock": {
+                  "column": "allow_negative_stock"
                 },
                 "businessType": {
                   "column": "business_type"
@@ -376,14 +471,29 @@
                 "dateFormat": {
                   "column": "date_format"
                 },
+                "defaultLocationId": {
+                  "column": "default_location_id"
+                },
+                "defaultReorderLevel": {
+                  "column": "default_reorder_level"
+                },
+                "defaultUnit": {
+                  "column": "default_unit"
+                },
                 "id": {
                   "column": "id"
                 },
                 "inventorySource": {
                   "column": "inventory_source"
                 },
+                "itemTerm": {
+                  "column": "item_term"
+                },
                 "name": {
                   "column": "name"
+                },
+                "nextSkuNumber": {
+                  "column": "next_sku_number"
                 },
                 "onboardingCompletedAt": {
                   "column": "onboarding_completed_at"
@@ -391,11 +501,26 @@
                 "phone": {
                   "column": "phone"
                 },
+                "requireAdjustmentReason": {
+                  "column": "require_adjustment_reason"
+                },
+                "requirePurchaseSource": {
+                  "column": "require_purchase_source"
+                },
+                "shopTerm": {
+                  "column": "shop_term"
+                },
+                "skuPrefix": {
+                  "column": "sku_prefix"
+                },
                 "timeZone": {
                   "column": "time_zone"
                 },
                 "updatedAt": {
                   "column": "updated_at"
+                },
+                "warehouseTerm": {
+                  "column": "warehouse_term"
                 }
               },
               "namespaceId": "public",
@@ -807,6 +932,23 @@
                   "kind": "scalar"
                 }
               },
+              "ipAddress": {
+                "nullable": true,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 64
+                  }
+                }
+              },
+              "lastUsedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
               "tokenHash": {
                 "nullable": false,
                 "type": {
@@ -822,6 +964,16 @@
                 "type": {
                   "codecId": "pg/timestamptz-string@1",
                   "kind": "scalar"
+                }
+              },
+              "userAgent": {
+                "nullable": true,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 300
+                  }
                 }
               },
               "userId": {
@@ -866,11 +1018,20 @@
                 "id": {
                   "column": "id"
                 },
+                "ipAddress": {
+                  "column": "ip_address"
+                },
+                "lastUsedAt": {
+                  "column": "last_used_at"
+                },
                 "tokenHash": {
                   "column": "token_hash"
                 },
                 "updatedAt": {
                   "column": "updated_at"
+                },
+                "userAgent": {
+                  "column": "user_agent"
                 },
                 "userId": {
                   "column": "user_id"
@@ -2104,6 +2265,15 @@
                     "length": 300
                   }
                 },
+                "allow_negative_stock": {
+                  "codecId": "pg/bool@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": false
+                  },
+                  "nativeType": "bool",
+                  "nullable": false
+                },
                 "business_type": {
                   "codecId": "sql/varchar@1",
                   "nativeType": "character varying",
@@ -2153,6 +2323,32 @@
                     "length": 24
                   }
                 },
+                "default_location_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": true
+                },
+                "default_reorder_level": {
+                  "codecId": "pg/int4@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": 10
+                  },
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "default_unit": {
+                  "codecId": "sql/varchar@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": "pcs"
+                  },
+                  "nativeType": "character varying",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 20
+                  }
+                },
                 "id": {
                   "codecId": "pg/uuid@1",
                   "nativeType": "uuid",
@@ -2166,6 +2362,18 @@
                     "length": 40
                   }
                 },
+                "item_term": {
+                  "codecId": "sql/varchar@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": "item"
+                  },
+                  "nativeType": "character varying",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 20
+                  }
+                },
                 "name": {
                   "codecId": "sql/varchar@1",
                   "nativeType": "character varying",
@@ -2173,6 +2381,15 @@
                   "typeParams": {
                     "length": 120
                   }
+                },
+                "next_sku_number": {
+                  "codecId": "pg/int4@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": 1
+                  },
+                  "nativeType": "int4",
+                  "nullable": false
                 },
                 "onboarding_completed_at": {
                   "codecId": "pg/timestamptz-string@1",
@@ -2185,6 +2402,48 @@
                   "nullable": true,
                   "typeParams": {
                     "length": 40
+                  }
+                },
+                "require_adjustment_reason": {
+                  "codecId": "pg/bool@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": true
+                  },
+                  "nativeType": "bool",
+                  "nullable": false
+                },
+                "require_purchase_source": {
+                  "codecId": "pg/bool@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": false
+                  },
+                  "nativeType": "bool",
+                  "nullable": false
+                },
+                "shop_term": {
+                  "codecId": "sql/varchar@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": "shop"
+                  },
+                  "nativeType": "character varying",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 20
+                  }
+                },
+                "sku_prefix": {
+                  "codecId": "sql/varchar@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": "SKU"
+                  },
+                  "nativeType": "character varying",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 12
                   }
                 },
                 "time_zone": {
@@ -2203,6 +2462,18 @@
                   "codecId": "pg/timestamptz-string@1",
                   "nativeType": "timestamptz",
                   "nullable": false
+                },
+                "warehouse_term": {
+                  "codecId": "sql/varchar@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": "warehouse"
+                  },
+                  "nativeType": "character varying",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 20
+                  }
                 }
               },
               "foreignKeys": [],
@@ -2647,6 +2918,23 @@
                   "nativeType": "uuid",
                   "nullable": false
                 },
+                "ip_address": {
+                  "codecId": "sql/varchar@1",
+                  "nativeType": "character varying",
+                  "nullable": true,
+                  "typeParams": {
+                    "length": 64
+                  }
+                },
+                "last_used_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
                 "token_hash": {
                   "codecId": "sql/varchar@1",
                   "nativeType": "character varying",
@@ -2659,6 +2947,14 @@
                   "codecId": "pg/timestamptz-string@1",
                   "nativeType": "timestamptz",
                   "nullable": false
+                },
+                "user_agent": {
+                  "codecId": "sql/varchar@1",
+                  "nativeType": "character varying",
+                  "nullable": true,
+                  "typeParams": {
+                    "length": 300
+                  }
                 },
                 "user_id": {
                   "codecId": "pg/uuid@1",
@@ -3742,7 +4038,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "09f8f57c7156d74b37b201f847fb5ff4fcf768b22dad904b7cc8c3b7800b0b2e"
+    "storageHash": "af0f799e84bed462c8c7be7ef11cd3ccc5971603b3c727b8ef34b4b55918fb19"
   },
   "execution": {
     "executionHash": "b43e3bc4b16addb2d1b967638641ba478fb9e6d206de9632cbb70e7e68055c8e",

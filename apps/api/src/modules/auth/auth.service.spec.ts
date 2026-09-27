@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException, UnauthorizedException } from '
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
+import { createHash } from 'node:crypto';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { AuthService } from './auth.service.js';
@@ -19,22 +20,34 @@ describe('AuthService launch account flows', () => {
   const userAll = vi.fn();
   const userWhere = vi.fn(() => ({ update: userUpdate, delete: userDelete, all: userAll }));
   const sessionCreate = vi.fn();
+  const sessionFirst = vi.fn();
+  const sessionAll = vi.fn();
   const sessionDelete = vi.fn();
-  const sessionWhere = vi.fn(() => ({ delete: sessionDelete }));
+  const sessionCollection = { delete: sessionDelete, orderBy: vi.fn(), all: sessionAll };
+  sessionCollection.orderBy.mockReturnValue(sessionCollection);
+  const sessionWhere = vi.fn(() => sessionCollection);
   const auditCreate = vi.fn();
+  const auditAll = vi.fn();
+  const auditCollection = { include: vi.fn(), orderBy: vi.fn(), limit: vi.fn(), all: auditAll };
+  auditCollection.include.mockReturnValue(auditCollection);
+  auditCollection.orderBy.mockReturnValue(auditCollection);
+  auditCollection.limit.mockReturnValue(auditCollection);
+  const auditWhere = vi.fn(() => auditCollection);
   const companyCreate = vi.fn();
   const companyDelete = vi.fn();
   const companyWhere = vi.fn(() => ({ delete: companyDelete }));
   const locationFirst = vi.fn();
   const transactionQuery = vi.fn();
+  const transactionExecute = vi.fn();
   const tx = {
     query: transactionQuery,
+    execute: transactionExecute,
     orm: { public: {
       User: { first: userFirst, create: userCreate, where: userWhere },
       Company: { create: companyCreate, where: companyWhere },
       Location: { first: locationFirst },
-      RefreshSession: { create: sessionCreate, where: sessionWhere },
-      AuditEvent: { create: auditCreate },
+      RefreshSession: { create: sessionCreate, first: sessionFirst, where: sessionWhere },
+      AuditEvent: { create: auditCreate, where: auditWhere },
     } },
   };
   const withCompany = vi.fn(async (_companyId: string, work: (client: typeof tx) => Promise<unknown>) => work(tx));
@@ -92,11 +105,15 @@ describe('AuthService launch account flows', () => {
     runtimeQuery.mockResolvedValue([]);
     userFirst.mockResolvedValue(null);
     transactionQuery.mockResolvedValue([]);
+    transactionExecute.mockResolvedValue(0);
     sessionCreate.mockImplementation(async (data) => data);
     auditCreate.mockImplementation(async (data) => data);
     userUpdate.mockResolvedValue(undefined);
     userDelete.mockResolvedValue(undefined);
     sessionDelete.mockResolvedValue(undefined);
+    sessionFirst.mockResolvedValue(null);
+    sessionAll.mockResolvedValue([]);
+    auditAll.mockResolvedValue([]);
     signAsync.mockResolvedValue('signed-access-token');
     send.mockResolvedValue(undefined);
     sendVerification.mockResolvedValue(undefined);
@@ -130,6 +147,63 @@ describe('AuthService launch account flows', () => {
     }));
     expect(sessionCreate.mock.calls[0][0].tokenHash).not.toBe(result.refreshToken);
     expect(result.user).not.toHaveProperty('passwordHash');
+  });
+
+  it('records device details for successful sign-ins', async () => {
+    runtimeQuery.mockResolvedValue([{ id: ownerId, company_id: companyId }]);
+    userFirst.mockResolvedValue(owner());
+
+    await service.login(
+      { email: 'ama@example.com', password: 'StockLedger123!' },
+      { userAgent: 'Test Browser', ipAddress: '192.0.2.10' },
+    );
+
+    expect(sessionCreate).toHaveBeenCalledWith(expect.objectContaining({ userAgent: 'Test Browser', ipAddress: '192.0.2.10' }));
+    expect(auditCreate).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'account.signed_in',
+      metadata: { userAgent: 'Test Browser', ipAddress: '192.0.2.10' },
+    }));
+  });
+
+  it('returns active owner sessions and recent team sign-ins', async () => {
+    const refreshToken = `${companyId}.${'c'.repeat(64)}`;
+    const tokenHash = createHash('sha256').update(refreshToken).digest('hex');
+    userFirst.mockResolvedValue(owner());
+    sessionAll.mockResolvedValue([
+      { id: 'current', tokenHash, userAgent: 'Current browser', ipAddress: '192.0.2.10', createdAt: '2026-09-25T00:00:00.000Z', lastUsedAt: '2026-09-25T02:00:00.000Z', expiresAt: '2099-01-01T00:00:00.000Z' },
+      { id: 'expired', tokenHash: 'expired', userAgent: null, ipAddress: null, createdAt: '2026-01-01T00:00:00.000Z', lastUsedAt: '2026-01-01T00:00:00.000Z', expiresAt: '2026-01-02T00:00:00.000Z' },
+    ]);
+    auditAll.mockResolvedValue([{
+      id: 'sign-in', createdAt: '2026-09-25T02:00:00.000Z', metadata: { userAgent: 'Firefox', ipAddress: '192.0.2.11' },
+      actor: { id: ownerId, fullName: 'Ama Mensah', email: 'ama@example.com' },
+    }]);
+
+    await expect(service.securityOverview(ownerId, companyId, refreshToken)).resolves.toEqual({
+      sessions: [expect.objectContaining({ id: 'current', current: true })],
+      recentSignIns: [expect.objectContaining({ id: 'sign-in', userAgent: 'Firefox', ipAddress: '192.0.2.11' })],
+    });
+  });
+
+  it('keeps workspace security history under administrator control', async () => {
+    userFirst.mockResolvedValue({ ...owner(), role: 'inventory_manager' });
+
+    await expect(service.securityOverview(ownerId, companyId, undefined)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(sessionAll).not.toHaveBeenCalled();
+    expect(auditAll).not.toHaveBeenCalled();
+  });
+
+  it('transfers ownership and revokes both owners sessions', async () => {
+    const targetId = '41000000-0000-4000-8000-000000000002';
+    userFirst.mockImplementation(async (query: { id: string }) => query.id === ownerId
+      ? owner()
+      : { ...owner(), id: targetId, role: 'inventory_manager', invitationAcceptedAt: '2026-09-25T00:00:00.000Z' });
+
+    await expect(service.transferOwnership(ownerId, companyId, targetId, 'StockLedger123!')).resolves.toEqual({ transferred: true });
+
+    expect(userUpdate).toHaveBeenNthCalledWith(1, { role: 'inventory_manager', locationId: null });
+    expect(userUpdate).toHaveBeenNthCalledWith(2, { role: 'administrator', locationId: null });
+    expect(sessionDelete).toHaveBeenCalledTimes(2);
+    expect(auditCreate).toHaveBeenCalledWith(expect.objectContaining({ action: 'company.ownership_transferred', entityId: targetId }));
   });
 
   it('registers an owner as unverified and sends a verification link', async () => {

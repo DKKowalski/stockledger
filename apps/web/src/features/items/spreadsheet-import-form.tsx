@@ -3,17 +3,18 @@ import { useRef, useState, type ChangeEvent } from 'react';
 import { SpreadsheetImportIcon } from '../../components/animated-icons';
 import { SelectControl } from '../../components/inventory-ui';
 import type { Place } from '../../types';
-import { inventoryTemplate, readInventorySpreadsheet, type SpreadsheetItem } from './spreadsheet-import';
+import { inventoryTemplate, readInventorySpreadsheet, SpreadsheetValidationError, type SpreadsheetItem } from './spreadsheet-import';
 
 type SpreadsheetImportFormProps = {
   locations: readonly Place[];
   busy: boolean;
-  onImport: (locationId: string, rows: SpreadsheetItem[]) => Promise<void>;
+  onImport: (locationId: string, rows: SpreadsheetItem[], fileName: string) => Promise<void>;
   onImported?: (count: number) => void;
   formatMoney?: (cents: number) => string;
   submitLabel?: (count: number) => string;
   className?: string;
   guideInitiallyOpen?: boolean;
+  defaultLocationId?: string | null;
 };
 
 export function SpreadsheetImportForm({
@@ -25,14 +26,16 @@ export function SpreadsheetImportForm({
   submitLabel = defaultSubmitLabel,
   className = '',
   guideInitiallyOpen = false,
+  defaultLocationId,
 }: SpreadsheetImportFormProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [fileName, setFileName] = useState('');
   const [rows, setRows] = useState<SpreadsheetItem[]>([]);
-  const [locationId, setLocationId] = useState(locations[0]?.id ?? '');
+  const [locationId, setLocationId] = useState(defaultLocationId ?? locations[0]?.id ?? '');
   const [reading, setReading] = useState(false);
   const [completeCount, setCompleteCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [rowIssues, setRowIssues] = useState<string[]>([]);
   const [guideOpen, setGuideOpen] = useState(guideInitiallyOpen);
 
   const selectedLocationId = locations.some((location) => location.id === locationId)
@@ -45,13 +48,14 @@ export function SpreadsheetImportForm({
     setReading(true);
     setCompleteCount(0);
     setError(null);
+    setRowIssues([]);
+    setFileName(file.name);
     try {
       setRows(await readInventorySpreadsheet(file));
-      setFileName(file.name);
     } catch (caught) {
       setRows([]);
-      setFileName('');
       setError(caught instanceof Error ? caught.message : 'Could not read this spreadsheet');
+      if (caught instanceof SpreadsheetValidationError) setRowIssues(caught.issues);
     } finally {
       setReading(false);
       event.target.value = '';
@@ -63,7 +67,7 @@ export function SpreadsheetImportForm({
     setError(null);
     try {
       const count = rows.length;
-      await onImport(selectedLocationId, rows);
+      await onImport(selectedLocationId, rows, fileName);
       setCompleteCount(count);
       setRows([]);
       setFileName('');
@@ -88,7 +92,7 @@ export function SpreadsheetImportForm({
           <section>
             <h3>Optional</h3>
             <div className="spreadsheet-column-chips"><code>Item code</code><code>Category</code><code>Unit</code><code>Reorder level</code><code>Unit cost</code><code>Selling price</code><code>Opening stock</code></div>
-            <small>Leave Item code blank if you do not use one. StockLedger will create it. Category and unit become General and pcs. Reorder, cost, and opening stock default to 0.</small>
+            <small>Leave Item code blank and StockLedger will create it. Category becomes General. Blank unit and reorder fields use your inventory defaults; cost and opening stock use 0.</small>
           </section>
         </div>
         <p className="spreadsheet-aliases">We also recognize Product name, Product code, Reorder, Cost, Price, Quantity, and Stock on hand. Enter money as a plain amount such as 12.50.</p>
@@ -104,6 +108,7 @@ export function SpreadsheetImportForm({
     <input ref={inputRef} className="sr-only" type="file" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" onChange={(event) => void chooseFile(event)} />
     <button className="spreadsheet-template-button" onClick={downloadTemplate} type="button"><Download size={15} />Download column template</button>
     {error && <div className="form-error spreadsheet-import-error" role="alert">{error}</div>}
+    {rowIssues.length > 0 && <button className="button secondary spreadsheet-error-download" onClick={() => downloadIssues(fileName || 'inventory', rowIssues)} type="button"><Download size={15} />Download row errors</button>}
     {rows.length > 0 && <div className="spreadsheet-preview">
       <div className="spreadsheet-preview-heading"><b>Preview</b><span>First {Math.min(rows.length, 5)} of {rows.length}</span></div>
       <div className="table-wrap"><table><thead><tr><th>Item code</th><th>Name</th><th>Category</th><th className="num">Opening</th><th className="num">Cost</th></tr></thead><tbody>{rows.slice(0, 5).map((row, index) => <tr key={`${row.sku ?? 'automatic'}-${index}`}><td><b>{row.sku ?? 'Automatic'}</b></td><td>{row.name}</td><td>{row.category}</td><td className="num">{row.openingStock}</td><td className="num">{formatMoney(row.unitCostCents)}</td></tr>)}</tbody></table></div>
@@ -137,4 +142,16 @@ function plainMoney(cents: number) {
 
 function defaultSubmitLabel(count: number) {
   return `Import ${count} ${count === 1 ? 'item' : 'items'}`;
+}
+
+function downloadIssues(fileName: string, issues: string[]) {
+  const content = [['Source file', 'Issue'], ...issues.map((issue) => [fileName, issue])].map((row) => row.map(csvCell).join(',')).join('\n');
+  const url = URL.createObjectURL(new Blob([content], { type: 'text/csv;charset=utf-8' }));
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = `stockledger-${fileName.replace(/\.[^.]+$/, '')}-errors.csv`;
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }

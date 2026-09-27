@@ -2,14 +2,21 @@ export type SpreadsheetItem = {
   sku?: string;
   name: string;
   category: string;
-  unit: string;
-  reorderLevel: number;
+  unit?: string;
+  reorderLevel?: number;
   unitCostCents: number;
   sellingPriceCents?: number;
   openingStock: number;
 };
 
 type Cell = string | number | boolean | Date | null | undefined;
+
+export class SpreadsheetValidationError extends Error {
+  constructor(readonly issues: string[]) {
+    super(issues.length === 1 ? issues[0] : `${issues.length} rows need attention`);
+    this.name = 'SpreadsheetValidationError';
+  }
+}
 
 const columnAliases: Record<string, keyof SpreadsheetItem> = {
   sku: 'sku',
@@ -60,28 +67,37 @@ export function parseInventoryRows(data: Cell[][]): SpreadsheetItem[] {
   if (dataRows.length > 200) throw new Error('Import up to 200 items at a time');
 
   const seen = new Map<string, number>();
-  return dataRows.map((row, index) => {
+  const parsed: SpreadsheetItem[] = [];
+  const issues: string[] = [];
+  dataRows.forEach((row, index) => {
     const spreadsheetRow = index + 2;
-    const record = Object.fromEntries(columns.flatMap((key, columnIndex) => key ? [[key, row[columnIndex]]] : [])) as Partial<Record<keyof SpreadsheetItem, Cell>>;
-    const sku = text(record.sku).toUpperCase();
-    const name = text(record.name);
-    if (sku && !/^[A-Z0-9][A-Z0-9._-]*$/.test(sku)) throw new Error(`Row ${spreadsheetRow}: Item code can use letters, numbers, dots, dashes and underscores`);
-    if (!name) throw new Error(`Row ${spreadsheetRow}: Name is required`);
-    if (sku && seen.has(sku)) throw new Error(`Rows ${seen.get(sku)} and ${spreadsheetRow} use the same item code ${sku}`);
-    if (sku) seen.set(sku, spreadsheetRow);
-
-    const sellingPrice = optionalMoney(record.sellingPriceCents, spreadsheetRow, 'Selling price');
-    return {
-      ...(sku ? { sku } : {}),
-      name,
-      category: text(record.category) || 'General',
-      unit: text(record.unit) || 'pcs',
-      reorderLevel: wholeNumber(record.reorderLevel, spreadsheetRow, 'Reorder level'),
-      unitCostCents: money(record.unitCostCents, spreadsheetRow, 'Unit cost'),
-      ...(sellingPrice === undefined ? {} : { sellingPriceCents: sellingPrice }),
-      openingStock: wholeNumber(record.openingStock, spreadsheetRow, 'Opening stock'),
-    };
+    try {
+      const record = Object.fromEntries(columns.flatMap((key, columnIndex) => key ? [[key, row[columnIndex]]] : [])) as Partial<Record<keyof SpreadsheetItem, Cell>>;
+      const sku = text(record.sku).toUpperCase();
+      const name = text(record.name);
+      if (sku && !/^[A-Z0-9][A-Z0-9._-]*$/.test(sku)) throw new Error(`Row ${spreadsheetRow}: Item code can use letters, numbers, dots, dashes and underscores`);
+      if (!name) throw new Error(`Row ${spreadsheetRow}: Name is required`);
+      if (sku && seen.has(sku)) throw new Error(`Rows ${seen.get(sku)} and ${spreadsheetRow} use the same item code ${sku}`);
+      if (sku) seen.set(sku, spreadsheetRow);
+      const unit = text(record.unit);
+      const reorderLevel = optionalWholeNumber(record.reorderLevel, spreadsheetRow, 'Reorder level');
+      const sellingPrice = optionalMoney(record.sellingPriceCents, spreadsheetRow, 'Selling price');
+      parsed.push({
+        ...(sku ? { sku } : {}),
+        name,
+        category: text(record.category) || 'General',
+        ...(unit ? { unit } : {}),
+        ...(reorderLevel === undefined ? {} : { reorderLevel }),
+        unitCostCents: money(record.unitCostCents, spreadsheetRow, 'Unit cost'),
+        ...(sellingPrice === undefined ? {} : { sellingPriceCents: sellingPrice }),
+        openingStock: wholeNumber(record.openingStock, spreadsheetRow, 'Opening stock'),
+      });
+    } catch (caught) {
+      issues.push(caught instanceof Error ? caught.message : `Row ${spreadsheetRow}: Could not read this row`);
+    }
   });
+  if (issues.length) throw new SpreadsheetValidationError(issues);
+  return parsed;
 }
 
 export const inventoryTemplate = [
@@ -103,6 +119,11 @@ function wholeNumber(value: Cell, row: number, label: string) {
   const number = Number(value);
   if (!Number.isSafeInteger(number) || number < 0) throw new Error(`Row ${row}: ${label} must be a whole number of 0 or more`);
   return number;
+}
+
+function optionalWholeNumber(value: Cell, row: number, label: string) {
+  if (value === null || value === undefined || text(value) === '') return undefined;
+  return wholeNumber(value, row, label);
 }
 
 function money(value: Cell, row: number, label: string) {

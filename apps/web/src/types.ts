@@ -32,7 +32,21 @@ export type CompanySettings = {
   currency: Currency;
   timeZone: TimeZone;
   dateFormat: DateFormat;
+  defaultLocationId: string | null;
+  defaultUnit: string;
+  defaultReorderLevel: number;
+  skuPrefix: string;
+  nextSkuNumber: number;
+  allowNegativeStock: boolean;
+  requirePurchaseSource: boolean;
+  requireAdjustmentReason: boolean;
+  shopTerm: 'shop' | 'branch' | 'outlet' | 'store';
+  warehouseTerm: 'warehouse' | 'stockroom';
+  itemTerm: 'item' | 'product' | 'material';
 };
+export type InventorySettings = Pick<CompanySettings, 'defaultLocationId' | 'defaultUnit' | 'defaultReorderLevel' | 'skuPrefix' | 'nextSkuNumber' | 'allowNegativeStock' | 'requirePurchaseSource' | 'requireAdjustmentReason'>;
+export type TerminologySettings = Pick<CompanySettings, 'shopTerm' | 'warehouseTerm' | 'itemTerm'>;
+export type CompanyProfileSettings = Pick<CompanySettings, 'name' | 'businessType' | 'contactEmail' | 'phone' | 'address' | 'currency' | 'timeZone' | 'dateFormat'>;
 export type ActivityEvent = {
   id: string;
   action: string;
@@ -41,6 +55,14 @@ export type ActivityEvent = {
   metadata: Record<string, unknown>;
   createdAt: string;
   actor: { id: string; fullName: string; email: string } | null;
+};
+export type SecurityOverview = {
+  sessions: Array<{ id: string; userAgent: string | null; ipAddress: string | null; createdAt: string; lastUsedAt: string; expiresAt: string; current: boolean }>;
+  recentSignIns: Array<{ id: string; createdAt: string; user: { id: string; fullName: string; email: string } | null; userAgent: string | null; ipAddress: string | null }>;
+};
+export type DataSummary = {
+  lastExport: { type: string; rowCount: number; createdAt: string; actorName: string } | null;
+  imports: Array<{ id: string; fileName: string | null; imported: number; createdAt: string; actorName: string }>;
 };
 export type OnboardingStatus = {
   company: {

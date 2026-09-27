@@ -14,7 +14,7 @@ type ProfitPeriod = 7 | 30 | 90;
 export function ProfitabilityPage() {
   const { accessToken, signOut } = useAuth();
   const { snapshot } = useInventoryStore();
-  const { money, calendarDate } = useCompanySettings();
+  const { money, calendarDate, terms } = useCompanySettings();
   const [days, setDays] = useState<ProfitPeriod>(30);
   const [locationType, setLocationType] = useState<LocationScope>('');
   const [locationId, setLocationId] = useState('');
@@ -34,8 +34,8 @@ export function ProfitabilityPage() {
   const selectedItem = snapshot?.items.find((item) => item.id === itemId);
   const isWarehouseView = locationType === 'warehouse' || selectedLocation?.type === 'warehouse';
   const scopeLabel = selectedLocation?.name
-    ?? (locationType === 'shop' ? 'all shops' : locationType === 'warehouse' ? 'all warehouses' : 'all locations');
-  const productLabel = selectedItem?.name ?? (category || 'all items');
+    ?? (locationType === 'shop' ? `all ${terms.shops}` : locationType === 'warehouse' ? `all ${terms.warehouses}` : 'all locations');
+  const productLabel = selectedItem?.name ?? (category || `all ${terms.items}`);
 
   useEffect(() => {
     if (!accessToken) return;
@@ -64,14 +64,14 @@ export function ProfitabilityPage() {
       <div className="profit-filter-heading"><span><SlidersHorizontal size={16} />Report filters</span><small>Showing {scopeLabel} · {productLabel}</small></div>
       <div className="profit-filter-grid">
         <label><span>Period</span><SelectControl aria-label="Profit period" value={String(days)} onValueChange={(value) => setDays(Number(value) as ProfitPeriod)} options={[{ value: '7', label: 'Last 7 days' }, { value: '30', label: 'Last 30 days' }, { value: '90', label: 'Last 90 days' }]} /></label>
-        <label><span>Location type</span><SelectControl aria-label="Location type" value={locationType} onValueChange={(value) => { setLocationType(value as LocationScope); setLocationId(''); }} options={[{ value: '', label: <><Building2 size={14} />All locations</> }, { value: 'shop', label: <><Store size={14} />Shops</> }, { value: 'warehouse', label: <><WarehouseIcon size={14} />Warehouses</> }]} /></label>
-        <label><span>Place</span><SelectControl aria-label="Place" value={locationId} onValueChange={setLocationId} options={[{ value: '', label: locationType === 'shop' ? 'All shops' : locationType === 'warehouse' ? 'All warehouses' : 'All places' }, ...locations.map((location) => ({ value: location.id, label: location.name }))]} /></label>
+        <label><span>Location type</span><SelectControl aria-label="Location type" value={locationType} onValueChange={(value) => { setLocationType(value as LocationScope); setLocationId(''); }} options={[{ value: '', label: <><Building2 size={14} />All locations</> }, { value: 'shop', label: <><Store size={14} />{terms.Shops}</> }, { value: 'warehouse', label: <><WarehouseIcon size={14} />{terms.Warehouses}</> }]} /></label>
+        <label><span>Place</span><SelectControl aria-label="Place" value={locationId} onValueChange={setLocationId} options={[{ value: '', label: locationType === 'shop' ? `All ${terms.shops}` : locationType === 'warehouse' ? `All ${terms.warehouses}` : 'All places' }, ...locations.map((location) => ({ value: location.id, label: location.name }))]} /></label>
         <label><span>Category</span><SelectControl aria-label="Category" value={category} onValueChange={(value) => { setCategory(value); setItemId(''); }} options={[{ value: '', label: 'All categories' }, ...categories.map((value) => ({ value, label: value }))]} /></label>
-        <label><span>Item</span><SelectControl aria-label="Item" value={itemId} onValueChange={setItemId} options={[{ value: '', label: 'All items' }, ...items.map((item) => ({ value: item.id, label: item.name }))]} /></label>
+        <label><span>{terms.Item}</span><SelectControl aria-label={terms.Item} value={itemId} onValueChange={setItemId} options={[{ value: '', label: `All ${terms.items}` }, ...items.map((item) => ({ value: item.id, label: item.name }))]} /></label>
       </div>
     </section>
     {error && <div className="form-error" role="alert">{error}</div>}
-    {isWarehouseView && <div className="profit-warehouse-note"><WarehouseIcon size={19} /><div><b>Warehouses do not record sales in StockLedger</b><span>This view shows warehouse inventory losses. Gross profit stays at zero because sales are recorded from shops.</span></div></div>}
+    {isWarehouseView && <div className="profit-warehouse-note"><WarehouseIcon size={19} /><div><b>{terms.Warehouses} do not record sales in StockLedger</b><span>This view shows {terms.warehouse} inventory losses. Gross profit stays at zero because sales are recorded from {terms.shops}.</span></div></div>}
     {summary && <>
       {summary.costCoveragePercent < 100 && <div className="profit-coverage-note"><ReceiptText size={18} /><div><b>{summary.costCoveragePercent}% cost coverage</b><span>Gross profit excludes legacy sales that have no cost snapshot. Net sales still includes them.</span></div></div>}
       <section className="kpi-grid profit-kpis">

@@ -17,6 +17,7 @@ const labels: Record<ReportTab, string> = {
 
 export function OperationsReportsPage() {
   const { snapshot, days, setDays } = useInventoryStore();
+  const { terms } = useCompanySettings();
   const [tab, setTab] = useState<ReportTab>('current');
   const positions = snapshot?.positions ?? [];
   const rows = filterRows(positions, tab);
@@ -25,23 +26,24 @@ export function OperationsReportsPage() {
     <PageHeader title="Reports" subtitle={`Sales and transfers out of each place over the last ${days} days.`} actions={<><LocationFilter /><PeriodFilter days={days} setDays={setDays} /></>} />
     <ReportTabs tab={tab} setTab={setTab} positions={positions} />
     <Panel title={labels[tab]} subtitle={tab === 'current' ? 'Closing stock includes every receipt and deduction recorded in the ledger.' : undefined}>
-      {rows.length ? tab === 'current' ? <StockTable positions={rows} /> : <OperationsVelocityTable positions={rows} /> : <EmptyState text="No items in this report." />}
+      {rows.length ? tab === 'current' ? <StockTable positions={rows} /> : <OperationsVelocityTable positions={rows} /> : <EmptyState text={`No ${terms.items} in this report.`} />}
     </Panel>
   </PageState>;
 }
 
 export function ShopReportsPage() {
   const { snapshot, days, setDays } = useInventoryStore();
+  const { terms } = useCompanySettings();
   const [tab, setTab] = useState<ReportTab>('current');
   const positions = snapshot?.positions ?? [];
   const rows = filterRows(positions, tab);
   const shop = snapshot?.locations.find((place) => place.id === snapshot.locationId);
 
   return <PageState>
-    <PageHeader title="Shop reports" subtitle={`Stock activity at ${shop?.name ?? 'your assigned shop'} over the last ${days} days.`} actions={<PeriodFilter days={days} setDays={setDays} />} />
+    <PageHeader title={`${terms.Shop} reports`} subtitle={`Stock activity at ${shop?.name ?? `your assigned ${terms.shop}`} over the last ${days} days.`} actions={<PeriodFilter days={days} setDays={setDays} />} />
     <ReportTabs tab={tab} setTab={setTab} positions={positions} />
     <Panel title={labels[tab]} subtitle={tab === 'current' ? 'Opening stock, units in, units out, and what remains on the shelf.' : undefined}>
-      {rows.length ? <ShopReportTable positions={rows} current={tab === 'current'} /> : <EmptyState text="No items in this report." />}
+      {rows.length ? <ShopReportTable positions={rows} current={tab === 'current'} /> : <EmptyState text={`No ${terms.items} in this report.`} />}
     </Panel>
   </PageState>;
 }
@@ -68,11 +70,11 @@ function ReportTabs({ tab, setTab, positions }: { tab: ReportTab; setTab: (tab: 
 }
 
 function OperationsVelocityTable({ positions }: { positions: Position[] }) {
-  const { money, calendarDate } = useCompanySettings();
-  return <div className="table-wrap"><table><thead><tr><th>Item</th><th>Place</th><th className="num">Units out</th><th className="num">Closing</th><th className="num">Value held</th><th className="num">Last time out</th></tr></thead><tbody>{positions.map((position) => <tr key={`${position.location.id}-${position.item.id}`}><td><b>{position.item.name}</b><small>{position.item.sku}</small></td><td>{position.location.name}</td><td className="num">{position.outLastPeriod}</td><td className="num">{position.closing}</td><td className="num">{money(position.valueCents)}</td><td className="num">{position.lastOutDate ? calendarDate(position.lastOutDate) : 'Never'}</td></tr>)}</tbody></table></div>;
+  const { money, calendarDate, terms } = useCompanySettings();
+  return <div className="table-wrap"><table><thead><tr><th>{terms.Item}</th><th>Place</th><th className="num">Units out</th><th className="num">Closing</th><th className="num">Value held</th><th className="num">Last time out</th></tr></thead><tbody>{positions.map((position) => <tr key={`${position.location.id}-${position.item.id}`}><td><b>{position.item.name}</b><small>{position.item.sku}</small></td><td>{position.location.name}</td><td className="num">{position.outLastPeriod}</td><td className="num">{position.closing}</td><td className="num">{money(position.valueCents)}</td><td className="num">{position.lastOutDate ? calendarDate(position.lastOutDate) : 'Never'}</td></tr>)}</tbody></table></div>;
 }
 
 function ShopReportTable({ positions, current }: { positions: Position[]; current: boolean }) {
-  const { calendarDate } = useCompanySettings();
-  return <div className="table-wrap"><table><thead><tr><th>Item</th>{current && <><th className="num">Opening</th><th className="num">In</th></>}<th className="num">Units out</th><th className="num">Closing</th>{!current && <th className="num">Last time out</th>}</tr></thead><tbody>{positions.map((position) => <tr key={position.item.id}><td><b>{position.item.name}</b><small>{position.item.sku}</small></td>{current && <><td className="num">{position.opening}</td><td className="num positive">+{position.purchases + position.returnsIn + position.transferredIn + position.adjustmentsIn}</td></>}<td className="num negative">−{position.transferredOut + position.returnsOut + position.damaged + position.sales + position.adjustmentsOut}</td><td className="num"><b>{position.closing}</b>{position.isLowStock && <span className="badge">low</span>}</td>{!current && <td className="num">{position.lastOutDate ? calendarDate(position.lastOutDate) : 'Never'}</td>}</tr>)}</tbody></table></div>;
+  const { calendarDate, terms } = useCompanySettings();
+  return <div className="table-wrap"><table><thead><tr><th>{terms.Item}</th>{current && <><th className="num">Opening</th><th className="num">In</th></>}<th className="num">Units out</th><th className="num">Closing</th>{!current && <th className="num">Last time out</th>}</tr></thead><tbody>{positions.map((position) => <tr key={position.item.id}><td><b>{position.item.name}</b><small>{position.item.sku}</small></td>{current && <><td className="num">{position.opening}</td><td className="num positive">+{position.purchases + position.returnsIn + position.transferredIn + position.adjustmentsIn}</td></>}<td className="num negative">−{position.transferredOut + position.returnsOut + position.damaged + position.sales + position.adjustmentsOut}</td><td className="num"><b>{position.closing}</b>{position.isLowStock && <span className="badge">low</span>}</td>{!current && <td className="num">{position.lastOutDate ? calendarDate(position.lastOutDate) : 'Never'}</td>}</tr>)}</tbody></table></div>;
 }

@@ -7,13 +7,15 @@ import { AccountMenu } from './account-menu';
 import { MenuMorphIcon } from './animated-icons';
 import { StockLedgerMark } from './stockledger-mark';
 import { LowStockNotifications } from './low-stock-notifications';
+import { useCompanySettings } from '../app/company-settings-store';
 
 export type NavigationMotion = 'overview' | 'items' | 'movement' | 'reports' | 'places' | 'team' | 'sell';
 export type NavigationItem = readonly [path: string, label: string, icon: LucideIcon, motion: NavigationMotion];
 
 export function AppShell({ navigation }: { navigation: readonly NavigationItem[] }) {
   const { error, refresh } = useInventoryStore();
-  const { user } = useAuth();
+  const { signOut, user } = useAuth();
+  const { terms } = useCompanySettings();
   const [menuOpen, setMenuOpen] = useState(false);
 
   return <div className="app-shell">
@@ -22,7 +24,7 @@ export function AppShell({ navigation }: { navigation: readonly NavigationItem[]
         <NavLink to="/" className="brand" onClick={() => setMenuOpen(false)}><span className="brand-mark"><StockLedgerMark /></span>StockLedger</NavLink>
         <nav id="primary-navigation" className={`top-nav ${menuOpen ? 'open' : ''}`} aria-label="Main navigation">
           {navigation.map(([to, label, Icon, motion]) => <NavLink key={to} to={to} end={to === '/'} onClick={() => setMenuOpen(false)} className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
-            <Icon className="nav-icon" data-motion={motion} size={18} /><span>{label}</span>
+            <Icon className="nav-icon" data-motion={motion} size={18} /><span>{label === 'Items' ? terms.Items : label}</span>
           </NavLink>)}
         </nav>
         <div className="navbar-account">
@@ -34,7 +36,7 @@ export function AppShell({ navigation }: { navigation: readonly NavigationItem[]
     </header>
     <button className={`nav-scrim ${menuOpen ? 'open' : ''}`} aria-label="Close navigation" onClick={() => setMenuOpen(false)} />
     <div className="shell-content">
-      {user?.isDemo && <div className="demo-mode-banner" role="status"><span>You are viewing a read-only demo.</span><NavLink to="/signup">Create a workspace</NavLink></div>}
+      {user?.isDemo && <div className="demo-mode-banner" role="status"><span>You are viewing a read-only demo.</span><NavLink to="/signup" onClick={signOut}>Create a workspace</NavLink></div>}
       {error && <div className="error-banner" role="alert"><span>{error}</span><button onClick={() => void refresh()}>Try again</button></div>}
       <main className="page"><Outlet /></main>
     </div>

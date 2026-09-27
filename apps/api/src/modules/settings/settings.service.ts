@@ -4,6 +4,8 @@ import * as argon2 from 'argon2';
 import { PrismaService, type PrismaTransaction } from '../../prisma/prisma.service.js';
 import type { DeleteWorkspaceDto } from './dto/delete-workspace.dto.js';
 import type { UpdateCompanySettingsDto } from './dto/update-company-settings.dto.js';
+import type { UpdateInventorySettingsDto } from './dto/update-inventory-settings.dto.js';
+import type { UpdateTerminologySettingsDto } from './dto/update-terminology-settings.dto.js';
 
 @Injectable()
 export class SettingsService {
@@ -79,6 +81,83 @@ export class SettingsService {
     });
   }
 
+  async dataSummary(userId: string, companyId: string) {
+    return this.prisma.withCompany(companyId, async (tx) => {
+      const actor = await this.account(tx, companyId, userId);
+      if (actor.role !== 'administrator') throw new ForbiddenException('Only an administrator can view data history');
+      const events = await tx.orm.public.AuditEvent.where({ companyId })
+        .include('actor', (users) => users.select('fullName'))
+        .orderBy((event) => event.createdAt.desc()).limit(100).all();
+      const exported = events.find((event) => event.action === 'data.exported');
+      const present = (event: typeof events[number]) => {
+        const metadata = event.metadata && typeof event.metadata === 'object' && !Array.isArray(event.metadata)
+          ? event.metadata as Record<string, unknown>
+          : {};
+        return { event, metadata };
+      };
+      const lastExport = exported ? present(exported) : null;
+      return {
+        lastExport: lastExport ? {
+          type: typeof lastExport.metadata.type === 'string' ? lastExport.metadata.type : 'unknown',
+          rowCount: typeof lastExport.metadata.rowCount === 'number' ? lastExport.metadata.rowCount : 0,
+          createdAt: lastExport.event.createdAt,
+          actorName: lastExport.event.actor?.fullName ?? 'Former team member',
+        } : null,
+        imports: events.filter((event) => event.action === 'inventory.items_imported').slice(0, 20).map((event) => {
+          const { metadata } = present(event);
+          return {
+            id: event.id,
+            fileName: typeof metadata.fileName === 'string' ? metadata.fileName : null,
+            imported: typeof metadata.imported === 'number' ? metadata.imported : 0,
+            createdAt: event.createdAt,
+            actorName: event.actor?.fullName ?? 'Former team member',
+          };
+        }),
+      };
+    });
+  }
+
+  async updateInventory(userId: string, companyId: string, body: UpdateInventorySettingsDto) {
+    return this.prisma.withCompany(companyId, async (tx) => {
+      const actor = await this.account(tx, companyId, userId);
+      if (actor.role !== 'administrator') throw new ForbiddenException('Only an administrator can change inventory settings');
+      if (body.defaultLocationId) {
+        const location = await tx.orm.public.Location.first({ id: body.defaultLocationId, companyId });
+        if (!location) throw new BadRequestException('Choose a location in this workspace');
+      }
+      const defaultUnit = body.defaultUnit.trim();
+      if (!defaultUnit) throw new BadRequestException('Enter a default unit');
+      const skuPrefix = body.skuPrefix.trim().toUpperCase();
+
+      await tx.orm.public.Company.where({ id: companyId }).update({
+        defaultLocationId: body.defaultLocationId,
+        defaultUnit: defaultUnit as Varchar<20>,
+        defaultReorderLevel: body.defaultReorderLevel,
+        skuPrefix: skuPrefix as Varchar<12>,
+        nextSkuNumber: body.nextSkuNumber,
+        allowNegativeStock: body.allowNegativeStock,
+        requirePurchaseSource: body.requirePurchaseSource,
+        requireAdjustmentReason: body.requireAdjustmentReason,
+      });
+      await this.auditSettings(tx, actor.id, companyId, 'company.inventory_settings_updated');
+      return this.companySettings(tx, companyId);
+    });
+  }
+
+  async updateTerminology(userId: string, companyId: string, body: UpdateTerminologySettingsDto) {
+    return this.prisma.withCompany(companyId, async (tx) => {
+      const actor = await this.account(tx, companyId, userId);
+      if (actor.role !== 'administrator') throw new ForbiddenException('Only an administrator can change workspace terminology');
+      await tx.orm.public.Company.where({ id: companyId }).update({
+        shopTerm: body.shopTerm as Varchar<20>,
+        warehouseTerm: body.warehouseTerm as Varchar<20>,
+        itemTerm: body.itemTerm as Varchar<20>,
+      });
+      await this.auditSettings(tx, actor.id, companyId, 'company.terminology_updated');
+      return this.companySettings(tx, companyId);
+    });
+  }
+
   async deleteWorkspace(userId: string, companyId: string, body: DeleteWorkspaceDto) {
     return this.prisma.withCompany(companyId, async (tx) => {
       const actor = await this.account(tx, companyId, userId);
@@ -149,6 +228,17 @@ export class SettingsService {
       currency: company.currency,
       timeZone: company.timeZone,
       dateFormat: company.dateFormat,
+      defaultLocationId: company.defaultLocationId,
+      defaultUnit: company.defaultUnit,
+      defaultReorderLevel: company.defaultReorderLevel,
+      skuPrefix: company.skuPrefix,
+      nextSkuNumber: company.nextSkuNumber,
+      allowNegativeStock: company.allowNegativeStock,
+      requirePurchaseSource: company.requirePurchaseSource,
+      requireAdjustmentReason: company.requireAdjustmentReason,
+      shopTerm: company.shopTerm,
+      warehouseTerm: company.warehouseTerm,
+      itemTerm: company.itemTerm,
     };
   }
 
@@ -161,5 +251,16 @@ export class SettingsService {
   private optional<const Length extends number>(value: string, _length: Length) {
     const trimmed = value.trim();
     return trimmed ? (trimmed as Varchar<Length>) : null;
+  }
+
+  private async auditSettings(tx: PrismaTransaction, actorUserId: string, companyId: string, action: string) {
+    await tx.orm.public.AuditEvent.create({
+      companyId,
+      actorUserId,
+      action: action as Varchar<80>,
+      entityType: 'company' as Varchar<80>,
+      entityId: companyId,
+      metadata: {},
+    });
   }
 }

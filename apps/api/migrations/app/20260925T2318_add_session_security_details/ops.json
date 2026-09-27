@@ -1,0 +1,128 @@
+[
+  {
+    "id": "column.public.refresh_sessions.ip_address",
+    "label": "Add column \"ip_address\" to \"refresh_sessions\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "ip_address",
+        "table": "refresh_sessions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"ip_address\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "refresh_sessions",
+          "ip_address"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"ip_address\"",
+        "sql": "ALTER TABLE \"public\".\"refresh_sessions\" ADD COLUMN \"ip_address\" character varying(64)"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"ip_address\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "refresh_sessions",
+          "ip_address"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.refresh_sessions.last_used_at",
+    "label": "Add column \"last_used_at\" to \"refresh_sessions\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "last_used_at",
+        "table": "refresh_sessions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"last_used_at\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "refresh_sessions",
+          "last_used_at"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"last_used_at\"",
+        "sql": "ALTER TABLE \"public\".\"refresh_sessions\" ADD COLUMN \"last_used_at\" timestamptz DEFAULT (now()) NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"last_used_at\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "refresh_sessions",
+          "last_used_at"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.refresh_sessions.user_agent",
+    "label": "Add column \"user_agent\" to \"refresh_sessions\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "user_agent",
+        "table": "refresh_sessions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"user_agent\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "refresh_sessions",
+          "user_agent"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"user_agent\"",
+        "sql": "ALTER TABLE \"public\".\"refresh_sessions\" ADD COLUMN \"user_agent\" character varying(300)"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"user_agent\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "refresh_sessions",
+          "user_agent"
+        ]
+      }
+    ]
+  }
+]

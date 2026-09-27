@@ -18,15 +18,16 @@ export class CreateItemDto {
   @MaxLength(80)
   category!: string;
 
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
   @MaxLength(20)
-  unit!: string;
+  unit?: string;
 
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(0)
-  reorderLevel!: number;
+  reorderLevel?: number;
 
   @Type(() => Number)
   @IsInt()
@@ -45,6 +46,7 @@ export class CreateItemDto {
   @Min(0)
   openingStock!: number;
 
+  @IsOptional()
   @IsUUID()
-  locationId!: string;
+  locationId?: string;
 }

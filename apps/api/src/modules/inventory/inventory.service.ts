@@ -77,28 +77,34 @@ export class InventoryService {
       this.assertAdministrator(actor);
       await this.lockCompany(tx, companyId);
       const scope = await this.scope(tx, companyId);
-      this.knownLocation(scope.locations, body.locationId);
+      const company = await tx.orm.public.Company.first({ id: companyId });
+      if (!company) throw new UnauthorizedException('Business no longer exists');
+      const locationId = body.locationId ?? company.defaultLocationId;
+      if (!locationId) throw new BadRequestException('Choose an opening location or set a default in Inventory settings');
+      this.knownLocation(scope.locations, locationId);
       const requestedSku = body.sku?.trim().toUpperCase();
       const usedSkus = new Set(scope.items.map((item) => item.sku.toUpperCase()));
       if (requestedSku && usedSkus.has(requestedSku)) throw new ConflictException(`Item code ${requestedSku} already exists`);
-      const sku = requestedSku || this.availableSku(body.name, usedSkus);
+      const generated = requestedSku ? null : this.availableSequentialSku(company.skuPrefix, company.nextSkuNumber, usedSkus);
+      const sku = requestedSku ?? generated!.sku;
 
       const item = await tx.orm.public.InventoryItem.create({
         companyId,
         sku: sku as Varchar<40>,
         name: body.name.trim() as Varchar<120>,
         category: body.category.trim() as Varchar<80>,
-        unit: body.unit.trim() as Varchar<20>,
-        reorderLevel: body.reorderLevel,
+        unit: (body.unit?.trim() || company.defaultUnit) as Varchar<20>,
+        reorderLevel: body.reorderLevel ?? company.defaultReorderLevel,
         unitCostCents: body.unitCostCents,
         sellingPriceCents: body.sellingPriceCents ?? null,
       });
       await tx.orm.public.LocationStock.create({
         companyId,
-        locationId: body.locationId,
+        locationId,
         itemId: item.id,
         openingStock: body.openingStock,
       });
+      if (generated) await tx.orm.public.Company.where({ id: companyId }).update({ nextSkuNumber: generated.next });
       return item;
     });
   }
@@ -109,7 +115,11 @@ export class InventoryService {
       this.assertAdministrator(actor);
       await this.lockCompany(tx, companyId);
       const scope = await this.scope(tx, companyId);
-      this.knownLocation(scope.locations, body.locationId);
+      const company = await tx.orm.public.Company.first({ id: companyId });
+      if (!company) throw new UnauthorizedException('Business no longer exists');
+      const locationId = body.locationId ?? company.defaultLocationId;
+      if (!locationId) throw new BadRequestException('Choose an opening location or set a default in Inventory settings');
+      this.knownLocation(scope.locations, locationId);
 
       const normalized = body.rows.map((row) => ({ ...row, sku: row.sku?.trim().toUpperCase() }));
       const duplicateInFile = normalized.find((row, index) => row.sku && normalized.findIndex((candidate) => candidate.sku === row.sku) !== index);
@@ -118,8 +128,11 @@ export class InventoryService {
       const existing = normalized.find((row) => row.sku && existingSkus.has(row.sku));
       if (existing?.sku) throw new ConflictException(`Item code ${existing.sku} already exists`);
       const usedSkus = new Set(existingSkus);
+      let nextSkuNumber = company.nextSkuNumber;
       const rows = normalized.map((row) => {
-        const sku = row.sku || this.availableSku(row.name, usedSkus);
+        const generated = row.sku ? null : this.availableSequentialSku(company.skuPrefix, nextSkuNumber, usedSkus);
+        const sku = row.sku ?? generated!.sku;
+        if (generated) nextSkuNumber = generated.next;
         usedSkus.add(sku);
         return { ...row, sku };
       });
@@ -130,21 +143,25 @@ export class InventoryService {
           sku: row.sku as Varchar<40>,
           name: row.name.trim() as Varchar<120>,
           category: row.category.trim() as Varchar<80>,
-          unit: row.unit.trim() as Varchar<20>,
-          reorderLevel: row.reorderLevel,
+          unit: (row.unit?.trim() || company.defaultUnit) as Varchar<20>,
+          reorderLevel: row.reorderLevel ?? company.defaultReorderLevel,
           unitCostCents: row.unitCostCents,
           sellingPriceCents: row.sellingPriceCents ?? null,
         });
         await tx.orm.public.LocationStock.create({
           companyId,
-          locationId: body.locationId,
+          locationId,
           itemId: item.id,
           openingStock: row.openingStock,
         });
       }
-      await this.audit(tx, actor, 'inventory.items_imported', 'location', body.locationId, {
+      if (nextSkuNumber !== company.nextSkuNumber) {
+        await tx.orm.public.Company.where({ id: companyId }).update({ nextSkuNumber });
+      }
+      await this.audit(tx, actor, 'inventory.items_imported', 'location', locationId, {
         imported: rows.length,
         skus: rows.map((row) => row.sku),
+        fileName: body.fileName?.trim() || null,
       });
       return { imported: rows.length };
     });
@@ -270,6 +287,11 @@ export class InventoryService {
       const expectedQuantity = buildSnapshot(scope.items, scope.locations, scope.stocks, scope.movements, 30, body.locationId)
         .positions.find((position) => position.item.id === body.itemId)?.closing ?? 0;
       const varianceQuantity = body.countedQuantity - expectedQuantity;
+      const company = await tx.orm.public.Company.first({ id: companyId });
+      if (!company) throw new UnauthorizedException('Business no longer exists');
+      if (varianceQuantity !== 0 && company.requireAdjustmentReason && !body.note?.trim()) {
+        throw new BadRequestException('Add a reason for this stock adjustment');
+      }
       const count = await tx.orm.public.StockCount.create({
         companyId,
         itemId: body.itemId,
@@ -371,6 +393,8 @@ export class InventoryService {
 
   private async recordMovement(tx: PrismaTransaction, actor: Actor, body: CreateMovementDto) {
     const scope = await this.scope(tx, actor.companyId, body.itemId);
+    const company = await tx.orm.public.Company.first({ id: actor.companyId });
+    if (!company) throw new UnauthorizedException('Business no longer exists');
     const item = scope.items.find((candidate) => candidate.id === body.itemId);
     if (!item) throw new NotFoundException('Inventory item not found');
     let unitPriceCents = body.type === StockMovementType.SALE ? item.sellingPriceCents : null;
@@ -388,6 +412,12 @@ export class InventoryService {
     let locationId = body.type === StockMovementType.SALE ? actor.locationId! : body.locationId;
     if (body.type === StockMovementType.PURCHASE && unitCostCents === null) {
       throw new BadRequestException('Enter the unit cost for this purchase');
+    }
+    if (body.type === StockMovementType.PURCHASE && company.requirePurchaseSource && !body.supplierId && !body.reference?.trim()) {
+      throw new BadRequestException('Choose a supplier or add a purchase reference');
+    }
+    if (body.type === StockMovementType.DAMAGE && company.requireAdjustmentReason && !body.note?.trim()) {
+      throw new BadRequestException('Add a reason for damaged stock');
     }
     if (body.supplierId && body.type !== StockMovementType.PURCHASE) {
       throw new BadRequestException('A supplier can only be attached to a purchase');
@@ -426,7 +456,7 @@ export class InventoryService {
       throw new BadRequestException('Only a transfer moves stock into another place');
     }
 
-    if (MOVEMENT_SIGN[body.type] === -1) {
+    if (!company.allowNegativeStock && MOVEMENT_SIGN[body.type] === -1) {
       const current = buildSnapshot(scope.items, scope.locations, scope.stocks, scope.movements, 30, locationId)
         .positions.find((position) => position.item.id === body.itemId);
       if (!current || body.quantity > current.closing) {
@@ -530,17 +560,15 @@ export class InventoryService {
     return Number(rounded);
   }
 
-  private availableSku(name: string, usedSkus: ReadonlySet<string>) {
-    const normalized = name.normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
-    const stem = normalized.toUpperCase().replace(/[^A-Z0-9]+/g, '-').replace(/^-|-$/g, '') || 'ITEM';
-    let candidate = stem.slice(0, 40);
-    let sequence = 2;
+  private availableSequentialSku(prefix: string, next: number, usedSkus: ReadonlySet<string>) {
+    const stem = prefix.toUpperCase();
+    let sequence = next;
+    let candidate = `${stem}-${String(sequence).padStart(4, '0')}`;
     while (usedSkus.has(candidate)) {
-      const suffix = `-${sequence}`;
-      candidate = `${stem.slice(0, 40 - suffix.length)}${suffix}`;
       sequence += 1;
+      candidate = `${stem}-${String(sequence).padStart(4, '0')}`;
     }
-    return candidate;
+    return { sku: candidate, next: sequence + 1 };
   }
 
   private async actor(tx: PrismaTransaction, companyId: string, userId: string): Promise<Actor> {

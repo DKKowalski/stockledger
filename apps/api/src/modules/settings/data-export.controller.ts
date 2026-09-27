@@ -18,8 +18,8 @@ export class DataExportController {
     @Res({ passthrough: true }) response: Response,
   ) {
     const file = await this.exports.create(request.user.sub, request.user.companyId, type);
-    response.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    response.setHeader('Content-Type', file.contentType);
     response.setHeader('Content-Disposition', `attachment; filename="${file.filename}"`);
-    return file.csv;
+    return file.content;
   }
 }

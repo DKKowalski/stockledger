@@ -19,21 +19,29 @@ export class DataExportService {
       if (!company) throw new UnauthorizedException('Business no longer exists');
 
       const generatedAt = new Date();
-      let csv: string;
+      let content: string;
       let rowCount: number;
+      let contentType = 'text/csv; charset=utf-8';
+      let extension = 'csv';
 
       if (type === DataExportType.INVENTORY) {
         const result = await this.inventory(tx, companyId, company.currency, generatedAt);
-        csv = result.csv;
+        content = result.csv;
         rowCount = result.rowCount;
       } else if (type === DataExportType.MOVEMENTS) {
         const result = await this.movements(tx, companyId, company.currency);
-        csv = result.csv;
+        content = result.csv;
+        rowCount = result.rowCount;
+      } else if (type === DataExportType.ACTIVITY) {
+        const result = await this.activity(tx, companyId);
+        content = result.csv;
         rowCount = result.rowCount;
       } else {
-        const result = await this.activity(tx, companyId);
-        csv = result.csv;
+        const result = await this.workspace(tx, companyId, generatedAt);
+        content = result.content;
         rowCount = result.rowCount;
+        contentType = 'application/json; charset=utf-8';
+        extension = 'json';
       }
 
       await tx.orm.public.AuditEvent.create({
@@ -46,8 +54,9 @@ export class DataExportService {
       });
 
       return {
-        filename: `stockledger-${type}-${generatedAt.toISOString().slice(0, 10)}.csv`,
-        csv,
+        filename: `stockledger-${type}-${generatedAt.toISOString().slice(0, 10)}.${extension}`,
+        content,
+        contentType,
       };
     });
   }
@@ -170,6 +179,25 @@ export class DataExportService {
     return {
       rowCount: rows.length,
       csv: toCsv(['Recorded at', 'Actor', 'Actor email', 'Action', 'Entity type', 'Entity ID', 'Details'], rows),
+    };
+  }
+
+  private async workspace(tx: PrismaTransaction, companyId: string, generatedAt: Date) {
+    const [company, locations, users, items, stocks, movements, suppliers, stockCounts, activity] = await Promise.all([
+      tx.orm.public.Company.first({ id: companyId }),
+      tx.orm.public.Location.where({ companyId }).all(),
+      tx.orm.public.User.where({ companyId }).select('id', 'companyId', 'locationId', 'fullName', 'email', 'role', 'isActive', 'emailVerifiedAt', 'invitationAcceptedAt', 'createdAt', 'updatedAt').all(),
+      tx.orm.public.InventoryItem.where({ companyId }).all(),
+      tx.orm.public.LocationStock.where({ companyId }).all(),
+      tx.orm.public.StockMovement.where({ companyId }).all(),
+      tx.orm.public.Supplier.where({ companyId }).all(),
+      tx.orm.public.StockCount.where({ companyId }).all(),
+      tx.orm.public.AuditEvent.where({ companyId }).all(),
+    ]);
+    const collections = { locations, users, items, locationStocks: stocks, stockMovements: movements, suppliers, stockCounts, auditEvents: activity };
+    return {
+      rowCount: Object.values(collections).reduce((total, rows) => total + rows.length, 0),
+      content: JSON.stringify({ format: 'stockledger-workspace-v1', exportedAt: generatedAt.toISOString(), company, ...collections }, null, 2),
     };
   }
 }

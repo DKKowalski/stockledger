@@ -10,6 +10,7 @@ describe('SettingsService', () => {
   const userFirst = vi.fn();
   const companyFirst = vi.fn();
   const companyUpdate = vi.fn();
+  const locationFirst = vi.fn();
   const auditCreate = vi.fn();
   const query = vi.fn();
   const execute = vi.fn();
@@ -33,6 +34,7 @@ describe('SettingsService', () => {
   const tx = { query, execute, orm: { public: {
     User: { first: userFirst },
     Company: { first: companyFirst, where: companyWhere },
+    Location: { first: locationFirst },
     AuditEvent: { create: auditCreate, where: auditWhere },
   } } };
   const withCompany = vi.fn(async (_companyId: string, work: (client: typeof tx) => Promise<unknown>) => work(tx));
@@ -51,6 +53,17 @@ describe('SettingsService', () => {
     currency: 'GHS',
     timeZone: 'Africa/Accra',
     dateFormat: 'day_month_year',
+    defaultLocationId: null,
+    defaultUnit: 'pcs',
+    defaultReorderLevel: 10,
+    skuPrefix: 'SKU',
+    nextSkuNumber: 1,
+    allowNegativeStock: false,
+    requirePurchaseSource: false,
+    requireAdjustmentReason: true,
+    shopTerm: 'shop',
+    warehouseTerm: 'warehouse',
+    itemTerm: 'item',
   };
 
   beforeEach(() => {
@@ -58,6 +71,7 @@ describe('SettingsService', () => {
     userFirst.mockResolvedValue({ id: ownerId, companyId, role: 'administrator', isActive: true });
     companyFirst.mockResolvedValue(company);
     companyUpdate.mockResolvedValue(undefined);
+    locationFirst.mockResolvedValue(null);
     auditCreate.mockResolvedValue(undefined);
     auditAll.mockResolvedValue([]);
     query.mockResolvedValue([{ company_id: companyId }]);
@@ -81,6 +95,27 @@ describe('SettingsService', () => {
       name: 'Mensah Trading', businessType: 'retail', contactEmail: 'owner@example.com', phone: '', address: '',
       currency: 'GHS', timeZone: 'Africa/Accra', dateFormat: 'day_month_year',
     })).rejects.toBeInstanceOf(ForbiddenException);
+    expect(companyUpdate).not.toHaveBeenCalled();
+  });
+
+  it('keeps expanded settings and data history under administrator control', async () => {
+    userFirst.mockResolvedValue({ id: 'manager-id', companyId, role: 'inventory_manager', isActive: true });
+    const inventory = {
+      defaultLocationId: null,
+      defaultUnit: 'pcs',
+      defaultReorderLevel: 10,
+      skuPrefix: 'SKU',
+      nextSkuNumber: 1,
+      allowNegativeStock: false,
+      requirePurchaseSource: false,
+      requireAdjustmentReason: true,
+    };
+
+    await expect(service.updateInventory('manager-id', companyId, inventory)).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.updateTerminology('manager-id', companyId, {
+      shopTerm: 'branch', warehouseTerm: 'stockroom', itemTerm: 'product',
+    })).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.dataSummary('manager-id', companyId)).rejects.toBeInstanceOf(ForbiddenException);
     expect(companyUpdate).not.toHaveBeenCalled();
   });
 
@@ -125,6 +160,76 @@ describe('SettingsService', () => {
     })]);
     expect(auditWhere).toHaveBeenCalledWith({ companyId });
     expect(auditCollection.limit).toHaveBeenCalledWith(100);
+  });
+
+  it('saves inventory defaults and safeguards for an administrator', async () => {
+    const locationId = '51000000-0000-4000-8000-000000000001';
+    locationFirst.mockResolvedValue({ id: locationId, companyId });
+    companyFirst
+      .mockResolvedValueOnce({
+        ...company,
+        defaultLocationId: locationId,
+        defaultUnit: 'carton',
+        defaultReorderLevel: 6,
+        skuPrefix: 'PRD',
+        nextSkuNumber: 25,
+        allowNegativeStock: true,
+        requirePurchaseSource: true,
+        requireAdjustmentReason: false,
+      });
+
+    const result = await service.updateInventory(ownerId, companyId, {
+      defaultLocationId: locationId,
+      defaultUnit: ' carton ',
+      defaultReorderLevel: 6,
+      skuPrefix: 'prd',
+      nextSkuNumber: 25,
+      allowNegativeStock: true,
+      requirePurchaseSource: true,
+      requireAdjustmentReason: false,
+    });
+
+    expect(locationFirst).toHaveBeenCalledWith({ id: locationId, companyId });
+    expect(companyUpdate).toHaveBeenCalledWith(expect.objectContaining({ defaultUnit: 'carton', skuPrefix: 'PRD' }));
+    expect(result).toMatchObject({ defaultLocationId: locationId, skuPrefix: 'PRD' });
+    expect(auditCreate).toHaveBeenCalledWith(expect.objectContaining({ action: 'company.inventory_settings_updated' }));
+  });
+
+  it('rejects a default location from outside the workspace', async () => {
+    await expect(service.updateInventory(ownerId, companyId, {
+      defaultLocationId: '51000000-0000-4000-8000-000000000002',
+      defaultUnit: 'pcs',
+      defaultReorderLevel: 10,
+      skuPrefix: 'SKU',
+      nextSkuNumber: 1,
+      allowNegativeStock: false,
+      requirePurchaseSource: false,
+      requireAdjustmentReason: true,
+    })).rejects.toBeInstanceOf(BadRequestException);
+    expect(companyUpdate).not.toHaveBeenCalled();
+  });
+
+  it('saves the supported workspace terminology', async () => {
+    companyFirst.mockResolvedValueOnce({
+      ...company, shopTerm: 'branch', warehouseTerm: 'stockroom', itemTerm: 'product',
+    });
+
+    await expect(service.updateTerminology(ownerId, companyId, {
+      shopTerm: 'branch', warehouseTerm: 'stockroom', itemTerm: 'product',
+    })).resolves.toMatchObject({ shopTerm: 'branch', warehouseTerm: 'stockroom', itemTerm: 'product' });
+    expect(auditCreate).toHaveBeenCalledWith(expect.objectContaining({ action: 'company.terminology_updated' }));
+  });
+
+  it('summarizes the latest export and spreadsheet imports', async () => {
+    auditAll.mockResolvedValue([
+      { id: 'export', action: 'data.exported', metadata: { type: 'workspace', rowCount: 18 }, createdAt: '2026-09-25T06:00:00.000Z', actor: { fullName: 'Ama Mensah' } },
+      { id: 'import', action: 'inventory.items_imported', metadata: { fileName: 'catalog.xlsx', imported: 4 }, createdAt: '2026-09-25T05:00:00.000Z', actor: { fullName: 'Kojo Owusu' } },
+    ]);
+
+    await expect(service.dataSummary(ownerId, companyId)).resolves.toEqual({
+      lastExport: { type: 'workspace', rowCount: 18, createdAt: '2026-09-25T06:00:00.000Z', actorName: 'Ama Mensah' },
+      imports: [{ id: 'import', fileName: 'catalog.xlsx', imported: 4, createdAt: '2026-09-25T05:00:00.000Z', actorName: 'Kojo Owusu' }],
+    });
   });
 
   it('deletes the entire workspace after checking the owner password and business name', async () => {

@@ -1,0 +1,464 @@
+[
+  {
+    "id": "column.public.companies.allow_negative_stock",
+    "label": "Add column \"allow_negative_stock\" to \"companies\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "allow_negative_stock",
+        "table": "companies"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"allow_negative_stock\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "companies",
+          "allow_negative_stock"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"allow_negative_stock\"",
+        "sql": "ALTER TABLE \"public\".\"companies\" ADD COLUMN \"allow_negative_stock\" bool DEFAULT false NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"allow_negative_stock\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "companies",
+          "allow_negative_stock"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.companies.default_location_id",
+    "label": "Add column \"default_location_id\" to \"companies\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "default_location_id",
+        "table": "companies"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"default_location_id\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "companies",
+          "default_location_id"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"default_location_id\"",
+        "sql": "ALTER TABLE \"public\".\"companies\" ADD COLUMN \"default_location_id\" uuid"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"default_location_id\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "companies",
+          "default_location_id"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.companies.default_reorder_level",
+    "label": "Add column \"default_reorder_level\" to \"companies\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "default_reorder_level",
+        "table": "companies"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"default_reorder_level\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "companies",
+          "default_reorder_level"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"default_reorder_level\"",
+        "sql": "ALTER TABLE \"public\".\"companies\" ADD COLUMN \"default_reorder_level\" int4 DEFAULT 10 NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"default_reorder_level\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "companies",
+          "default_reorder_level"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.companies.default_unit",
+    "label": "Add column \"default_unit\" to \"companies\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "default_unit",
+        "table": "companies"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"default_unit\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "companies",
+          "default_unit"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"default_unit\"",
+        "sql": "ALTER TABLE \"public\".\"companies\" ADD COLUMN \"default_unit\" character varying(20) DEFAULT 'pcs' NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"default_unit\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "companies",
+          "default_unit"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.companies.item_term",
+    "label": "Add column \"item_term\" to \"companies\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "item_term",
+        "table": "companies"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"item_term\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "companies",
+          "item_term"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"item_term\"",
+        "sql": "ALTER TABLE \"public\".\"companies\" ADD COLUMN \"item_term\" character varying(20) DEFAULT 'item' NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"item_term\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "companies",
+          "item_term"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.companies.next_sku_number",
+    "label": "Add column \"next_sku_number\" to \"companies\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "next_sku_number",
+        "table": "companies"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"next_sku_number\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "companies",
+          "next_sku_number"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"next_sku_number\"",
+        "sql": "ALTER TABLE \"public\".\"companies\" ADD COLUMN \"next_sku_number\" int4 DEFAULT 1 NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"next_sku_number\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "companies",
+          "next_sku_number"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.companies.require_adjustment_reason",
+    "label": "Add column \"require_adjustment_reason\" to \"companies\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "require_adjustment_reason",
+        "table": "companies"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"require_adjustment_reason\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "companies",
+          "require_adjustment_reason"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"require_adjustment_reason\"",
+        "sql": "ALTER TABLE \"public\".\"companies\" ADD COLUMN \"require_adjustment_reason\" bool DEFAULT true NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"require_adjustment_reason\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "companies",
+          "require_adjustment_reason"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.companies.require_purchase_source",
+    "label": "Add column \"require_purchase_source\" to \"companies\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "require_purchase_source",
+        "table": "companies"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"require_purchase_source\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "companies",
+          "require_purchase_source"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"require_purchase_source\"",
+        "sql": "ALTER TABLE \"public\".\"companies\" ADD COLUMN \"require_purchase_source\" bool DEFAULT false NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"require_purchase_source\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "companies",
+          "require_purchase_source"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.companies.shop_term",
+    "label": "Add column \"shop_term\" to \"companies\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "shop_term",
+        "table": "companies"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"shop_term\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "companies",
+          "shop_term"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"shop_term\"",
+        "sql": "ALTER TABLE \"public\".\"companies\" ADD COLUMN \"shop_term\" character varying(20) DEFAULT 'shop' NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"shop_term\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "companies",
+          "shop_term"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.companies.sku_prefix",
+    "label": "Add column \"sku_prefix\" to \"companies\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "sku_prefix",
+        "table": "companies"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"sku_prefix\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "companies",
+          "sku_prefix"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"sku_prefix\"",
+        "sql": "ALTER TABLE \"public\".\"companies\" ADD COLUMN \"sku_prefix\" character varying(12) DEFAULT 'SKU' NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"sku_prefix\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "companies",
+          "sku_prefix"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.companies.warehouse_term",
+    "label": "Add column \"warehouse_term\" to \"companies\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "warehouse_term",
+        "table": "companies"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"warehouse_term\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "companies",
+          "warehouse_term"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"warehouse_term\"",
+        "sql": "ALTER TABLE \"public\".\"companies\" ADD COLUMN \"warehouse_term\" character varying(20) DEFAULT 'warehouse' NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"warehouse_term\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "companies",
+          "warehouse_term"
+        ]
+      }
+    ]
+  }
+]

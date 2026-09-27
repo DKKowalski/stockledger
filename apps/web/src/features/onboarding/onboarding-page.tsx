@@ -119,12 +119,12 @@ export function OnboardingPage({ initialStatus, onComplete }: OnboardingPageProp
     }
   };
 
-  const importSpreadsheet = async (locationId: string, rows: SpreadsheetItem[]) => {
+  const importSpreadsheet = async (locationId: string, rows: SpreadsheetItem[], fileName: string) => {
     if (!accessToken) throw new Error('Your session has expired');
     setBusy(true);
     setError(null);
     try {
-      await api.importItems(accessToken, { locationId, rows });
+      await api.importItems(accessToken, { locationId, rows, fileName });
     } catch (caught) {
       if (caught instanceof ApiError && caught.status === 401) signOut();
       throw caught;

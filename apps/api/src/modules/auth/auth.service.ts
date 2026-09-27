@@ -37,6 +37,7 @@ type AuthenticationUser = PublicUserSource & {
 };
 
 type AuditMetadata = { readonly [key: string]: string | number | boolean | null };
+type SessionContext = { userAgent?: string; ipAddress?: string };
 
 @Injectable()
 export class AuthService {
@@ -93,7 +94,7 @@ export class AuthService {
     return { verificationRequired: true as const, email: user.email };
   }
 
-  async verifyEmail(body: TokenDto) {
+  async verifyEmail(body: TokenDto, context: SessionContext = {}) {
     const companyId = this.companyFromToken(body.token, 'verification');
     const tokenHash = this.hashToken(body.token);
     const user = await this.prisma.withCompany(companyId, async (tx) => {
@@ -110,7 +111,7 @@ export class AuthService {
       await this.audit(tx, companyId, account.id, 'owner.email_verified', 'user', account.id, {});
       return { ...account, emailVerifiedAt: verifiedAt };
     });
-    return this.createSession(user);
+    return this.createSession(user, context, true);
   }
 
   async resendVerification(body: RequestVerificationDto) {
@@ -144,7 +145,7 @@ export class AuthService {
     return { sent: true as const };
   }
 
-  async login(credentials: LoginDto) {
+  async login(credentials: LoginDto, context: SessionContext = {}) {
     const user = await this.authenticationUser(credentials.email.trim().toLowerCase());
     const passwordMatches = await argon2.verify(user?.passwordHash ?? await this.dummyPasswordHash, credentials.password);
     if (!user || !passwordMatches) {
@@ -153,10 +154,10 @@ export class AuthService {
     if (!user.isActive) throw new ForbiddenException('This account has been deactivated. Contact your administrator.');
     if (!user.emailVerifiedAt) throw new ForbiddenException('Verify your email before signing in.');
     if (user.role !== 'administrator' && !user.invitationAcceptedAt) throw new ForbiddenException('Accept your invitation before signing in.');
-    return this.createSession(user);
+    return this.createSession(user, context, true);
   }
 
-  async refresh(refreshToken: string | undefined) {
+  async refresh(refreshToken: string | undefined, context: SessionContext = {}) {
     if (!refreshToken) throw new UnauthorizedException('Your session has expired');
     const companyId = this.companyFromToken(refreshToken, 'session');
     const tokenHash = this.hashToken(refreshToken);
@@ -165,22 +166,102 @@ export class AuthService {
 
     return this.prisma.withCompany(companyId, async (tx) => {
       const consumed = await tx.query(this.prisma.client.raw.sql`
-        DELETE FROM public.refresh_sessions
+        UPDATE public.refresh_sessions
+        SET token_hash = ${this.hashToken(nextToken)},
+            expires_at = ${expiresAt}::timestamptz,
+            user_agent = COALESCE(NULLIF(${context.userAgent ?? ''}, ''), user_agent),
+            ip_address = COALESCE(NULLIF(${context.ipAddress ?? ''}, ''), ip_address),
+            last_used_at = now()
         WHERE company_id = ${companyId}::uuid
           AND token_hash = ${tokenHash}
           AND expires_at > now()
-        RETURNING user_id
-      `.returnsRow({ user_id: 'pg/uuid@1' }).build());
+        RETURNING id, user_id
+      `.returnsRow({ id: 'pg/uuid@1', user_id: 'pg/uuid@1' }).build());
       const userId = consumed[0]?.user_id;
       if (!userId) throw new UnauthorizedException('Your session has expired');
       const user = await this.account(tx, companyId, userId);
-      await tx.orm.public.RefreshSession.create({
-        companyId,
-        userId,
-        tokenHash: this.hashToken(nextToken) as Varchar<64>,
-        expiresAt,
-      });
       return { accessToken: await this.signAccessToken(user), refreshToken: nextToken, user: this.publicUser(user) };
+    });
+  }
+
+  async securityOverview(userId: string, companyId: string, refreshToken: string | undefined) {
+    return this.prisma.withCompany(companyId, async (tx) => {
+      const actor = await this.account(tx, companyId, userId);
+      this.assertAdministrator(actor.role);
+      const currentHash = refreshToken ? this.hashToken(refreshToken) : null;
+      const [sessions, signIns] = await Promise.all([
+        tx.orm.public.RefreshSession.where({ companyId, userId }).orderBy((session) => session.lastUsedAt.desc()).all(),
+        tx.orm.public.AuditEvent.where({ companyId, action: 'account.signed_in' as Varchar<80> })
+          .include('actor', (users) => users.select('id', 'fullName', 'email'))
+          .orderBy((event) => event.createdAt.desc()).limit(20).all(),
+      ]);
+      return {
+        sessions: sessions.filter((session) => new Date(session.expiresAt).getTime() > Date.now()).map((session) => ({
+          id: session.id,
+          userAgent: session.userAgent,
+          ipAddress: session.ipAddress,
+          createdAt: session.createdAt,
+          lastUsedAt: session.lastUsedAt,
+          expiresAt: session.expiresAt,
+          current: currentHash === session.tokenHash,
+        })),
+        recentSignIns: signIns.map((event) => {
+          const metadata = event.metadata && typeof event.metadata === 'object' && !Array.isArray(event.metadata)
+            ? event.metadata as Record<string, unknown>
+            : {};
+          return {
+            id: event.id,
+            createdAt: event.createdAt,
+            user: event.actor ? { id: event.actor.id, fullName: event.actor.fullName, email: event.actor.email } : null,
+            userAgent: typeof metadata.userAgent === 'string' ? metadata.userAgent : null,
+            ipAddress: typeof metadata.ipAddress === 'string' ? metadata.ipAddress : null,
+          };
+        }),
+      };
+    });
+  }
+
+  async revokeSession(userId: string, companyId: string, sessionId: string, refreshToken: string | undefined) {
+    return this.prisma.withCompany(companyId, async (tx) => {
+      const actor = await this.account(tx, companyId, userId);
+      this.assertAdministrator(actor.role);
+      const session = await tx.orm.public.RefreshSession.first({ id: sessionId, companyId, userId });
+      if (!session) throw new NotFoundException('Session not found');
+      if (refreshToken && session.tokenHash === this.hashToken(refreshToken)) throw new BadRequestException('Use Sign out to end your current session');
+      await tx.orm.public.RefreshSession.where({ id: session.id, companyId }).delete();
+      await this.audit(tx, companyId, actor.id, 'account.session_revoked', 'refresh_session', session.id, {});
+      return { revoked: true as const };
+    });
+  }
+
+  async revokeOtherSessions(userId: string, companyId: string, refreshToken: string | undefined) {
+    const currentHash = refreshToken ? this.hashToken(refreshToken) : '';
+    return this.prisma.withCompany(companyId, async (tx) => {
+      const actor = await this.account(tx, companyId, userId);
+      this.assertAdministrator(actor.role);
+      const removed = await tx.execute(this.prisma.client.raw.sql`
+        DELETE FROM public.refresh_sessions
+        WHERE company_id = ${companyId}::uuid AND user_id = ${userId}::uuid AND token_hash <> ${currentHash}
+      `.affectedCount().build());
+      await this.audit(tx, companyId, actor.id, 'account.other_sessions_revoked', 'user', actor.id, { count: Number(removed) });
+      return { revoked: Number(removed) };
+    });
+  }
+
+  async transferOwnership(userId: string, companyId: string, targetUserId: string, currentPassword: string) {
+    return this.prisma.withCompany(companyId, async (tx) => {
+      const actor = await this.account(tx, companyId, userId);
+      this.assertAdministrator(actor.role);
+      if (!await argon2.verify(actor.passwordHash, currentPassword)) throw new BadRequestException('Current password is incorrect');
+      const target = await this.companyUser(tx, companyId, targetUserId);
+      if (!target.isActive || !target.invitationAcceptedAt) throw new BadRequestException('Choose an active team member who has completed setup');
+      if (target.role === 'administrator') throw new BadRequestException('This person is already the owner');
+      await tx.orm.public.User.where({ id: actor.id, companyId }).update({ role: 'inventory_manager', locationId: null });
+      await tx.orm.public.User.where({ id: target.id, companyId }).update({ role: 'administrator', locationId: null });
+      await tx.orm.public.RefreshSession.where({ companyId, userId: actor.id }).delete();
+      await tx.orm.public.RefreshSession.where({ companyId, userId: target.id }).delete();
+      await this.audit(tx, companyId, actor.id, 'company.ownership_transferred', 'user', target.id, { previousOwnerId: actor.id });
+      return { transferred: true as const };
     });
   }
 
@@ -491,7 +572,7 @@ export class AuthService {
     };
   }
 
-  async acceptInvitation(body: AcceptInvitationDto) {
+  async acceptInvitation(body: AcceptInvitationDto, context: SessionContext = {}) {
     const companyId = this.companyFromToken(body.token, 'invitation');
     const tokenHash = this.hashToken(body.token);
     const user = await this.prisma.withCompany(companyId, async (tx) => {
@@ -511,7 +592,7 @@ export class AuthService {
       await this.audit(tx, companyId, account.id, 'account.invitation_accepted', 'user', account.id, {});
       return { ...account, emailVerifiedAt: acceptedAt, invitationAcceptedAt: acceptedAt };
     });
-    return this.createSession(user);
+    return this.createSession(user, context, true);
   }
 
   private async authenticationUser(email: string): Promise<AuthenticationUser | null> {
@@ -568,7 +649,7 @@ export class AuthService {
     if (role !== 'administrator') throw new ForbiddenException('Only an administrator can manage accounts');
   }
 
-  private async createSession(user: PublicUserSource) {
+  private async createSession(user: PublicUserSource, context: SessionContext = {}, recordSignIn = false) {
     const refreshToken = this.createOpaqueToken(user.companyId);
     await this.prisma.withCompany(user.companyId, async (tx) => {
       await tx.orm.public.RefreshSession.create({
@@ -576,6 +657,12 @@ export class AuthService {
         userId: user.id,
         tokenHash: this.hashToken(refreshToken) as Varchar<64>,
         expiresAt: this.expiresAt(this.config.getOrThrow<number>('auth.refreshTokenTtlDays') * 24 * 60),
+        userAgent: context.userAgent ? context.userAgent.slice(0, 300) as Varchar<300> : null,
+        ipAddress: context.ipAddress ? context.ipAddress.slice(0, 64) as Varchar<64> : null,
+      });
+      if (recordSignIn) await this.audit(tx, user.companyId, user.id, 'account.signed_in', 'user', user.id, {
+        userAgent: context.userAgent?.slice(0, 300) ?? null,
+        ipAddress: context.ipAddress?.slice(0, 64) ?? null,
       });
     });
     return { accessToken: await this.signAccessToken(user), refreshToken, user: this.publicUser(user) };

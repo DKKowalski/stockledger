@@ -17,7 +17,7 @@ import type { MovementType, Supplier } from '../../types';
 export function MovementsPage() {
   const { accessToken } = useAuth();
   const { snapshot, mutate, busy } = useInventoryStore();
-  const { money, calendarDate } = useCompanySettings();
+  const { money, calendarDate, settings, terms } = useCompanySettings();
   const saveAction = useAsyncActionState();
   const [filter, setFilter] = useState<'all' | MovementType>('all');
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -75,7 +75,7 @@ export function MovementsPage() {
     <PageHeader title="Stock movements" subtitle="Receive, transfer, return, or write off inventory." actions={<><NavLink className="button secondary" to="/stock-counts">Count stock</NavLink><NavLink className="button secondary" to="/suppliers">Suppliers</NavLink></>} />
     <Panel title="Record movement" subtitle="The ledger updates the affected balances immediately.">
       <form className="form-grid movement-form" onSubmit={(event) => void submit(event).catch(() => {})}>
-        <label><span>Item</span><SelectControl aria-label="Item" required value={form.itemId} disabled={form.type === 'return_in'} onValueChange={(itemId) => setForm({ ...form, itemId })} options={[{ value: '', label: 'Select item' }, ...items.map((item) => ({ value: item.id, label: item.name }))]} /></label>
+        <label><span>{terms.Item}</span><SelectControl aria-label={terms.Item} required value={form.itemId} disabled={form.type === 'return_in'} onValueChange={(itemId) => setForm({ ...form, itemId })} options={[{ value: '', label: `Select ${terms.item}` }, ...items.map((item) => ({ value: item.id, label: item.name }))]} /></label>
         <label><span className="label-row"><span>Movement type</span><InfoTooltip label="About movement type">{movementMeta[form.type].hint}</InfoTooltip></span><SelectControl aria-label="Movement type" value={form.type} onValueChange={(value) => setForm({ ...form, type: value as MovementType, destinationLocationId: '', relatedMovementId: '', itemId: value === 'return_in' ? '' : form.itemId, locationId: value === 'return_in' ? '' : form.locationId })} options={(Object.entries(movementMeta) as [MovementType, { label: string; hint: string }][]).filter(([value]) => value !== 'sale' && value !== 'adjustment_in' && value !== 'adjustment_out').map(([value, meta]) => ({ value, label: meta.label }))} /></label>
         {form.type === 'return_in' && <label><span>Original sale</span><SelectControl aria-label="Original sale" required value={form.relatedMovementId} onValueChange={(relatedMovementId) => { const sale = sales.find((candidate) => candidate.id === relatedMovementId); setForm({ ...form, relatedMovementId, itemId: sale?.itemId ?? '', locationId: sale?.locationId ?? '', quantity: '' }); }} options={[{ value: '', label: 'Select sale' }, ...sales.map((sale) => ({ value: sale.id, label: `${sale.item?.name ?? 'Deleted item'} · ${sale.quantity - (returnedBySale.get(sale.id) ?? 0)} returnable · ${sale.movementDate}` }))]} /></label>}
         <label><span>{form.type === 'transfer' ? 'From' : 'Place'}</span><SelectControl aria-label={form.type === 'transfer' ? 'From' : 'Place'} required value={form.locationId} disabled={form.type === 'return_in'} onValueChange={(locationId) => setForm({ ...form, locationId })} options={[{ value: '', label: 'Select place' }, ...places.map((place) => ({ value: place.id, label: place.name }))]} /></label>
@@ -84,8 +84,8 @@ export function MovementsPage() {
         {form.type === 'purchase' && <label><span>Unit cost</span><InputControl type="number" min="0" step="0.01" required value={form.unitCost} onValueChange={(unitCost) => setForm({ ...form, unitCost })} /></label>}
         {form.type === 'purchase' && <label><span>Supplier</span><SelectControl aria-label="Supplier" value={form.supplierId} onValueChange={(supplierId) => setForm({ ...form, supplierId })} options={[{ value: '', label: 'No supplier' }, ...suppliers.filter((supplier) => supplier.isActive).map((supplier) => ({ value: supplier.id, label: supplier.name }))]} /></label>}
         <label><span>Date</span><InputControl type="date" required value={form.movementDate} onValueChange={(movementDate) => setForm({ ...form, movementDate })} /></label>
-        <label><span>Reference</span><InputControl value={form.reference} onValueChange={(reference) => setForm({ ...form, reference })} /></label>
-        <label><span>Note</span><InputControl value={form.note} onValueChange={(note) => setForm({ ...form, note })} /></label>
+        <label><span>Reference</span><InputControl required={Boolean(form.type === 'purchase' && settings?.requirePurchaseSource && !form.supplierId)} value={form.reference} onValueChange={(reference) => setForm({ ...form, reference })} /></label>
+        <label><span>Note</span><InputControl required={Boolean(form.type === 'damage' && settings?.requireAdjustmentReason)} value={form.note} onValueChange={(note) => setForm({ ...form, note })} /></label>
         <AsyncActionButton disabled={busy || !items.length} idleLabel="Save movement" pendingLabel="Saving" state={saveAction.state} successLabel="Saved" />
       </form>
     </Panel>

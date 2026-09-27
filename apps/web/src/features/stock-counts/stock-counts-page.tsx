@@ -13,7 +13,7 @@ import type { StockCount } from '../../types';
 export function StockCountsPage() {
   const { accessToken } = useAuth();
   const { snapshot, mutate, busy } = useInventoryStore();
-  const { money, calendarDate } = useCompanySettings();
+  const { money, calendarDate, settings, terms } = useCompanySettings();
   const countAction = useAsyncActionState();
   const [counts, setCounts] = useState<StockCount[] | null>(null);
   const [form, setForm] = useState({ itemId: '', locationId: '', countedQuantity: '', countedAt: new Date().toISOString().slice(0, 10), note: '' });
@@ -51,17 +51,17 @@ export function StockCountsPage() {
     <Panel title="Record a physical count" subtitle="A variance creates a traceable adjustment. Matching counts are recorded without changing stock.">
       <form className="form-grid stock-count-form" onSubmit={(event) => void submit(event).catch(() => {})}>
         <label><span>Place</span><SelectControl aria-label="Place" required value={form.locationId} onValueChange={(locationId) => setForm({ ...form, locationId })} options={[{ value: '', label: 'Select place' }, ...places.map((place) => ({ value: place.id, label: place.name }))]} /></label>
-        <label><span>Item</span><SelectControl aria-label="Item" required value={form.itemId} onValueChange={(itemId) => setForm({ ...form, itemId })} options={[{ value: '', label: 'Select item' }, ...items.map((item) => ({ value: item.id, label: item.name }))]} /></label>
-        <label><span>Ledger quantity</span><InputControl readOnly value={expected === null ? 'Select an item and place' : String(expected)} /></label>
+        <label><span>{terms.Item}</span><SelectControl aria-label={terms.Item} required value={form.itemId} onValueChange={(itemId) => setForm({ ...form, itemId })} options={[{ value: '', label: `Select ${terms.item}` }, ...items.map((item) => ({ value: item.id, label: item.name }))]} /></label>
+        <label><span>Ledger quantity</span><InputControl readOnly value={expected === null ? `Select an ${terms.item} and place` : String(expected)} /></label>
         <label><span>Counted quantity</span><InputControl type="number" min="0" required value={form.countedQuantity} onValueChange={(countedQuantity) => setForm({ ...form, countedQuantity })} /></label>
         <label><span>Count date</span><InputControl type="date" required value={form.countedAt} onValueChange={(countedAt) => setForm({ ...form, countedAt })} /></label>
-        <label><span>Reason or note</span><InputControl maxLength={500} value={form.note} onValueChange={(note) => setForm({ ...form, note })} /></label>
+        <label><span>Reason or note</span><InputControl maxLength={500} required={Boolean(settings?.requireAdjustmentReason && variance !== null && variance !== 0)} value={form.note} onValueChange={(note) => setForm({ ...form, note })} /></label>
         <div className={`stock-count-variance ${variance === null || variance === 0 ? '' : variance > 0 ? 'positive' : 'negative'}`}><span>Variance</span><strong>{variance === null ? '—' : `${variance > 0 ? '+' : ''}${variance}`}</strong></div>
         <AsyncActionButton disabled={busy || !items.length} idleLabel="Save count" pendingLabel="Saving" state={countAction.state} successLabel="Count saved" />
       </form>
     </Panel>
     <Panel title={`Count history (${counts?.length ?? 0})`} className="spaced">
-      {counts?.length ? <div className="table-wrap"><table><thead><tr><th>Date</th><th>Item</th><th>Place</th><th className="num">Expected</th><th className="num">Counted</th><th className="num">Variance</th><th className="num">Value impact</th></tr></thead><tbody>{counts.map((count) => <tr key={count.id}><td>{calendarDate(count.countedAt)}</td><td><b>{count.item?.name ?? 'Deleted item'}</b><small>{count.note}</small></td><td>{count.location?.name ?? 'Unknown'}</td><td className="num">{count.expectedQuantity}</td><td className="num">{count.countedQuantity}</td><td className={`num ${count.varianceQuantity > 0 ? 'positive' : count.varianceQuantity < 0 ? 'negative' : ''}`}>{count.varianceQuantity > 0 ? '+' : ''}{count.varianceQuantity}</td><td className="num">{money(count.varianceQuantity * count.unitCostCents)}</td></tr>)}</tbody></table></div> : counts ? <EmptyState icon={<ClipboardCheck size={21} />} text="No stock counts yet." /> : <div className="empty"><p>Loading count history</p></div>}
+      {counts?.length ? <div className="table-wrap"><table><thead><tr><th>Date</th><th>{terms.Item}</th><th>Place</th><th className="num">Expected</th><th className="num">Counted</th><th className="num">Variance</th><th className="num">Value impact</th></tr></thead><tbody>{counts.map((count) => <tr key={count.id}><td>{calendarDate(count.countedAt)}</td><td><b>{count.item?.name ?? `Deleted ${terms.item}`}</b><small>{count.note}</small></td><td>{count.location?.name ?? 'Unknown'}</td><td className="num">{count.expectedQuantity}</td><td className="num">{count.countedQuantity}</td><td className={`num ${count.varianceQuantity > 0 ? 'positive' : count.varianceQuantity < 0 ? 'negative' : ''}`}>{count.varianceQuantity > 0 ? '+' : ''}{count.varianceQuantity}</td><td className="num">{money(count.varianceQuantity * count.unitCostCents)}</td></tr>)}</tbody></table></div> : counts ? <EmptyState icon={<ClipboardCheck size={21} />} text="No stock counts yet." /> : <div className="empty"><p>Loading count history</p></div>}
     </Panel>
   </PageState>;
 }

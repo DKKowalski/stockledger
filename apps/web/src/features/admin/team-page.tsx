@@ -18,7 +18,7 @@ type ShareableLink = AccountAccessLink & { personName: string; purpose: 'invitat
 export function TeamPage() {
   const { accessToken, signOut } = useAuth();
   const { snapshot } = useInventoryStore();
-  const { memberDate } = useCompanySettings();
+  const { memberDate, terms } = useCompanySettings();
   const [people, setPeople] = useState<User[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [listError, setListError] = useState<string | null>(null);
@@ -187,14 +187,14 @@ export function TeamPage() {
   };
 
   return <>
-    <PageHeader title="Team" subtitle="Add inventory managers and shop attendants." />
+    <PageHeader title="Team" subtitle={`Add inventory managers and ${terms.shop} attendants.`} />
     <Panel title="Invite a person" subtitle="Send the setup link by email or copy it for private sharing.">
       <form className="form-grid team-form" onSubmit={(event) => void submit(event)}>
         {formError && <div className="form-error" role="alert">{formError}</div>}
         <label><span>Full name</span><InputControl autoComplete="name" required maxLength={120} value={form.fullName} onValueChange={(fullName) => setForm({ ...form, fullName })} /></label>
         <label><span>Email address</span><InputControl autoComplete="off" inputMode="email" required type="email" maxLength={255} value={form.email} onValueChange={(email) => setForm({ ...form, email })} /></label>
-        <label><span>Role</span><SelectControl aria-label="Role" value={form.role} onValueChange={(role) => setForm({ ...form, role: role as typeof form.role, locationId: '' })} options={[{ value: 'inventory_manager', label: 'Inventory manager' }, { value: 'shop_attendant', label: 'Shop attendant' }]} /></label>
-        {form.role === 'shop_attendant' && <label><span>Shop</span><SelectControl aria-label="Shop" required value={form.locationId} onValueChange={(locationId) => setForm({ ...form, locationId })} options={[{ value: '', label: 'Select shop' }, ...shops.map((shop) => ({ value: shop.id, label: shop.name }))]} /></label>}
+        <label><span>Role</span><SelectControl aria-label="Role" value={form.role} onValueChange={(role) => setForm({ ...form, role: role as typeof form.role, locationId: '' })} options={[{ value: 'inventory_manager', label: 'Inventory manager' }, { value: 'shop_attendant', label: `${terms.Shop} attendant` }]} /></label>
+        {form.role === 'shop_attendant' && <label><span>{terms.Shop}</span><SelectControl aria-label={terms.Shop} required value={form.locationId} onValueChange={(locationId) => setForm({ ...form, locationId })} options={[{ value: '', label: `Select ${terms.shop}` }, ...shops.map((shop) => ({ value: shop.id, label: shop.name }))]} /></label>}
         <div className="team-form-actions">
           <button className="button" name="delivery" value="email" disabled={submitting}>{submitting && submittingDelivery === 'email' ? <><StockLedgerMark animated size={20} />Sending</> : <>Send email<ArrowUpRight size={16} /></>}</button>
           <button className="button secondary" name="delivery" value="link" disabled={submitting}>{submitting && submittingDelivery === 'link' ? <><StockLedgerMark animated size={20} />Creating</> : <><Copy size={16} />Create and copy link</>}</button>

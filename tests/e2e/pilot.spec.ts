@@ -34,6 +34,17 @@ test('opens the seeded demo and restores its secure session after reload', async
   await expect(page.getByRole('link', { name: 'Overview' })).toBeVisible();
 });
 
+test('leaves the demo session to create a workspace', async ({ page }) => {
+  await signIntoDemo(page);
+
+  await page.getByRole('link', { name: 'Create a workspace' }).click();
+
+  await expect(page).toHaveURL('/signup');
+  await expect(page.getByRole('heading', { name: 'Create your workspace' })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Create your workspace' })).toBeVisible();
+});
+
 test('rejects changes made from the public demo', async ({ page }) => {
   await signIntoDemo(page);
   await page.goto('/account');

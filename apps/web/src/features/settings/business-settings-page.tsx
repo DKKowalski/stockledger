@@ -7,7 +7,7 @@ import { StockLedgerMark } from '../../components/stockledger-mark';
 import { InputControl } from '../../components/ui/input-control';
 import { SelectControl } from '../../components/ui/select-control';
 import { formatMoney } from '../../lib/presentation';
-import type { CompanySettings } from '../../types';
+import type { CompanyProfileSettings, CompanySettings } from '../../types';
 import { SettingsNavigation } from './settings-navigation';
 
 const businessTypes = [
@@ -50,7 +50,7 @@ export function BusinessSettingsPage() {
 
 function BusinessSettingsForm({ initialSettings, loadError }: { initialSettings: CompanySettings; loadError: string | null }) {
   const { save } = useCompanySettings();
-  const [form, setForm] = useState<Omit<CompanySettings, 'id'>>(() => editableSettings(initialSettings));
+  const [form, setForm] = useState<CompanyProfileSettings>(() => editableSettings(initialSettings));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -115,7 +115,7 @@ function BusinessSettingsForm({ initialSettings, loadError }: { initialSettings:
   </>;
 }
 
-function editableSettings(settings: CompanySettings): Omit<CompanySettings, 'id'> {
+function editableSettings(settings: CompanySettings): CompanyProfileSettings {
   return {
     name: settings.name,
     businessType: settings.businessType,

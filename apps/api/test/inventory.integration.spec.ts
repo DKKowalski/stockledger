@@ -304,7 +304,7 @@ describe('inventory transactions with PostgreSQL', () => {
     await expect(service.updateItem(f.admin.id, f.company.id, f.item.id, { isActive: false }))
       .rejects.toBeInstanceOf(ConflictException);
     await service.createStockCount(f.admin.id, f.company.id, {
-      itemId: f.item.id, locationId: f.warehouse.id, countedQuantity: 0, countedAt: movementDate,
+      itemId: f.item.id, locationId: f.warehouse.id, countedQuantity: 0, countedAt: movementDate, note: 'Cleared during archive count',
     });
     const archived = await service.updateItem(f.admin.id, f.company.id, f.item.id, { isActive: false });
     expect(archived?.isActive).toBe(false);
@@ -347,7 +347,7 @@ describe('inventory transactions with PostgreSQL', () => {
     };
     const first = await service.createMovement(f.admin.id, f.company.id, receipt);
     const second = await service.createMovement(f.admin.id, f.company.id, receipt);
-    await service.createMovement(f.admin.id, f.company.id, { ...receipt, type: Type.DAMAGE });
+    await service.createMovement(f.admin.id, f.company.id, { ...receipt, type: Type.DAMAGE, note: 'Damaged in storage' });
     expectOneConflict(await race(f.item.id, [
       () => service.deleteMovement(f.admin.id, f.company.id, first.id),
       () => otherService.deleteMovement(f.admin.id, f.company.id, second.id),
@@ -384,7 +384,7 @@ describe('inventory transactions with PostgreSQL', () => {
 
   it('releases the lock after rejecting an overdraw, allowing a valid movement', async () => {
     const f = await fixture();
-    const body = { itemId: f.item.id, locationId: f.warehouse.id, type: Type.DAMAGE, quantity: 6, movementDate };
+    const body = { itemId: f.item.id, locationId: f.warehouse.id, type: Type.DAMAGE, quantity: 6, movementDate, note: 'Damaged in storage' };
     await expect(service.createMovement(f.admin.id, f.company.id, body)).rejects.toBeInstanceOf(ConflictException);
     await otherService.createMovement(f.admin.id, f.company.id, { ...body, quantity: 5 });
     expect(await balance(f, f.warehouse.id)).toBe(0);
@@ -448,7 +448,7 @@ describe('inventory transactions with PostgreSQL', () => {
       name: 'Test item', category: 'Test', unit: 'pcs', unitCostCents: 100,
       reorderLevel: 0, openingStock: 1, locationId: f.warehouse.id,
     });
-    expect(manuallyAdded.sku).toBe('TEST-ITEM-2');
+    expect(manuallyAdded.sku).toBe('SKU-0001');
 
     await service.importItems(f.admin.id, f.company.id, {
       locationId: f.warehouse.id,
@@ -458,7 +458,59 @@ describe('inventory transactions with PostgreSQL', () => {
       ],
     });
     const items = await db.orm.public.InventoryItem.where({ companyId: f.company.id }).all();
-    expect(items.map((item) => item.sku)).toEqual(expect.arrayContaining(['FRESH-TOMATOES', 'FRESH-TOMATOES-2']));
+    expect(items.map((item) => item.sku)).toEqual(expect.arrayContaining(['SKU-0002', 'SKU-0003']));
+  });
+
+  it('applies workspace defaults when a new item omits optional inventory fields', async () => {
+    const f = await fixture();
+    await db.orm.public.Company.where({ id: f.company.id }).update({
+      defaultLocationId: f.shop.id,
+      defaultUnit: varchar<20>('carton'),
+      defaultReorderLevel: 6,
+      skuPrefix: varchar<12>('PRD'),
+      nextSkuNumber: 42,
+    });
+
+    const item = await service.createItem(f.admin.id, f.company.id, {
+      name: 'Defaulted product', category: 'Test', unitCostCents: 250, openingStock: 3,
+    });
+    const company = await db.orm.public.Company.first({ id: f.company.id });
+    const stock = await db.orm.public.LocationStock.first({ companyId: f.company.id, itemId: item.id });
+
+    expect(item).toMatchObject({ sku: 'PRD-0042', unit: 'carton', reorderLevel: 6 });
+    expect(stock).toMatchObject({ locationId: f.shop.id, openingStock: 3 });
+    expect(company?.nextSkuNumber).toBe(43);
+  });
+
+  it('enforces purchase, adjustment, and negative-stock policies in the ledger', async () => {
+    const f = await fixture(2);
+    await db.orm.public.Company.where({ id: f.company.id }).update({
+      requirePurchaseSource: true,
+      requireAdjustmentReason: true,
+      allowNegativeStock: false,
+    });
+
+    await expect(service.createMovement(f.admin.id, f.company.id, {
+      itemId: f.item.id, locationId: f.warehouse.id, type: Type.PURCHASE,
+      quantity: 1, unitCostCents: 100, movementDate,
+    })).rejects.toThrow('Choose a supplier or add a purchase reference');
+    await expect(service.createMovement(f.admin.id, f.company.id, {
+      itemId: f.item.id, locationId: f.warehouse.id, type: Type.DAMAGE, quantity: 1, movementDate,
+    })).rejects.toThrow('Add a reason for damaged stock');
+    await expect(service.createStockCount(f.admin.id, f.company.id, {
+      itemId: f.item.id, locationId: f.warehouse.id, countedQuantity: 1, countedAt: movementDate,
+    })).rejects.toThrow('Add a reason for this stock adjustment');
+    await expect(service.createMovement(f.admin.id, f.company.id, {
+      itemId: f.item.id, locationId: f.warehouse.id, type: Type.DAMAGE,
+      quantity: 3, movementDate, note: 'Spoiled',
+    })).rejects.toBeInstanceOf(ConflictException);
+
+    await db.orm.public.Company.where({ id: f.company.id }).update({ allowNegativeStock: true });
+    await service.createMovement(f.admin.id, f.company.id, {
+      itemId: f.item.id, locationId: f.warehouse.id, type: Type.DAMAGE,
+      quantity: 3, movementDate, note: 'Spoiled',
+    });
+    expect(await balance(f, f.warehouse.id)).toBe(-1);
   });
 
   it('serializes automatic item codes created at the same time', async () => {
@@ -472,7 +524,7 @@ describe('inventory transactions with PostgreSQL', () => {
       service.createItem(f.admin.id, f.company.id, body),
       otherService.createItem(f.admin.id, f.company.id, body),
     ]);
-    expect(new Set([first.sku, second.sku])).toEqual(new Set(['COOKING-OIL', 'COOKING-OIL-2']));
+    expect(new Set([first.sku, second.sku])).toEqual(new Set(['SKU-0001', 'SKU-0002']));
   });
 
   it('rejects duplicate spreadsheet SKUs before writing any rows', async () => {
@@ -516,7 +568,7 @@ describe('inventory transactions with PostgreSQL', () => {
         SELECT id FROM public.inventory_items WHERE id = ${lockedFixture.item.id}::uuid FOR UPDATE
       `.returnsRow({ id: 'pg/uuid@1' }).build());
       await otherService.createMovement(f.admin.id, f.company.id, {
-        itemId: f.item.id, locationId: f.warehouse.id, type: Type.DAMAGE, quantity: 1, movementDate,
+        itemId: f.item.id, locationId: f.warehouse.id, type: Type.DAMAGE, quantity: 1, movementDate, note: 'Damaged in storage',
       });
     });
     expect(await balance(f, f.warehouse.id)).toBe(4);
@@ -643,12 +695,33 @@ describe('inventory transactions with PostgreSQL', () => {
     );
 
     expect(exported.filename).toMatch(/^stockledger-inventory-\d{4}-\d{2}-\d{2}\.csv$/);
-    expect(exported.csv).toContain('TEST-ITEM');
-    expect(exported.csv).not.toContain('SECOND-ONLY');
+    expect(exported.content).toContain('TEST-ITEM');
+    expect(exported.content).not.toContain('SECOND-ONLY');
     expect(await db.orm.public.AuditEvent.first({
       companyId: firstCompany.company.id,
       action: varchar<80>('data.exported'),
     })).toMatchObject({ metadata: { type: 'inventory', rowCount: 1 } });
+  });
+
+  it('exports a portable workspace archive without password or session secrets', async () => {
+    const f = await fixture();
+    await db.orm.public.RefreshSession.create({
+      companyId: f.company.id,
+      userId: f.admin.id,
+      tokenHash: varchar<64>('e'.repeat(64)),
+      expiresAt: '2099-01-01T00:00:00.000Z',
+    });
+
+    const exported = await exportsService.create(f.admin.id, f.company.id, DataExportType.WORKSPACE);
+    const archive = JSON.parse(exported.content) as Record<string, unknown>;
+
+    expect(exported).toMatchObject({
+      filename: expect.stringMatching(/^stockledger-workspace-\d{4}-\d{2}-\d{2}\.json$/),
+      contentType: 'application/json; charset=utf-8',
+    });
+    expect(archive).toMatchObject({ format: 'stockledger-workspace-v1', company: { id: f.company.id } });
+    expect(exported.content).not.toContain('passwordHash');
+    expect(exported.content).not.toContain('tokenHash');
   });
 
   it('keeps data exports under administrator control', async () => {
