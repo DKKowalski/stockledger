@@ -131,6 +131,12 @@ For error reporting, create separate Sentry projects for the NestJS API and Reac
 
 Render checks `/health/ready`, which verifies that the API can query PostgreSQL. `/health` is a cheaper process-liveness endpoint. An external uptime provider can monitor the web URL and `/health/ready` later if alerts outside Render are needed.
 
+### Optional Netlify wake request
+
+The scheduled function at `netlify/functions/wake-stockledger.mjs` sends a request to the lightweight `/health` endpoint every ten minutes. Netlify runs scheduled functions only from published production deploys. Connect this repository to a Netlify site and publish it; no additional package is required. If the API URL changes, set `STOCKLEDGER_HEALTH_URL` in Netlify to the full HTTPS health URL.
+
+This reduces idle cold starts on the current Render Free service, but it does not provide an availability guarantee. It consumes Render Free instance hours, and Render can still restart free services. Use a paid Render instance when StockLedger needs supported, continuously available production hosting.
+
 StockLedger owns the transactional sending domain. Individual businesses do not need to connect their own domains. Until a StockLedger domain is verified, an administrator can create a staff account with a copyable invitation link, or create a copyable password-reset link from the Team page. Each new link invalidates the previous link of the same type and should be shared through a private channel.
 
 Browser access tokens live only in React memory and expire after 15 minutes. A rotating 30-day token stays in a secure HTTP-only cookie. Render and the API must use HTTPS for the cross-origin cookie.
