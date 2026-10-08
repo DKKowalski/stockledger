@@ -58,8 +58,11 @@ export function ResetPasswordPage() {
 function ResetPasswordField({ label, value, onValueChange }: { label: string; value: string; onValueChange: (value: string) => void }) {
   const inputId = useId();
   const [visible, setVisible] = useState(false);
-  return <label htmlFor={inputId}><span>{label}</span><span className="password-field">
-    <InputControl id={inputId} autoComplete="new-password" minLength={8} maxLength={128} required type={visible ? 'text' : 'password'} value={value} onValueChange={onValueChange} />
-    <button type="button" aria-label={`${visible ? 'Hide' : 'Show'} ${label.toLowerCase()}`} onClick={() => setVisible((current) => !current)}>{visible ? <EyeOff size={17} /> : <Eye size={17} />}</button>
-  </span></label>;
+  return <div className="login-password-field">
+    <label htmlFor={inputId}>{label}</label>
+    <span className="password-field">
+      <InputControl id={inputId} autoComplete="new-password" minLength={8} maxLength={128} required type={visible ? 'text' : 'password'} value={value} onValueChange={onValueChange} />
+      <button type="button" aria-label={`${visible ? 'Hide' : 'Show'} ${label.toLowerCase()}`} onClick={() => setVisible((current) => !current)}>{visible ? <EyeOff size={17} /> : <Eye size={17} />}</button>
+    </span>
+  </div>;
 }

@@ -60,6 +60,23 @@ test('requests a fresh link from an invalid verification page', async ({ page })
   expect(resentEmail).toBe('ama@example.com');
 });
 
+test('submits a generated password-reset token with unambiguous password fields', async ({ page }) => {
+  const token = '31000000-0000-4000-8000-000000000001.' + 'a'.repeat(64);
+  let submittedToken = '';
+  await page.route('**/auth/password/reset', async (route) => {
+    submittedToken = (await route.request().postDataJSON() as { token: string }).token;
+    await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ changed: true }) });
+  });
+
+  await page.goto(`/reset-password?token=${token}`);
+  await page.getByLabel('New password', { exact: true }).fill('FreshPassword123!');
+  await page.getByLabel('Confirm new password', { exact: true }).fill('FreshPassword123!');
+  await page.getByRole('button', { name: 'Set new password' }).click();
+
+  await expect(page.getByRole('heading', { name: 'Password changed' })).toBeVisible();
+  expect(submittedToken).toBe(token);
+});
+
 test('publishes the privacy notice and terms without requiring an account', async ({ page }) => {
   await page.goto('/privacy');
   await expect(page.getByRole('heading', { name: 'Privacy notice' })).toBeVisible();
@@ -108,4 +125,27 @@ test('rejects changes made from the public demo', async ({ page }) => {
   await page.getByRole('button', { name: 'Save changes' }).click();
 
   await expect(page.getByRole('alert')).toContainText('This demo is read-only');
+});
+
+test('contains wide data tables within the mobile viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await signIntoDemo(page);
+
+  for (const path of ['/items', '/movements', '/team']) {
+    await page.evaluate((nextPath) => {
+      window.history.pushState({}, '', nextPath);
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    }, path);
+    await expect(page).toHaveURL(path);
+    await expect(page.locator('.table-wrap').first()).toBeVisible();
+
+    const dimensions = await page.evaluate(() => ({
+      documentWidth: document.documentElement.scrollWidth,
+      viewportWidth: window.innerWidth,
+      hasScrollableTable: [...document.querySelectorAll<HTMLElement>('.table-wrap')]
+        .some((table) => table.scrollWidth > table.clientWidth),
+    }));
+    expect(dimensions.documentWidth).toBeLessThanOrEqual(dimensions.viewportWidth);
+    expect(dimensions.hasScrollableTable).toBe(true);
+  }
 });

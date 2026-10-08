@@ -1,10 +1,7 @@
-import { IsString, Length, MaxLength, MinLength } from 'class-validator';
+import { IsString, MaxLength, MinLength } from 'class-validator';
+import { TokenDto } from './token.dto.js';
 
-export class ResetPasswordDto {
-  @IsString()
-  @Length(64, 64)
-  token!: string;
-
+export class ResetPasswordDto extends TokenDto {
   @IsString()
   @MinLength(8)
   @MaxLength(128)
