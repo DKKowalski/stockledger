@@ -1,0 +1,33 @@
+name: Keep API awake
+
+on:
+  schedule:
+    - cron: '3,13,23,33,43,53 * * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: keep-stockledger-api-awake
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Ping Render API health endpoint
+        run: >-
+          curl
+          --fail-with-body
+          --show-error
+          --silent
+          --location
+          --connect-timeout 15
+          --max-time 90
+          --retry 1
+          --retry-delay 5
+          --retry-all-errors
+          --header 'Accept: application/json'
+          --user-agent 'stockledger-github-wake/1.0'
+          https://stockledger-dkk-api.onrender.com/health
