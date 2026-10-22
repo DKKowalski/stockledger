@@ -17,6 +17,13 @@ export function wakeApi() {
   void fetch(`${base}/health`, { mode: 'no-cors', cache: 'no-store' }).catch(() => undefined);
 }
 
+const inventorySettingKeys = ['defaultLocationId', 'defaultUnit', 'defaultReorderLevel', 'skuPrefix', 'nextSkuNumber', 'allowNegativeStock', 'requirePurchaseSource', 'requireAdjustmentReason', 'hybridPricingEnabled'] as const satisfies readonly (keyof InventorySettings)[];
+const terminologySettingKeys = ['shopTerm', 'warehouseTerm', 'itemTerm'] as const satisfies readonly (keyof TerminologySettings)[];
+
+function pick<T extends object, K extends keyof T>(value: T, keys: readonly K[]) {
+  return Object.fromEntries(keys.filter((key) => key in value).map((key) => [key, value[key]])) as Pick<T, K>;
+}
+
 export class ApiError extends Error {
   constructor(message: string, readonly status: number, readonly code?: string, readonly requestId?: string) {
     super(message);
@@ -131,10 +138,11 @@ export const api = {
   companySettings: (accessToken: string) => request<CompanySettings>('/settings', undefined, accessToken),
   updateCompanySettings: (accessToken: string, body: CompanyProfileSettings) =>
     request<CompanySettings>('/settings', { method: 'PATCH', body: JSON.stringify(body) }, accessToken),
+  // Forms start from the full settings object, so send only the fields each endpoint accepts.
   updateInventorySettings: (accessToken: string, body: InventorySettings) =>
-    request<CompanySettings>('/settings/inventory', { method: 'PATCH', body: JSON.stringify(body) }, accessToken),
+    request<CompanySettings>('/settings/inventory', { method: 'PATCH', body: JSON.stringify(pick(body, inventorySettingKeys)) }, accessToken),
   updateTerminologySettings: (accessToken: string, body: TerminologySettings) =>
-    request<CompanySettings>('/settings/terminology', { method: 'PATCH', body: JSON.stringify(body) }, accessToken),
+    request<CompanySettings>('/settings/terminology', { method: 'PATCH', body: JSON.stringify(pick(body, terminologySettingKeys)) }, accessToken),
   activity: (accessToken: string) => request<ActivityEvent[]>('/settings/activity', undefined, accessToken),
   dataSummary: (accessToken: string) => request<DataSummary>('/settings/data-summary', undefined, accessToken),
   exportData: (accessToken: string, type: DataExportType) => download(`/settings/exports/${type}`, accessToken),

@@ -117,13 +117,29 @@ test('allows the signup route while the demo session is still authenticated', as
 });
 
 test('rejects changes made from the public demo', async ({ page }) => {
+  const loaded = page.waitForResponse((response) => new URL(response.url()).pathname === '/settings' && response.request().method() === 'GET');
   await signIntoDemo(page);
+  const settings = await (await loaded).json() as Record<string, unknown>;
   await page.goto('/account');
 
   await page.getByLabel('Full name').fill('Changed demo name');
   await page.getByRole('button', { name: 'Save changes' }).click();
 
   await expect(page.getByRole('alert')).toContainText('This demo is read-only');
+
+  // Saving inventory settings sends only inventory fields (the API rejects any others).
+  let sent: Record<string, unknown> = {};
+  await page.route('**/settings/inventory', async (route) => {
+    if (route.request().method() !== 'PATCH') return route.fallback();
+    sent = route.request().postDataJSON() as Record<string, unknown>;
+    await route.fulfill({ json: { ...settings, ...sent } });
+  });
+  await page.goto('/settings/inventory');
+  await page.getByText('Box and quantity deals', { exact: true }).click();
+  await page.getByRole('button', { name: 'Save changes' }).click();
+  await expect(page.getByRole('button', { name: 'Save changes' })).toBeHidden();
+  expect(Object.keys(sent).sort()).toEqual(['allowNegativeStock', 'defaultLocationId', 'defaultReorderLevel', 'defaultUnit', 'hybridPricingEnabled', 'nextSkuNumber', 'requireAdjustmentReason', 'requirePurchaseSource', 'skuPrefix']);
+  expect(sent.hybridPricingEnabled).toBe(false);
 });
 
 test('contains wide data tables within the mobile viewport', async ({ page }) => {
