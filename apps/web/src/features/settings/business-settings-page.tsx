@@ -43,7 +43,7 @@ export function BusinessSettingsPage() {
   const { settings, loading, error } = useCompanySettings();
 
   if (loading && !settings) return <div className="empty page-state"><StockLedgerMark animated size={40} /><p>Loading business settings</p></div>;
-  if (!settings) return <><PageHeader title="Business settings" subtitle="Company details and regional defaults shared across StockLedger." /><div className="form-error settings-page-error" role="alert">{error ?? 'Business settings are not available'}</div></>;
+  if (!settings) return <><PageHeader title="Business settings" /><div className="form-error settings-page-error" role="alert">{error ?? 'Business settings are not available'}</div></>;
 
   return <BusinessSettingsForm key={JSON.stringify(settings)} initialSettings={settings} loadError={error} />;
 }
@@ -71,7 +71,7 @@ function BusinessSettingsForm({ initialSettings, loadError }: { initialSettings:
   };
 
   return <>
-    <PageHeader title="Business settings" subtitle="Company details and regional defaults shared across StockLedger." />
+    <PageHeader title="Business settings" />
     <SettingsNavigation />
     {(loadError || error) && <div className="form-error settings-page-error" role="alert">{error ?? loadError}</div>}
     <form className="business-settings-form" onSubmit={(event) => void submit(event)}>

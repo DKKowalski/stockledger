@@ -1,3 +1,4 @@
+import { valuationPools } from '../inventory/valuation-ledger.js';
 import { ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import type { Varchar } from '@prisma/orm-postgres/target/codec-types';
 import { PrismaService, type PrismaTransaction } from '../../prisma/prisma.service.js';
@@ -37,7 +38,7 @@ export class DataExportService {
         content = result.csv;
         rowCount = result.rowCount;
       } else {
-        const result = await this.workspace(tx, companyId, generatedAt);
+        const result = await this.workspace(tx, companyId, generatedAt, type !== DataExportType.WORKSPACE, [DataExportType.WORKSPACE_V3,DataExportType.WORKSPACE_V4,DataExportType.WORKSPACE_V5].includes(type), type === DataExportType.WORKSPACE_V4 || type === DataExportType.WORKSPACE_V5, type === DataExportType.WORKSPACE_V5);
         content = result.content;
         rowCount = result.rowCount;
         contentType = 'application/json; charset=utf-8';
@@ -58,7 +59,7 @@ export class DataExportService {
         content,
         contentType,
       };
-    });
+    }, { consistentSnapshot: [DataExportType.WORKSPACE_V3,DataExportType.WORKSPACE_V4,DataExportType.WORKSPACE_V5,DataExportType.INVENTORY].includes(type) });
   }
 
   private async inventory(tx: PrismaTransaction, companyId: string, currency: string, now: Date) {
@@ -72,13 +73,14 @@ export class DataExportService {
     const locationRecords = locations as LocationRecord[];
     const stockRecords = stocks as StockRecord[];
     const movementRecords = movements as MovementRecord[];
+    const pools = await valuationPools(tx,companyId);
     const assigned = new Set(stockRecords.map((stock) => `${stock.locationId}:${stock.itemId}`));
     const touched = new Set(movementRecords.flatMap((movement) => [
       `${movement.locationId}:${movement.itemId}`,
       ...(movement.destinationLocationId ? [`${movement.destinationLocationId}:${movement.itemId}`] : []),
     ]));
     const positions = locationRecords.flatMap((location) => (
-      buildSnapshot(itemRecords, locationRecords, stockRecords, movementRecords, 30, location.id, now).positions
+      buildSnapshot(itemRecords, locationRecords, stockRecords, movementRecords, 30, location.id, now, pools).positions
         .filter((position) => assigned.has(`${location.id}:${position.item.id}`) || touched.has(`${location.id}:${position.item.id}`))
     ));
     const rows: CsvValue[][] = positions.map((position) => [
@@ -182,7 +184,7 @@ export class DataExportService {
     };
   }
 
-  private async workspace(tx: PrismaTransaction, companyId: string, generatedAt: Date) {
+  private async workspace(tx: PrismaTransaction, companyId: string, generatedAt: Date, includePricing = false, includeSales = false, includeValuation = false, includeReturns = false) {
     const [company, locations, users, items, stocks, movements, suppliers, stockCounts, activity] = await Promise.all([
       tx.orm.public.Company.first({ id: companyId }),
       tx.orm.public.Location.where({ companyId }).all(),
@@ -195,9 +197,25 @@ export class DataExportService {
       tx.orm.public.AuditEvent.where({ companyId }).all(),
     ]);
     const collections = { locations, users, items, locationStocks: stocks, stockMovements: movements, suppliers, stockCounts, auditEvents: activity };
+    const pricing = includePricing ? { itemPricingVersions: await tx.orm.public.ItemPricingVersion.where({ companyId }).all() } : {};
+    const sales = includeSales ? {
+      sales: await tx.orm.public.Sale.where({ companyId }).all(),
+      saleLines: (await tx.orm.public.SaleLine.where({ companyId }).all()).map(line => { if (includeValuation) return line; const {valuationCheckpointId: _checkpoint,...legacy} = line; return legacy; }),
+      saleComponents: await tx.orm.public.SaleComponent.where({ companyId }).all(),
+    } : {};
+    const valuation = includeValuation ? {
+      valuationRequests: await tx.orm.public.InventoryValuationRequest.where({companyId}).all(),
+      valuationCheckpoints: await tx.orm.public.InventoryValuationCheckpoint.where({companyId}).all(),
+      valuationEntries: await tx.orm.public.InventoryValuationEntry.where({companyId}).all(),
+    } : {};
+    const returns = includeReturns ? {
+      saleReturnRequests:await tx.orm.public.SaleReturnRequest.where({companyId}).all(),
+      saleReturns:await tx.orm.public.SaleReturn.where({companyId}).all(),
+      saleReturnAllocations:await tx.orm.public.SaleReturnAllocation.where({companyId}).all(),
+    } : {};
     return {
-      rowCount: Object.values(collections).reduce((total, rows) => total + rows.length, 0),
-      content: JSON.stringify({ format: 'stockledger-workspace-v1', exportedAt: generatedAt.toISOString(), company, ...collections }, null, 2),
+      rowCount: Object.values(returns).reduce((sum,rows)=>sum+rows.length,0) + Object.values(valuation).reduce((sum,rows)=>sum+rows.length,0) + Object.values(collections).reduce((total, rows) => total + rows.length, 0) + (pricing.itemPricingVersions?.length ?? 0) + Object.values(sales).reduce((total, rows) => total + rows.length, 0),
+      content: JSON.stringify({ format: includeReturns ? 'stockledger-workspace-v5' : includeValuation ? 'stockledger-workspace-v4' : includeSales ? 'stockledger-workspace-v3' : includePricing ? 'stockledger-workspace-v2' : 'stockledger-workspace-v1', exportedAt: generatedAt.toISOString(), company, ...collections, ...pricing, ...sales, ...valuation, ...returns }, null, 2),
     };
   }
 }

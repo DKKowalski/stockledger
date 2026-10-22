@@ -23,7 +23,7 @@ export function OperationsReportsPage() {
   const rows = filterRows(positions, tab);
 
   return <PageState>
-    <PageHeader title="Reports" subtitle={`Sales and transfers out of each place over the last ${days} days.`} actions={<><LocationFilter /><PeriodFilter days={days} setDays={setDays} /></>} />
+    <PageHeader title="Reports" actions={<><LocationFilter /><PeriodFilter days={days} setDays={setDays} /></>} />
     <ReportTabs tab={tab} setTab={setTab} positions={positions} />
     <Panel title={labels[tab]} subtitle={tab === 'current' ? 'Closing stock includes every receipt and deduction recorded in the ledger.' : undefined}>
       {rows.length ? tab === 'current' ? <StockTable positions={rows} /> : <OperationsVelocityTable positions={rows} /> : <EmptyState text={`No ${terms.items} in this report.`} />}
@@ -37,10 +37,9 @@ export function ShopReportsPage() {
   const [tab, setTab] = useState<ReportTab>('current');
   const positions = snapshot?.positions ?? [];
   const rows = filterRows(positions, tab);
-  const shop = snapshot?.locations.find((place) => place.id === snapshot.locationId);
 
   return <PageState>
-    <PageHeader title={`${terms.Shop} reports`} subtitle={`Stock activity at ${shop?.name ?? `your assigned ${terms.shop}`} over the last ${days} days.`} actions={<PeriodFilter days={days} setDays={setDays} />} />
+    <PageHeader title={`${terms.Shop} reports`} actions={<PeriodFilter days={days} setDays={setDays} />} />
     <ReportTabs tab={tab} setTab={setTab} positions={positions} />
     <Panel title={labels[tab]} subtitle={tab === 'current' ? 'Opening stock, units in, units out, and what remains on the shelf.' : undefined}>
       {rows.length ? <ShopReportTable positions={rows} current={tab === 'current'} /> : <EmptyState text={`No ${terms.items} in this report.`} />}

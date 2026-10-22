@@ -1,3 +1,4 @@
+import { assertLegacyItem, valuationPools } from './valuation-ledger.js';
 import {
   BadRequestException,
   ConflictException,
@@ -9,7 +10,7 @@ import {
 import type { Varchar } from '@prisma/orm-postgres/target/codec-types';
 import { PrismaService, type PrismaTransaction } from '../../prisma/prisma.service.js';
 import type { UserRole } from '../auth/auth.types.js';
-import { buildSnapshot, type ItemRecord, type LocationRecord, type MovementRecord, type StockRecord } from './inventory-calculations.js';
+import { buildSnapshot, lowestBalanceFrom, withoutCosts, type ItemRecord, type LocationRecord, type MovementRecord, type StockRecord } from './inventory-calculations.js';
 import { CreateItemDto } from './dto/create-item.dto.js';
 import { CreateLocationDto } from './dto/create-location.dto.js';
 import { CreateMovementDto } from './dto/create-movement.dto.js';
@@ -20,6 +21,7 @@ import { UpdateItemDto } from './dto/update-item.dto.js';
 import { UpdateSupplierDto } from './dto/update-supplier.dto.js';
 import { UpdateSellingPriceDto } from './dto/update-selling-price.dto.js';
 import { ProfitabilityQueryDto } from './dto/profitability-query.dto.js';
+import { MovementLedgerQueryDto } from './dto/movement-ledger-query.dto.js';
 import { MOVEMENT_SIGN, StockMovementType } from './inventory.types.js';
 import { buildProfitability } from './profitability-calculations.js';
 
@@ -29,6 +31,9 @@ type Actor = {
   companyId: string;
   locationId: string | null;
 };
+
+const RECENT_MOVEMENTS = 50;
+const RETURNABLE_SALES = 200;
 
 type AuditJson = string | number | boolean | null | readonly AuditJson[] | { readonly [key: string]: AuditJson };
 
@@ -41,15 +46,59 @@ export class InventoryService {
       const actor = await this.actor(tx, companyId, userId);
       const scope = await this.scope(tx, companyId);
       const selected = this.visibleLocation(actor, scope.locations, locationId);
-      return buildSnapshot(
-        scope.items,
-        actor.role === 'shop_attendant' ? scope.locations.filter((location) => location.id === selected) : scope.locations,
+      const pools = await valuationPools(tx,companyId);
+      const snapshot = buildSnapshot(
+        scope.items.map(item => pools.has(item.id) ? {...item,preciseCosting:true} : item),
+        scope.locations,
         scope.stocks,
         scope.movements,
         days,
         selected,
+        new Date(),
+        pools,
       );
-    });
+      // The full history is paged through movementLedger; the snapshot carries only recent activity.
+      const recent = { ...snapshot, movements: snapshot.movements.slice(0, RECENT_MOVEMENTS) };
+      if (actor.role !== 'shop_attendant') return recent;
+      return { ...withoutCosts(recent), locations: snapshot.locations.filter((location) => location.id === selected) };
+    }, { consistentSnapshot:true });
+  }
+
+  async movementLedger(userId: string, companyId: string, query: MovementLedgerQueryDto) {
+    return this.prisma.withCompany(companyId, async (tx) => {
+      const actor = await this.actor(tx, companyId, userId);
+      this.assertInventoryManager(actor);
+      const scope = await this.scope(tx, companyId);
+      const locationId = this.visibleLocation(actor, scope.locations, query.locationId);
+      const matching = buildSnapshot(scope.items, scope.locations, scope.stocks, scope.movements, 30, locationId).movements
+        .filter((movement) => (!query.type || movement.type === query.type) && (!query.itemId || movement.itemId === query.itemId));
+      return {
+        movements: matching.slice(query.offset, query.offset + query.limit),
+        total: matching.length,
+        offset: query.offset,
+        limit: query.limit,
+      };
+    }, { consistentSnapshot:true });
+  }
+
+  async returnableSales(userId: string, companyId: string) {
+    return this.prisma.withCompany(companyId, async (tx) => {
+      const actor = await this.actor(tx, companyId, userId);
+      this.assertInventoryManager(actor);
+      const scope = await this.scope(tx, companyId);
+      const returned = new Map<string, number>();
+      for (const movement of scope.movements) {
+        if (movement.type === StockMovementType.RETURN_IN && movement.relatedMovementId) {
+          returned.set(movement.relatedMovementId, (returned.get(movement.relatedMovementId) ?? 0) + movement.quantity);
+        }
+      }
+      // Grouped sales (saleId) return through the original-allocation workflow instead.
+      return buildSnapshot(scope.items, scope.locations, scope.stocks, scope.movements).movements
+        .filter((movement) => movement.type === StockMovementType.SALE && !movement.saleId)
+        .map((sale) => ({ ...sale, returnableQuantity: sale.quantity - (returned.get(sale.id) ?? 0) }))
+        .filter((sale) => sale.returnableQuantity > 0)
+        .slice(0, RETURNABLE_SALES);
+    }, { consistentSnapshot:true });
   }
 
   async createLocation(userId: string, companyId: string, body: CreateLocationDto) {
@@ -63,11 +112,13 @@ export class InventoryService {
       });
       if (existing) throw new ConflictException(`${name} already exists`);
 
-      return this.presentLocation(await tx.orm.public.Location.create({
+      const location = await tx.orm.public.Location.create({
         companyId,
         name: name as Varchar<120>,
         type: body.type,
-      }));
+      });
+      await this.audit(tx, actor, 'inventory.location_created', 'location', location.id, { name, type: body.type });
+      return this.presentLocation(location);
     });
   }
 
@@ -105,6 +156,14 @@ export class InventoryService {
         openingStock: body.openingStock,
       });
       if (generated) await tx.orm.public.Company.where({ id: companyId }).update({ nextSkuNumber: generated.next });
+      await this.audit(tx, actor, 'inventory.item_created', 'inventory_item', item.id, {
+        sku,
+        name: item.name,
+        unitCostCents: item.unitCostCents,
+        sellingPriceCents: item.sellingPriceCents,
+        locationId,
+        openingStock: body.openingStock,
+      });
       return item;
     });
   }
@@ -191,6 +250,7 @@ export class InventoryService {
       await this.lockItem(tx, companyId, itemId);
       const item = await tx.orm.public.InventoryItem.first({ id: itemId, companyId });
       if (!item) throw new NotFoundException('Inventory item not found');
+      if ((body.unit !== undefined && body.unit.trim() !== item.unit) || (body.unitCostCents !== undefined && body.unitCostCents !== item.unitCostCents)) await assertLegacyItem(tx,companyId,itemId);
       const sku = body.sku?.trim().toUpperCase();
       if (sku && sku !== item.sku) {
         const duplicate = await tx.orm.public.InventoryItem.first({ companyId, sku: sku as Varchar<40> });
@@ -198,9 +258,10 @@ export class InventoryService {
       }
       if (body.isActive === false && item.isActive) {
         const scope = await this.scope(tx, companyId, itemId);
-        const onHand = buildSnapshot(scope.items, scope.locations, scope.stocks, scope.movements).positions
-          .reduce((total, position) => total + position.closing, 0);
-        if (onHand !== 0) throw new ConflictException('Move or count this item down to zero before archiving it');
+        // Check each place: +5 here and -5 there must not pass as zero on hand.
+        const stillHeld = buildSnapshot(scope.items, scope.locations, scope.stocks, scope.movements).positions
+          .some((position) => position.closing !== 0);
+        if (stillHeld) throw new ConflictException('Move or count this item down to zero before archiving it');
       }
       const changes = {
         ...(sku ? { sku: sku as Varchar<40> } : {}),
@@ -264,9 +325,9 @@ export class InventoryService {
       }
       const changes = {
         ...(name ? { name: name as Varchar<120> } : {}),
-        ...(body.email !== undefined ? { email: body.email.trim().toLowerCase() as Varchar<255> } : {}),
-        ...(body.phone !== undefined ? { phone: body.phone.trim() as Varchar<40> } : {}),
-        ...(body.address !== undefined ? { address: body.address.trim() as Varchar<300> } : {}),
+        ...(body.email !== undefined ? { email: body.email.trim() ? body.email.trim().toLowerCase() as Varchar<255> : null } : {}),
+        ...(body.phone !== undefined ? { phone: body.phone.trim() ? body.phone.trim() as Varchar<40> : null } : {}),
+        ...(body.address !== undefined ? { address: body.address.trim() ? body.address.trim() as Varchar<300> : null } : {}),
         ...(body.isActive !== undefined ? { isActive: body.isActive } : {}),
       };
       await tx.orm.public.Supplier.where({ id: supplierId, companyId }).update(changes);
@@ -280,11 +341,14 @@ export class InventoryService {
       const actor = await this.actor(tx, companyId, userId);
       this.assertInventoryManager(actor);
       await this.lockItem(tx, companyId, body.itemId);
+      await assertLegacyItem(tx,companyId,body.itemId);
       const scope = await this.scope(tx, companyId, body.itemId);
       const item = scope.items[0];
       if (!item || !item.isActive) throw new NotFoundException('Inventory item not found');
       this.knownLocation(scope.locations, body.locationId);
-      const expectedQuantity = buildSnapshot(scope.items, scope.locations, scope.stocks, scope.movements, 30, body.locationId)
+      // A backdated count compares against the ledger on its own date, not today's balance.
+      const ledgerAtCount = scope.movements.filter((movement) => movement.movementDate <= body.countedAt);
+      const expectedQuantity = buildSnapshot(scope.items, scope.locations, scope.stocks, ledgerAtCount, 30, body.locationId)
         .positions.find((position) => position.item.id === body.itemId)?.closing ?? 0;
       const varianceQuantity = body.countedQuantity - expectedQuantity;
       const company = await tx.orm.public.Company.first({ id: companyId });
@@ -342,8 +406,19 @@ export class InventoryService {
         tx.orm.public.InventoryItem.where({ companyId }).all(),
         tx.orm.public.Location.where({ companyId }).all(),
       ]);
+      // Exact count portions carry the true cent allocation. Preserve old fields and history.
+      const exactImpacts = await tx.query(this.prisma.client.raw.sql`
+        SELECT m.stock_count_id AS "stockCountId", sum(e.value_delta_cents)::integer AS "valueImpactCents"
+        FROM public.inventory_valuation_entries e
+        JOIN public.stock_movements m ON m.company_id=e.company_id AND m.id=e.movement_id
+        WHERE e.company_id=${companyId}::uuid AND m.stock_count_id IS NOT NULL
+          AND e.kind IN ('count_in','count_out')
+        GROUP BY m.stock_count_id
+      `.returnsRow({stockCountId:'pg/uuid@1',valueImpactCents:'pg/int4@1'}).build());
+      const impactByCount = new Map(exactImpacts.map(row => [row.stockCountId,row.valueImpactCents]));
       return counts.sort((left, right) => right.countedAt.localeCompare(left.countedAt) || right.createdAt.localeCompare(left.createdAt)).map((count) => ({
         ...count,
+        ...(impactByCount.has(count.id) ? {valueImpactCents:impactByCount.get(count.id)} : {}),
         item: items.find((item) => item.id === count.itemId) ?? null,
         location: locations.find((location) => location.id === count.locationId) ?? null,
       }));
@@ -363,13 +438,19 @@ export class InventoryService {
       if (query.itemId && !scope.items.some((item) => item.id === query.itemId)) {
         throw new NotFoundException('Inventory item not found');
       }
+      const discounts = await tx.query(this.prisma.client.raw.sql`
+        SELECT s.location_id AS "locationId", l.item_id AS "itemId", s.movement_date::text AS "movementDate", l.automatic_discount_cents AS "discountCents"
+        FROM public.sale_lines l
+        JOIN public.sales s ON s.company_id = l.company_id AND s.id = l.sale_id
+        WHERE l.company_id = ${companyId}::uuid AND l.automatic_discount_cents > 0
+      `.returnsRow({ locationId: 'pg/uuid@1', itemId: 'pg/uuid@1', movementDate: 'pg/text@1', discountCents: 'pg/int4@1' }).build());
       return buildProfitability(scope.items, scope.locations, scope.movements, {
         days: query.days,
         locationId,
         locationType: query.locationType ?? null,
         itemId: query.itemId ?? null,
         category: query.category?.trim() || null,
-      });
+      }, new Date(), discounts);
     });
   }
 
@@ -387,6 +468,7 @@ export class InventoryService {
         throw new BadRequestException('Use a stock count to record an inventory adjustment');
       }
       await this.lockItem(tx, companyId, body.itemId);
+      await assertLegacyItem(tx,companyId,body.itemId);
       return this.recordMovement(tx, actor, body);
     });
   }
@@ -430,6 +512,9 @@ export class InventoryService {
       if (!body.relatedMovementId) throw new BadRequestException('Choose the original sale for this return');
       const sale = scope.movements.find((movement) => movement.id === body.relatedMovementId && movement.type === StockMovementType.SALE);
       if (!sale) throw new NotFoundException('Original sale not found');
+      if (await tx.orm.public.SaleComponent.first({ companyId: actor.companyId, movementId: sale.id })) {
+        throw new ConflictException('Grouped sale returns require the original-allocation return workflow, which is not enabled yet');
+      }
       if (sale.itemId !== body.itemId) throw new BadRequestException('The return item must match the original sale');
       const returned = scope.movements
         .filter((movement) => movement.type === StockMovementType.RETURN_IN && movement.relatedMovementId === sale.id)
@@ -457,10 +542,10 @@ export class InventoryService {
     }
 
     if (!company.allowNegativeStock && MOVEMENT_SIGN[body.type] === -1) {
-      const current = buildSnapshot(scope.items, scope.locations, scope.stocks, scope.movements, 30, locationId)
-        .positions.find((position) => position.item.id === body.itemId);
-      if (!current || body.quantity > current.closing) {
-        throw new ConflictException(`Only ${current?.closing ?? 0} ${item.unit} available`);
+      // A backdated outbound movement must fit every balance from its date onward.
+      const available = Math.max(0, lowestBalanceFrom(scope.stocks, scope.movements, body.itemId, locationId, body.movementDate));
+      if (body.quantity > available) {
+        throw new ConflictException(`Only ${available} ${item.unit} available`);
       }
     }
 
@@ -501,6 +586,7 @@ export class InventoryService {
         throw new BadRequestException('Stock count adjustments cannot be deleted. Record a new count instead.');
       }
       await this.lockItem(tx, companyId, target.itemId);
+      await assertLegacyItem(tx,companyId,target.itemId);
       return this.removeMovement(tx, actor, id, target.itemId);
     });
   }
@@ -510,12 +596,17 @@ export class InventoryService {
     const movement = scope.movements.find((candidate) => candidate.id === id);
     if (!movement) throw new NotFoundException('Stock movement not found');
 
+    if (await tx.orm.public.SaleComponent.first({ companyId: actor.companyId, movementId: id })) {
+      throw new ConflictException('Completed grouped sales cannot be deleted. An audited reversal is required');
+    }
+    if (await tx.orm.public.SaleReturnAllocation.first({companyId:actor.companyId,returnMovementId:id}) || await tx.orm.public.SaleReturnAllocation.first({companyId:actor.companyId,lossMovementId:id}) || await tx.orm.public.SaleReturnAllocation.first({companyId:actor.companyId,originalMovementId:id})) throw new ConflictException('Return allocations and their original records cannot be deleted. Record an audited correction');
     const remaining = scope.movements.filter((candidate) => candidate.id !== id);
     const affected = [movement.locationId, movement.destinationLocationId].filter((locationId): locationId is string => Boolean(locationId));
     for (const locationId of affected) {
-      const negative = buildSnapshot(scope.items, scope.locations, scope.stocks, remaining, 30, locationId)
-        .positions.some((position) => position.closing < 0);
-      if (negative) throw new ConflictException('Later movements depend on this stock');
+      // Removing a receipt can strand an earlier sale even when today's balance stays positive.
+      const lowestBefore = lowestBalanceFrom(scope.stocks, scope.movements, itemId, locationId, '');
+      const lowestAfter = lowestBalanceFrom(scope.stocks, remaining, itemId, locationId, '');
+      if (lowestAfter < 0 && lowestAfter < lowestBefore) throw new ConflictException('Later movements depend on this stock');
     }
 
     await tx.orm.public.StockMovement.where({ id, companyId: actor.companyId }).delete();
@@ -596,11 +687,31 @@ export class InventoryService {
         ? tx.orm.public.StockMovement.where({ companyId, itemId }).all()
         : tx.orm.public.StockMovement.where({ companyId }).all(),
     ]);
+    // One joined read, narrowed to the item when the caller locked one.
+    const componentRow = { movementId: 'pg/uuid@1', saleLineId: 'pg/uuid@1', saleId: 'pg/uuid@1', category: 'pg/text@1' } as const;
+    const components = await tx.query(itemId
+      ? this.prisma.client.raw.sql`
+        SELECT c.movement_id AS "movementId", c.sale_line_id AS "saleLineId", l.sale_id AS "saleId", c.category::text AS category
+        FROM public.sale_components c
+        JOIN public.sale_lines l ON l.company_id = c.company_id AND l.id = c.sale_line_id
+        WHERE c.company_id = ${companyId}::uuid AND l.item_id = ${itemId}::uuid
+      `.returnsRow(componentRow).build()
+      : this.prisma.client.raw.sql`
+        SELECT c.movement_id AS "movementId", c.sale_line_id AS "saleLineId", l.sale_id AS "saleId", c.category::text AS category
+        FROM public.sale_components c
+        JOIN public.sale_lines l ON l.company_id = c.company_id AND l.id = c.sale_line_id
+        WHERE c.company_id = ${companyId}::uuid
+      `.returnsRow(componentRow).build());
+    const componentByMovement = new Map(components.map((part) => [part.movementId, part]));
+    const groupedMovements = movements.map((movement) => {
+      const component = componentByMovement.get(movement.id);
+      return component ? { ...movement, saleId: component.saleId, saleLineId: component.saleLineId, pricingCategory: component.category } : movement;
+    });
     return {
       items: items as ItemRecord[],
       locations: locations.map((location) => this.presentLocation(location)),
       stocks: stocks as StockRecord[],
-      movements: movements as MovementRecord[],
+      movements: groupedMovements as MovementRecord[],
     };
   }
 

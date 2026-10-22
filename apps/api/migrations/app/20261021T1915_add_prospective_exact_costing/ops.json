@@ -1,0 +1,1893 @@
+[
+  {
+    "id": "table.inventory_valuation_checkpoints",
+    "label": "Create table \"inventory_valuation_checkpoints\"",
+    "summary": "Creates table \"inventory_valuation_checkpoints\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "inventory_valuation_checkpoints"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"inventory_valuation_checkpoints\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"inventory_valuation_checkpoints\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"inventory_valuation_checkpoints\"",
+        "sql": "CREATE TABLE \"public\".\"inventory_valuation_checkpoints\" (\n  \"base_unit\" character varying(20) NOT NULL,\n  \"company_id\" uuid NOT NULL,\n  \"cost_review_id\" uuid,\n  \"created_at\" timestamptz DEFAULT (now()) NOT NULL,\n  \"created_by_user_id\" uuid NOT NULL,\n  \"currency\" character varying(3) NOT NULL,\n  \"id\" uuid NOT NULL,\n  \"item_id\" uuid NOT NULL,\n  \"opening_quantity\" int4 NOT NULL,\n  \"opening_value_cents\" int4 NOT NULL,\n  \"reference\" character varying(200) NOT NULL,\n  \"request_id\" uuid NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"valuation_checkpoint_valid_ed805c31\" CHECK (opening_quantity >= 0 AND opening_value_cents >= 0 AND (opening_quantity > 0 OR opening_value_cents = 0) AND length(btrim(reference)) > 0 AND length(btrim(base_unit)) > 0)\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"inventory_valuation_checkpoints\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"inventory_valuation_checkpoints\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.inventory_valuation_entries",
+    "label": "Create table \"inventory_valuation_entries\"",
+    "summary": "Creates table \"inventory_valuation_entries\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "inventory_valuation_entries"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"inventory_valuation_entries\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"inventory_valuation_entries\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"inventory_valuation_entries\"",
+        "sql": "CREATE TABLE \"public\".\"inventory_valuation_entries\" (\n  \"checkpoint_id\" uuid NOT NULL,\n  \"company_id\" uuid NOT NULL,\n  \"created_at\" timestamptz DEFAULT (now()) NOT NULL,\n  \"created_by_user_id\" uuid NOT NULL,\n  \"id\" uuid NOT NULL,\n  \"item_id\" uuid NOT NULL,\n  \"kind\" character varying(20) NOT NULL,\n  \"movement_id\" uuid,\n  \"quantity_after\" int4 NOT NULL,\n  \"quantity_delta\" int4 NOT NULL,\n  \"reference\" character varying(200) NOT NULL,\n  \"request_id\" uuid,\n  \"sequence\" int4 NOT NULL,\n  \"value_after_cents\" int4 NOT NULL,\n  \"value_delta_cents\" int4 NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"valuation_entry_valid_6d8c9d4f\" CHECK (sequence > 0 AND quantity_after >= 0 AND value_after_cents >= 0 AND (quantity_after > 0 OR value_after_cents = 0) AND length(btrim(reference)) > 0 AND ((kind = 'receipt' AND quantity_delta > 0 AND value_delta_cents >= 0 AND movement_id IS NOT NULL AND request_id IS NOT NULL) OR (kind = 'sale' AND quantity_delta < 0 AND value_delta_cents <= 0 AND movement_id IS NOT NULL AND request_id IS NULL) OR (kind = 'value_adjustment' AND quantity_delta = 0 AND movement_id IS NULL AND request_id IS NOT NULL)))\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"inventory_valuation_entries\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"inventory_valuation_entries\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.inventory_valuation_requests",
+    "label": "Create table \"inventory_valuation_requests\"",
+    "summary": "Creates table \"inventory_valuation_requests\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "inventory_valuation_requests"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"inventory_valuation_requests\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"inventory_valuation_requests\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"inventory_valuation_requests\"",
+        "sql": "CREATE TABLE \"public\".\"inventory_valuation_requests\" (\n  \"company_id\" uuid NOT NULL,\n  \"created_at\" timestamptz DEFAULT (now()) NOT NULL,\n  \"created_by_user_id\" uuid NOT NULL,\n  \"finished_at\" timestamptz,\n  \"id\" uuid NOT NULL,\n  \"input_hash\" character varying(64),\n  \"input_json\" jsonb,\n  \"item_id\" uuid,\n  \"request_key\" uuid NOT NULL,\n  \"status\" character varying(12) NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"valuation_request_valid_60cd4609\" CHECK (status IN ('prepared','applied','cancelled') AND ((status = 'prepared' AND finished_at IS NULL) OR (status <> 'prepared' AND finished_at IS NOT NULL)) AND ((item_id IS NOT NULL AND input_json IS NOT NULL AND input_hash IS NOT NULL) OR (status = 'cancelled' AND item_id IS NULL AND input_json IS NULL AND input_hash IS NULL)))\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"inventory_valuation_requests\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"inventory_valuation_requests\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.sale_lines.valuation_checkpoint_id",
+    "label": "Add column \"valuation_checkpoint_id\" to \"sale_lines\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "valuation_checkpoint_id",
+        "table": "sale_lines"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"valuation_checkpoint_id\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "sale_lines",
+          "valuation_checkpoint_id"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"valuation_checkpoint_id\"",
+        "sql": "ALTER TABLE \"public\".\"sale_lines\" ADD COLUMN \"valuation_checkpoint_id\" uuid"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"valuation_checkpoint_id\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "sale_lines",
+          "valuation_checkpoint_id"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.inventory_valuation_checkpoints.inventory_valuation_checkpoints_company_id_item_id_key",
+    "label": "Add unique constraint on \"inventory_valuation_checkpoints\" (company_id, item_id)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "inventory_valuation_checkpoints_company_id_item_id_key",
+        "table": "inventory_valuation_checkpoints"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"inventory_valuation_checkpoints_company_id_item_id_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "inventory_valuation_checkpoints_company_id_item_id_key",
+          "public",
+          "\"public\".\"inventory_valuation_checkpoints\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"inventory_valuation_checkpoints_company_id_item_id_key\"",
+        "sql": "ALTER TABLE \"public\".\"inventory_valuation_checkpoints\" ADD CONSTRAINT \"inventory_valuation_checkpoints_company_id_item_id_key\" UNIQUE (\"company_id\", \"item_id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"inventory_valuation_checkpoints_company_id_item_id_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "inventory_valuation_checkpoints_company_id_item_id_key",
+          "public",
+          "\"public\".\"inventory_valuation_checkpoints\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.inventory_valuation_checkpoints.inventory_valuation_checkpoints_company_id_item_id_id_key",
+    "label": "Add unique constraint on \"inventory_valuation_checkpoints\" (company_id, item_id, id)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "inventory_valuation_checkpoints_company_id_item_id_id_key",
+        "table": "inventory_valuation_checkpoints"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"inventory_valuation_checkpoints_company_id_item_id_id_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "inventory_valuation_checkpoints_company_id_item_id_id_key",
+          "public",
+          "\"public\".\"inventory_valuation_checkpoints\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"inventory_valuation_checkpoints_company_id_item_id_id_key\"",
+        "sql": "ALTER TABLE \"public\".\"inventory_valuation_checkpoints\" ADD CONSTRAINT \"inventory_valuation_checkpoints_company_id_item_id_id_key\" UNIQUE (\"company_id\", \"item_id\", \"id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"inventory_valuation_checkpoints_company_id_item_id_id_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "inventory_valuation_checkpoints_company_id_item_id_id_key",
+          "public",
+          "\"public\".\"inventory_valuation_checkpoints\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.inventory_valuation_checkpoints.inventory_valuation_checkpoints_company_id_request_id_key",
+    "label": "Add unique constraint on \"inventory_valuation_checkpoints\" (company_id, request_id)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "inventory_valuation_checkpoints_company_id_request_id_key",
+        "table": "inventory_valuation_checkpoints"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"inventory_valuation_checkpoints_company_id_request_id_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "inventory_valuation_checkpoints_company_id_request_id_key",
+          "public",
+          "\"public\".\"inventory_valuation_checkpoints\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"inventory_valuation_checkpoints_company_id_request_id_key\"",
+        "sql": "ALTER TABLE \"public\".\"inventory_valuation_checkpoints\" ADD CONSTRAINT \"inventory_valuation_checkpoints_company_id_request_id_key\" UNIQUE (\"company_id\", \"request_id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"inventory_valuation_checkpoints_company_id_request_id_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "inventory_valuation_checkpoints_company_id_request_id_key",
+          "public",
+          "\"public\".\"inventory_valuation_checkpoints\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.inventory_valuation_entries.inventory_valuation_entries_company_id_item_id_sequence_key",
+    "label": "Add unique constraint on \"inventory_valuation_entries\" (company_id, item_id, sequence)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "inventory_valuation_entries_company_id_item_id_sequence_key",
+        "table": "inventory_valuation_entries"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"inventory_valuation_entries_company_id_item_id_sequence_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "inventory_valuation_entries_company_id_item_id_sequence_key",
+          "public",
+          "\"public\".\"inventory_valuation_entries\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"inventory_valuation_entries_company_id_item_id_sequence_key\"",
+        "sql": "ALTER TABLE \"public\".\"inventory_valuation_entries\" ADD CONSTRAINT \"inventory_valuation_entries_company_id_item_id_sequence_key\" UNIQUE (\"company_id\", \"item_id\", \"sequence\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"inventory_valuation_entries_company_id_item_id_sequence_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "inventory_valuation_entries_company_id_item_id_sequence_key",
+          "public",
+          "\"public\".\"inventory_valuation_entries\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.inventory_valuation_entries.inventory_valuation_entries_company_id_movement_id_key",
+    "label": "Add unique constraint on \"inventory_valuation_entries\" (company_id, movement_id)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "inventory_valuation_entries_company_id_movement_id_key",
+        "table": "inventory_valuation_entries"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"inventory_valuation_entries_company_id_movement_id_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "inventory_valuation_entries_company_id_movement_id_key",
+          "public",
+          "\"public\".\"inventory_valuation_entries\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"inventory_valuation_entries_company_id_movement_id_key\"",
+        "sql": "ALTER TABLE \"public\".\"inventory_valuation_entries\" ADD CONSTRAINT \"inventory_valuation_entries_company_id_movement_id_key\" UNIQUE (\"company_id\", \"movement_id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"inventory_valuation_entries_company_id_movement_id_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "inventory_valuation_entries_company_id_movement_id_key",
+          "public",
+          "\"public\".\"inventory_valuation_entries\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.inventory_valuation_entries.inventory_valuation_entries_company_id_request_id_key",
+    "label": "Add unique constraint on \"inventory_valuation_entries\" (company_id, request_id)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "inventory_valuation_entries_company_id_request_id_key",
+        "table": "inventory_valuation_entries"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"inventory_valuation_entries_company_id_request_id_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "inventory_valuation_entries_company_id_request_id_key",
+          "public",
+          "\"public\".\"inventory_valuation_entries\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"inventory_valuation_entries_company_id_request_id_key\"",
+        "sql": "ALTER TABLE \"public\".\"inventory_valuation_entries\" ADD CONSTRAINT \"inventory_valuation_entries_company_id_request_id_key\" UNIQUE (\"company_id\", \"request_id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"inventory_valuation_entries_company_id_request_id_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "inventory_valuation_entries_company_id_request_id_key",
+          "public",
+          "\"public\".\"inventory_valuation_entries\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.inventory_valuation_requests.inventory_valuation_requests_company_id_id_key",
+    "label": "Add unique constraint on \"inventory_valuation_requests\" (company_id, id)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "inventory_valuation_requests_company_id_id_key",
+        "table": "inventory_valuation_requests"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"inventory_valuation_requests_company_id_id_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "inventory_valuation_requests_company_id_id_key",
+          "public",
+          "\"public\".\"inventory_valuation_requests\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"inventory_valuation_requests_company_id_id_key\"",
+        "sql": "ALTER TABLE \"public\".\"inventory_valuation_requests\" ADD CONSTRAINT \"inventory_valuation_requests_company_id_id_key\" UNIQUE (\"company_id\", \"id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"inventory_valuation_requests_company_id_id_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "inventory_valuation_requests_company_id_id_key",
+          "public",
+          "\"public\".\"inventory_valuation_requests\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.inventory_valuation_requests.inventory_valuation_requests_company_id_request_key_key",
+    "label": "Add unique constraint on \"inventory_valuation_requests\" (company_id, request_key)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "inventory_valuation_requests_company_id_request_key_key",
+        "table": "inventory_valuation_requests"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"inventory_valuation_requests_company_id_request_key_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "inventory_valuation_requests_company_id_request_key_key",
+          "public",
+          "\"public\".\"inventory_valuation_requests\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"inventory_valuation_requests_company_id_request_key_key\"",
+        "sql": "ALTER TABLE \"public\".\"inventory_valuation_requests\" ADD CONSTRAINT \"inventory_valuation_requests_company_id_request_key_key\" UNIQUE (\"company_id\", \"request_key\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"inventory_valuation_requests_company_id_request_key_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "inventory_valuation_requests_company_id_request_key_key",
+          "public",
+          "\"public\".\"inventory_valuation_requests\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "checkConstraint.sale_lines.sale_line_amounts_valid_491d1ffe",
+    "label": "Add check constraint \"sale_line_amounts_valid_491d1ffe\" on \"sale_lines\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "sale_line_amounts_valid_491d1ffe",
+        "table": "sale_lines"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"sale_line_amounts_valid_491d1ffe\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_line_amounts_valid_491d1ffe",
+          "public",
+          "\"public\".\"sale_lines\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add check constraint \"sale_line_amounts_valid_491d1ffe\"",
+        "sql": "ALTER TABLE \"public\".\"sale_lines\" ADD CONSTRAINT \"sale_line_amounts_valid_491d1ffe\" CHECK (position >= 0 AND quantity > 0 AND retail_price_cents >= 0 AND unit_cost_cents >= 0 AND gross_sales_cents::bigint = quantity::bigint * retail_price_cents AND cogs_cents >= 0 AND (valuation_checkpoint_id IS NOT NULL OR cogs_cents::bigint = quantity::bigint * unit_cost_cents) AND total_cents >= 0 AND automatic_discount_cents >= 0 AND gross_sales_cents::bigint - automatic_discount_cents = total_cents)"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"sale_line_amounts_valid_491d1ffe\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_line_amounts_valid_491d1ffe",
+          "public",
+          "\"public\".\"sale_lines\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropCheckConstraint.sale_lines.sale_line_amounts_valid_34a14717",
+    "label": "Drop check constraint \"sale_line_amounts_valid_34a14717\" on \"sale_lines\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "sale_line_amounts_valid_34a14717",
+        "table": "sale_lines"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"sale_line_amounts_valid_34a14717\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_line_amounts_valid_34a14717",
+          "public",
+          "\"public\".\"sale_lines\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop check constraint \"sale_line_amounts_valid_34a14717\"",
+        "sql": "ALTER TABLE \"public\".\"sale_lines\" DROP CONSTRAINT \"sale_line_amounts_valid_34a14717\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"sale_line_amounts_valid_34a14717\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_line_amounts_valid_34a14717",
+          "public",
+          "\"public\".\"sale_lines\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.inventory_valuation_checkpoints.inventory_valuation_checkpoints_company_id_created_by__fd5eba49",
+    "label": "Create index \"inventory_valuation_checkpoints_company_id_created_by__fd5eba49\" on \"inventory_valuation_checkpoints\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "inventory_valuation_checkpoints_company_id_created_by__fd5eba49",
+        "table": "inventory_valuation_checkpoints"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"inventory_valuation_checkpoints_company_id_created_by__fd5eba49\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"inventory_valuation_checkpoints_company_id_created_by__fd5eba49\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"inventory_valuation_checkpoints_company_id_created_by__fd5eba49\"",
+        "sql": "CREATE INDEX \"inventory_valuation_checkpoints_company_id_created_by__fd5eba49\" ON \"public\".\"inventory_valuation_checkpoints\" (\"company_id\", \"created_by_user_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"inventory_valuation_checkpoints_company_id_created_by__fd5eba49\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"inventory_valuation_checkpoints_company_id_created_by__fd5eba49\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.inventory_valuation_entries.inventory_valuation_entries_company_id_created_by_user_fd5eba49",
+    "label": "Create index \"inventory_valuation_entries_company_id_created_by_user_fd5eba49\" on \"inventory_valuation_entries\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "inventory_valuation_entries_company_id_created_by_user_fd5eba49",
+        "table": "inventory_valuation_entries"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"inventory_valuation_entries_company_id_created_by_user_fd5eba49\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"inventory_valuation_entries_company_id_created_by_user_fd5eba49\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"inventory_valuation_entries_company_id_created_by_user_fd5eba49\"",
+        "sql": "CREATE INDEX \"inventory_valuation_entries_company_id_created_by_user_fd5eba49\" ON \"public\".\"inventory_valuation_entries\" (\"company_id\", \"created_by_user_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"inventory_valuation_entries_company_id_created_by_user_fd5eba49\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"inventory_valuation_entries_company_id_created_by_user_fd5eba49\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.inventory_valuation_entries.inventory_valuation_entries_company_id_item_id_checkpo_083480a5",
+    "label": "Create index \"inventory_valuation_entries_company_id_item_id_checkpo_083480a5\" on \"inventory_valuation_entries\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "inventory_valuation_entries_company_id_item_id_checkpo_083480a5",
+        "table": "inventory_valuation_entries"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"inventory_valuation_entries_company_id_item_id_checkpo_083480a5\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"inventory_valuation_entries_company_id_item_id_checkpo_083480a5\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"inventory_valuation_entries_company_id_item_id_checkpo_083480a5\"",
+        "sql": "CREATE INDEX \"inventory_valuation_entries_company_id_item_id_checkpo_083480a5\" ON \"public\".\"inventory_valuation_entries\" (\"company_id\", \"item_id\", \"checkpoint_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"inventory_valuation_entries_company_id_item_id_checkpo_083480a5\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"inventory_valuation_entries_company_id_item_id_checkpo_083480a5\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.inventory_valuation_requests.inventory_valuation_requests_company_id_created_by_use_fd5eba49",
+    "label": "Create index \"inventory_valuation_requests_company_id_created_by_use_fd5eba49\" on \"inventory_valuation_requests\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "inventory_valuation_requests_company_id_created_by_use_fd5eba49",
+        "table": "inventory_valuation_requests"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"inventory_valuation_requests_company_id_created_by_use_fd5eba49\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"inventory_valuation_requests_company_id_created_by_use_fd5eba49\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"inventory_valuation_requests_company_id_created_by_use_fd5eba49\"",
+        "sql": "CREATE INDEX \"inventory_valuation_requests_company_id_created_by_use_fd5eba49\" ON \"public\".\"inventory_valuation_requests\" (\"company_id\", \"created_by_user_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"inventory_valuation_requests_company_id_created_by_use_fd5eba49\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"inventory_valuation_requests_company_id_created_by_use_fd5eba49\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.inventory_valuation_requests.inventory_valuation_requests_company_id_idx_1303a718",
+    "label": "Create index \"inventory_valuation_requests_company_id_idx_1303a718\" on \"inventory_valuation_requests\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "inventory_valuation_requests_company_id_idx_1303a718",
+        "table": "inventory_valuation_requests"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"inventory_valuation_requests_company_id_idx_1303a718\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"inventory_valuation_requests_company_id_idx_1303a718\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"inventory_valuation_requests_company_id_idx_1303a718\"",
+        "sql": "CREATE INDEX \"inventory_valuation_requests_company_id_idx_1303a718\" ON \"public\".\"inventory_valuation_requests\" (\"company_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"inventory_valuation_requests_company_id_idx_1303a718\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"inventory_valuation_requests_company_id_idx_1303a718\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.inventory_valuation_requests.inventory_valuation_requests_company_id_item_id_idx_a27622c0",
+    "label": "Create index \"inventory_valuation_requests_company_id_item_id_idx_a27622c0\" on \"inventory_valuation_requests\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "inventory_valuation_requests_company_id_item_id_idx_a27622c0",
+        "table": "inventory_valuation_requests"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"inventory_valuation_requests_company_id_item_id_idx_a27622c0\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"inventory_valuation_requests_company_id_item_id_idx_a27622c0\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"inventory_valuation_requests_company_id_item_id_idx_a27622c0\"",
+        "sql": "CREATE INDEX \"inventory_valuation_requests_company_id_item_id_idx_a27622c0\" ON \"public\".\"inventory_valuation_requests\" (\"company_id\", \"item_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"inventory_valuation_requests_company_id_item_id_idx_a27622c0\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"inventory_valuation_requests_company_id_item_id_idx_a27622c0\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.sale_lines.sale_lines_company_id_item_id_valuation_checkpoint_id__2fc0facd",
+    "label": "Create index \"sale_lines_company_id_item_id_valuation_checkpoint_id__2fc0facd\" on \"sale_lines\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "sale_lines_company_id_item_id_valuation_checkpoint_id__2fc0facd",
+        "table": "sale_lines"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"sale_lines_company_id_item_id_valuation_checkpoint_id__2fc0facd\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"sale_lines_company_id_item_id_valuation_checkpoint_id__2fc0facd\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"sale_lines_company_id_item_id_valuation_checkpoint_id__2fc0facd\"",
+        "sql": "CREATE INDEX \"sale_lines_company_id_item_id_valuation_checkpoint_id__2fc0facd\" ON \"public\".\"sale_lines\" (\"company_id\", \"item_id\", \"valuation_checkpoint_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"sale_lines_company_id_item_id_valuation_checkpoint_id__2fc0facd\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"sale_lines_company_id_item_id_valuation_checkpoint_id__2fc0facd\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.inventory_valuation_checkpoints.inventory_valuation_checkpoints_company_id_item_id_fkey",
+    "label": "Add foreign key \"inventory_valuation_checkpoints_company_id_item_id_fkey\" on \"inventory_valuation_checkpoints\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "inventory_valuation_checkpoints_company_id_item_id_fkey",
+        "table": "inventory_valuation_checkpoints"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"inventory_valuation_checkpoints_company_id_item_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "inventory_valuation_checkpoints_company_id_item_id_fkey",
+          "public",
+          "\"public\".\"inventory_valuation_checkpoints\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"inventory_valuation_checkpoints_company_id_item_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"inventory_valuation_checkpoints\"\nADD CONSTRAINT \"inventory_valuation_checkpoints_company_id_item_id_fkey\"\nFOREIGN KEY (\"company_id\", \"item_id\")\nREFERENCES \"public\".\"inventory_items\" (\"company_id\", \"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"inventory_valuation_checkpoints_company_id_item_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "inventory_valuation_checkpoints_company_id_item_id_fkey",
+          "public",
+          "\"public\".\"inventory_valuation_checkpoints\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.inventory_valuation_checkpoints.inventory_valuation_checkpoints_company_id_request_id_fkey",
+    "label": "Add foreign key \"inventory_valuation_checkpoints_company_id_request_id_fkey\" on \"inventory_valuation_checkpoints\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "inventory_valuation_checkpoints_company_id_request_id_fkey",
+        "table": "inventory_valuation_checkpoints"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"inventory_valuation_checkpoints_company_id_request_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "inventory_valuation_checkpoints_company_id_request_id_fkey",
+          "public",
+          "\"public\".\"inventory_valuation_checkpoints\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"inventory_valuation_checkpoints_company_id_request_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"inventory_valuation_checkpoints\"\nADD CONSTRAINT \"inventory_valuation_checkpoints_company_id_request_id_fkey\"\nFOREIGN KEY (\"company_id\", \"request_id\")\nREFERENCES \"public\".\"inventory_valuation_requests\" (\"company_id\", \"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"inventory_valuation_checkpoints_company_id_request_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "inventory_valuation_checkpoints_company_id_request_id_fkey",
+          "public",
+          "\"public\".\"inventory_valuation_checkpoints\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.inventory_valuation_checkpoints.inventory_valuation_checkpoints_company_id_created_by_user_id_fkey",
+    "label": "Add foreign key \"inventory_valuation_checkpoints_company_id_created_by_user_id_fkey\" on \"inventory_valuation_checkpoints\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "inventory_valuation_checkpoints_company_id_created_by_user_id_fkey",
+        "table": "inventory_valuation_checkpoints"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"inventory_valuation_checkpoints_company_id_created_by_user_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "inventory_valuation_checkpoints_company_id_created_by_user_id_fkey",
+          "public",
+          "\"public\".\"inventory_valuation_checkpoints\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"inventory_valuation_checkpoints_company_id_created_by_user_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"inventory_valuation_checkpoints\"\nADD CONSTRAINT \"inventory_valuation_checkpoints_company_id_created_by_user_id_fkey\"\nFOREIGN KEY (\"company_id\", \"created_by_user_id\")\nREFERENCES \"public\".\"users\" (\"company_id\", \"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"inventory_valuation_checkpoints_company_id_created_by_user_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "inventory_valuation_checkpoints_company_id_created_by_user_id_fkey",
+          "public",
+          "\"public\".\"inventory_valuation_checkpoints\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.inventory_valuation_entries.inventory_valuation_entries_company_id_item_id_checkpoint_id_fkey",
+    "label": "Add foreign key \"inventory_valuation_entries_company_id_item_id_checkpoint_id_fkey\" on \"inventory_valuation_entries\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "inventory_valuation_entries_company_id_item_id_checkpoint_id_fkey",
+        "table": "inventory_valuation_entries"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"inventory_valuation_entries_company_id_item_id_checkpoint_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "inventory_valuation_entries_company_id_item_id_checkpoint_id_fkey",
+          "public",
+          "\"public\".\"inventory_valuation_entries\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"inventory_valuation_entries_company_id_item_id_checkpoint_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"inventory_valuation_entries\"\nADD CONSTRAINT \"inventory_valuation_entries_company_id_item_id_checkpoint_id_fkey\"\nFOREIGN KEY (\"company_id\", \"item_id\", \"checkpoint_id\")\nREFERENCES \"public\".\"inventory_valuation_checkpoints\" (\"company_id\", \"item_id\", \"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"inventory_valuation_entries_company_id_item_id_checkpoint_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "inventory_valuation_entries_company_id_item_id_checkpoint_id_fkey",
+          "public",
+          "\"public\".\"inventory_valuation_entries\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.inventory_valuation_entries.inventory_valuation_entries_company_id_request_id_fkey",
+    "label": "Add foreign key \"inventory_valuation_entries_company_id_request_id_fkey\" on \"inventory_valuation_entries\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "inventory_valuation_entries_company_id_request_id_fkey",
+        "table": "inventory_valuation_entries"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"inventory_valuation_entries_company_id_request_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "inventory_valuation_entries_company_id_request_id_fkey",
+          "public",
+          "\"public\".\"inventory_valuation_entries\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"inventory_valuation_entries_company_id_request_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"inventory_valuation_entries\"\nADD CONSTRAINT \"inventory_valuation_entries_company_id_request_id_fkey\"\nFOREIGN KEY (\"company_id\", \"request_id\")\nREFERENCES \"public\".\"inventory_valuation_requests\" (\"company_id\", \"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"inventory_valuation_entries_company_id_request_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "inventory_valuation_entries_company_id_request_id_fkey",
+          "public",
+          "\"public\".\"inventory_valuation_entries\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.inventory_valuation_entries.inventory_valuation_entries_company_id_movement_id_fkey",
+    "label": "Add foreign key \"inventory_valuation_entries_company_id_movement_id_fkey\" on \"inventory_valuation_entries\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "inventory_valuation_entries_company_id_movement_id_fkey",
+        "table": "inventory_valuation_entries"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"inventory_valuation_entries_company_id_movement_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "inventory_valuation_entries_company_id_movement_id_fkey",
+          "public",
+          "\"public\".\"inventory_valuation_entries\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"inventory_valuation_entries_company_id_movement_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"inventory_valuation_entries\"\nADD CONSTRAINT \"inventory_valuation_entries_company_id_movement_id_fkey\"\nFOREIGN KEY (\"company_id\", \"movement_id\")\nREFERENCES \"public\".\"stock_movements\" (\"company_id\", \"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"inventory_valuation_entries_company_id_movement_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "inventory_valuation_entries_company_id_movement_id_fkey",
+          "public",
+          "\"public\".\"inventory_valuation_entries\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.inventory_valuation_entries.inventory_valuation_entries_company_id_created_by_user_id_fkey",
+    "label": "Add foreign key \"inventory_valuation_entries_company_id_created_by_user_id_fkey\" on \"inventory_valuation_entries\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "inventory_valuation_entries_company_id_created_by_user_id_fkey",
+        "table": "inventory_valuation_entries"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"inventory_valuation_entries_company_id_created_by_user_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "inventory_valuation_entries_company_id_created_by_user_id_fkey",
+          "public",
+          "\"public\".\"inventory_valuation_entries\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"inventory_valuation_entries_company_id_created_by_user_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"inventory_valuation_entries\"\nADD CONSTRAINT \"inventory_valuation_entries_company_id_created_by_user_id_fkey\"\nFOREIGN KEY (\"company_id\", \"created_by_user_id\")\nREFERENCES \"public\".\"users\" (\"company_id\", \"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"inventory_valuation_entries_company_id_created_by_user_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "inventory_valuation_entries_company_id_created_by_user_id_fkey",
+          "public",
+          "\"public\".\"inventory_valuation_entries\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.inventory_valuation_requests.inventory_valuation_requests_company_id_fkey",
+    "label": "Add foreign key \"inventory_valuation_requests_company_id_fkey\" on \"inventory_valuation_requests\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "inventory_valuation_requests_company_id_fkey",
+        "table": "inventory_valuation_requests"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"inventory_valuation_requests_company_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "inventory_valuation_requests_company_id_fkey",
+          "public",
+          "\"public\".\"inventory_valuation_requests\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"inventory_valuation_requests_company_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"inventory_valuation_requests\"\nADD CONSTRAINT \"inventory_valuation_requests_company_id_fkey\"\nFOREIGN KEY (\"company_id\")\nREFERENCES \"public\".\"companies\" (\"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"inventory_valuation_requests_company_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "inventory_valuation_requests_company_id_fkey",
+          "public",
+          "\"public\".\"inventory_valuation_requests\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.inventory_valuation_requests.inventory_valuation_requests_company_id_created_by_user_id_fkey",
+    "label": "Add foreign key \"inventory_valuation_requests_company_id_created_by_user_id_fkey\" on \"inventory_valuation_requests\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "inventory_valuation_requests_company_id_created_by_user_id_fkey",
+        "table": "inventory_valuation_requests"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"inventory_valuation_requests_company_id_created_by_user_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "inventory_valuation_requests_company_id_created_by_user_id_fkey",
+          "public",
+          "\"public\".\"inventory_valuation_requests\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"inventory_valuation_requests_company_id_created_by_user_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"inventory_valuation_requests\"\nADD CONSTRAINT \"inventory_valuation_requests_company_id_created_by_user_id_fkey\"\nFOREIGN KEY (\"company_id\", \"created_by_user_id\")\nREFERENCES \"public\".\"users\" (\"company_id\", \"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"inventory_valuation_requests_company_id_created_by_user_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "inventory_valuation_requests_company_id_created_by_user_id_fkey",
+          "public",
+          "\"public\".\"inventory_valuation_requests\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.inventory_valuation_requests.inventory_valuation_requests_company_id_item_id_fkey",
+    "label": "Add foreign key \"inventory_valuation_requests_company_id_item_id_fkey\" on \"inventory_valuation_requests\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "inventory_valuation_requests_company_id_item_id_fkey",
+        "table": "inventory_valuation_requests"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"inventory_valuation_requests_company_id_item_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "inventory_valuation_requests_company_id_item_id_fkey",
+          "public",
+          "\"public\".\"inventory_valuation_requests\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"inventory_valuation_requests_company_id_item_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"inventory_valuation_requests\"\nADD CONSTRAINT \"inventory_valuation_requests_company_id_item_id_fkey\"\nFOREIGN KEY (\"company_id\", \"item_id\")\nREFERENCES \"public\".\"inventory_items\" (\"company_id\", \"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"inventory_valuation_requests_company_id_item_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "inventory_valuation_requests_company_id_item_id_fkey",
+          "public",
+          "\"public\".\"inventory_valuation_requests\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.sale_lines.sale_lines_company_id_item_id_valuation_checkpoint_id_fkey",
+    "label": "Add foreign key \"sale_lines_company_id_item_id_valuation_checkpoint_id_fkey\" on \"sale_lines\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "sale_lines_company_id_item_id_valuation_checkpoint_id_fkey",
+        "table": "sale_lines"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"sale_lines_company_id_item_id_valuation_checkpoint_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_lines_company_id_item_id_valuation_checkpoint_id_fkey",
+          "public",
+          "\"public\".\"sale_lines\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"sale_lines_company_id_item_id_valuation_checkpoint_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"sale_lines\"\nADD CONSTRAINT \"sale_lines_company_id_item_id_valuation_checkpoint_id_fkey\"\nFOREIGN KEY (\"company_id\", \"item_id\", \"valuation_checkpoint_id\")\nREFERENCES \"public\".\"inventory_valuation_checkpoints\" (\"company_id\", \"item_id\", \"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"sale_lines_company_id_item_id_valuation_checkpoint_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_lines_company_id_item_id_valuation_checkpoint_id_fkey",
+          "public",
+          "\"public\".\"sale_lines\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rowLevelSecurity.public.inventory_valuation_checkpoints",
+    "label": "Enable row-level security on \"inventory_valuation_checkpoints\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rowLevelSecurity",
+        "name": "inventory_valuation_checkpoints"
+      }
+    },
+    "precheck": [
+      {
+        "description": "check RLS is not already enabled on \"inventory_valuation_checkpoints\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND NOT (\"c\".\"relrowsecurity\"))) AS \"result\"",
+        "params": [
+          "public",
+          "inventory_valuation_checkpoints"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "enable row-level security on \"inventory_valuation_checkpoints\"",
+        "sql": "ALTER TABLE \"public\".\"inventory_valuation_checkpoints\" ENABLE ROW LEVEL SECURITY"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify row-level security is enabled on \"inventory_valuation_checkpoints\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"c\".\"relrowsecurity\")) AS \"result\"",
+        "params": [
+          "public",
+          "inventory_valuation_checkpoints"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rowLevelSecurity.public.inventory_valuation_entries",
+    "label": "Enable row-level security on \"inventory_valuation_entries\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rowLevelSecurity",
+        "name": "inventory_valuation_entries"
+      }
+    },
+    "precheck": [
+      {
+        "description": "check RLS is not already enabled on \"inventory_valuation_entries\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND NOT (\"c\".\"relrowsecurity\"))) AS \"result\"",
+        "params": [
+          "public",
+          "inventory_valuation_entries"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "enable row-level security on \"inventory_valuation_entries\"",
+        "sql": "ALTER TABLE \"public\".\"inventory_valuation_entries\" ENABLE ROW LEVEL SECURITY"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify row-level security is enabled on \"inventory_valuation_entries\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"c\".\"relrowsecurity\")) AS \"result\"",
+        "params": [
+          "public",
+          "inventory_valuation_entries"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rowLevelSecurity.public.inventory_valuation_requests",
+    "label": "Enable row-level security on \"inventory_valuation_requests\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rowLevelSecurity",
+        "name": "inventory_valuation_requests"
+      }
+    },
+    "precheck": [
+      {
+        "description": "check RLS is not already enabled on \"inventory_valuation_requests\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND NOT (\"c\".\"relrowsecurity\"))) AS \"result\"",
+        "params": [
+          "public",
+          "inventory_valuation_requests"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "enable row-level security on \"inventory_valuation_requests\"",
+        "sql": "ALTER TABLE \"public\".\"inventory_valuation_requests\" ENABLE ROW LEVEL SECURITY"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify row-level security is enabled on \"inventory_valuation_requests\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"c\".\"relrowsecurity\")) AS \"result\"",
+        "params": [
+          "public",
+          "inventory_valuation_requests"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.inventory_valuation_checkpoints.valuation_checkpoint_delete_336681c2",
+    "label": "Create RLS policy \"valuation_checkpoint_delete_336681c2\" on \"inventory_valuation_checkpoints\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "valuation_checkpoint_delete_336681c2",
+        "table": "inventory_valuation_checkpoints"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"valuation_checkpoint_delete_336681c2\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "inventory_valuation_checkpoints",
+          "valuation_checkpoint_delete_336681c2"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"valuation_checkpoint_delete_336681c2\"",
+        "sql": "CREATE POLICY \"valuation_checkpoint_delete_336681c2\" ON \"public\".\"inventory_valuation_checkpoints\" AS PERMISSIVE FOR DELETE TO stockledger_app USING (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid AND current_setting('app.workspace_deletion_company_id', true) = company_id::text)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"valuation_checkpoint_delete_336681c2\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "inventory_valuation_checkpoints",
+          "valuation_checkpoint_delete_336681c2"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.inventory_valuation_checkpoints.valuation_checkpoint_insert_1c87de9a",
+    "label": "Create RLS policy \"valuation_checkpoint_insert_1c87de9a\" on \"inventory_valuation_checkpoints\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "valuation_checkpoint_insert_1c87de9a",
+        "table": "inventory_valuation_checkpoints"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"valuation_checkpoint_insert_1c87de9a\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "inventory_valuation_checkpoints",
+          "valuation_checkpoint_insert_1c87de9a"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"valuation_checkpoint_insert_1c87de9a\"",
+        "sql": "CREATE POLICY \"valuation_checkpoint_insert_1c87de9a\" ON \"public\".\"inventory_valuation_checkpoints\" AS PERMISSIVE FOR INSERT TO stockledger_app WITH CHECK (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"valuation_checkpoint_insert_1c87de9a\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "inventory_valuation_checkpoints",
+          "valuation_checkpoint_insert_1c87de9a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.inventory_valuation_checkpoints.valuation_checkpoint_select_10e0fa81",
+    "label": "Create RLS policy \"valuation_checkpoint_select_10e0fa81\" on \"inventory_valuation_checkpoints\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "valuation_checkpoint_select_10e0fa81",
+        "table": "inventory_valuation_checkpoints"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"valuation_checkpoint_select_10e0fa81\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "inventory_valuation_checkpoints",
+          "valuation_checkpoint_select_10e0fa81"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"valuation_checkpoint_select_10e0fa81\"",
+        "sql": "CREATE POLICY \"valuation_checkpoint_select_10e0fa81\" ON \"public\".\"inventory_valuation_checkpoints\" AS PERMISSIVE FOR SELECT TO stockledger_app USING (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"valuation_checkpoint_select_10e0fa81\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "inventory_valuation_checkpoints",
+          "valuation_checkpoint_select_10e0fa81"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.inventory_valuation_entries.valuation_entry_delete_336681c2",
+    "label": "Create RLS policy \"valuation_entry_delete_336681c2\" on \"inventory_valuation_entries\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "valuation_entry_delete_336681c2",
+        "table": "inventory_valuation_entries"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"valuation_entry_delete_336681c2\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "inventory_valuation_entries",
+          "valuation_entry_delete_336681c2"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"valuation_entry_delete_336681c2\"",
+        "sql": "CREATE POLICY \"valuation_entry_delete_336681c2\" ON \"public\".\"inventory_valuation_entries\" AS PERMISSIVE FOR DELETE TO stockledger_app USING (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid AND current_setting('app.workspace_deletion_company_id', true) = company_id::text)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"valuation_entry_delete_336681c2\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "inventory_valuation_entries",
+          "valuation_entry_delete_336681c2"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.inventory_valuation_entries.valuation_entry_insert_1c87de9a",
+    "label": "Create RLS policy \"valuation_entry_insert_1c87de9a\" on \"inventory_valuation_entries\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "valuation_entry_insert_1c87de9a",
+        "table": "inventory_valuation_entries"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"valuation_entry_insert_1c87de9a\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "inventory_valuation_entries",
+          "valuation_entry_insert_1c87de9a"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"valuation_entry_insert_1c87de9a\"",
+        "sql": "CREATE POLICY \"valuation_entry_insert_1c87de9a\" ON \"public\".\"inventory_valuation_entries\" AS PERMISSIVE FOR INSERT TO stockledger_app WITH CHECK (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"valuation_entry_insert_1c87de9a\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "inventory_valuation_entries",
+          "valuation_entry_insert_1c87de9a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.inventory_valuation_entries.valuation_entry_select_10e0fa81",
+    "label": "Create RLS policy \"valuation_entry_select_10e0fa81\" on \"inventory_valuation_entries\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "valuation_entry_select_10e0fa81",
+        "table": "inventory_valuation_entries"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"valuation_entry_select_10e0fa81\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "inventory_valuation_entries",
+          "valuation_entry_select_10e0fa81"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"valuation_entry_select_10e0fa81\"",
+        "sql": "CREATE POLICY \"valuation_entry_select_10e0fa81\" ON \"public\".\"inventory_valuation_entries\" AS PERMISSIVE FOR SELECT TO stockledger_app USING (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"valuation_entry_select_10e0fa81\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "inventory_valuation_entries",
+          "valuation_entry_select_10e0fa81"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.inventory_valuation_requests.valuation_request_delete_336681c2",
+    "label": "Create RLS policy \"valuation_request_delete_336681c2\" on \"inventory_valuation_requests\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "valuation_request_delete_336681c2",
+        "table": "inventory_valuation_requests"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"valuation_request_delete_336681c2\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "inventory_valuation_requests",
+          "valuation_request_delete_336681c2"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"valuation_request_delete_336681c2\"",
+        "sql": "CREATE POLICY \"valuation_request_delete_336681c2\" ON \"public\".\"inventory_valuation_requests\" AS PERMISSIVE FOR DELETE TO stockledger_app USING (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid AND current_setting('app.workspace_deletion_company_id', true) = company_id::text)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"valuation_request_delete_336681c2\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "inventory_valuation_requests",
+          "valuation_request_delete_336681c2"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.inventory_valuation_requests.valuation_request_finish_277a30ed",
+    "label": "Create RLS policy \"valuation_request_finish_277a30ed\" on \"inventory_valuation_requests\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "valuation_request_finish_277a30ed",
+        "table": "inventory_valuation_requests"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"valuation_request_finish_277a30ed\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "inventory_valuation_requests",
+          "valuation_request_finish_277a30ed"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"valuation_request_finish_277a30ed\"",
+        "sql": "CREATE POLICY \"valuation_request_finish_277a30ed\" ON \"public\".\"inventory_valuation_requests\" AS PERMISSIVE FOR UPDATE TO stockledger_app USING (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid AND status = 'prepared') WITH CHECK (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid AND status IN ('applied','cancelled'))",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"valuation_request_finish_277a30ed\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "inventory_valuation_requests",
+          "valuation_request_finish_277a30ed"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.inventory_valuation_requests.valuation_request_insert_1c87de9a",
+    "label": "Create RLS policy \"valuation_request_insert_1c87de9a\" on \"inventory_valuation_requests\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "valuation_request_insert_1c87de9a",
+        "table": "inventory_valuation_requests"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"valuation_request_insert_1c87de9a\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "inventory_valuation_requests",
+          "valuation_request_insert_1c87de9a"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"valuation_request_insert_1c87de9a\"",
+        "sql": "CREATE POLICY \"valuation_request_insert_1c87de9a\" ON \"public\".\"inventory_valuation_requests\" AS PERMISSIVE FOR INSERT TO stockledger_app WITH CHECK (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"valuation_request_insert_1c87de9a\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "inventory_valuation_requests",
+          "valuation_request_insert_1c87de9a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.inventory_valuation_requests.valuation_request_select_10e0fa81",
+    "label": "Create RLS policy \"valuation_request_select_10e0fa81\" on \"inventory_valuation_requests\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "valuation_request_select_10e0fa81",
+        "table": "inventory_valuation_requests"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"valuation_request_select_10e0fa81\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "inventory_valuation_requests",
+          "valuation_request_select_10e0fa81"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"valuation_request_select_10e0fa81\"",
+        "sql": "CREATE POLICY \"valuation_request_select_10e0fa81\" ON \"public\".\"inventory_valuation_requests\" AS PERMISSIVE FOR SELECT TO stockledger_app USING (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"valuation_request_select_10e0fa81\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "inventory_valuation_requests",
+          "valuation_request_select_10e0fa81"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "exact_costing.runtime_grants",
+    "label": "Grant immutable valuation records and request completion only",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres"
+    },
+    "precheck": [
+      {
+        "description": "Valuation grants not applied",
+        "sql": "SELECT NOT has_table_privilege('stockledger_app','public.inventory_valuation_entries','SELECT') AS result"
+      }
+    ],
+    "execute": [
+      {
+        "description": "Grant immutable ledger access",
+        "sql": "GRANT SELECT, INSERT, DELETE ON public.inventory_valuation_checkpoints, public.inventory_valuation_entries, public.inventory_valuation_requests TO stockledger_app"
+      },
+      {
+        "description": "Grant request completion columns only",
+        "sql": "GRANT UPDATE (status, finished_at) ON public.inventory_valuation_requests TO stockledger_app"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "Append-only ledger; immutable request payload",
+        "sql": "SELECT has_table_privilege('stockledger_app','public.inventory_valuation_entries','SELECT,INSERT,DELETE') AND NOT has_table_privilege('stockledger_app','public.inventory_valuation_entries','UPDATE') AND NOT has_table_privilege('stockledger_app','public.inventory_valuation_checkpoints','UPDATE') AND has_column_privilege('stockledger_app','public.inventory_valuation_requests','status','UPDATE') AND NOT has_column_privilege('stockledger_app','public.inventory_valuation_requests','input_json','UPDATE') AS result"
+      }
+    ]
+  }
+]

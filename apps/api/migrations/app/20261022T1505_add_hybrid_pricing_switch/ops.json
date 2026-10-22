@@ -1,0 +1,44 @@
+[
+  {
+    "id": "column.public.companies.hybrid_pricing_enabled",
+    "label": "Add column \"hybrid_pricing_enabled\" to \"companies\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "hybrid_pricing_enabled",
+        "table": "companies"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"hybrid_pricing_enabled\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "companies",
+          "hybrid_pricing_enabled"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"hybrid_pricing_enabled\"",
+        "sql": "ALTER TABLE \"public\".\"companies\" ADD COLUMN \"hybrid_pricing_enabled\" bool DEFAULT false NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"hybrid_pricing_enabled\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "companies",
+          "hybrid_pricing_enabled"
+        ]
+      }
+    ]
+  }
+]

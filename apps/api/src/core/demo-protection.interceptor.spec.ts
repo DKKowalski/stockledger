@@ -11,8 +11,8 @@ describe('DemoProtectionInterceptor', () => {
   const interceptor = new DemoProtectionInterceptor(config);
   const next = { handle: vi.fn(() => of({ ok: true })) } as unknown as CallHandler;
 
-  function context(method: string, companyId?: string) {
-    const request = { method, user: companyId ? { companyId } : undefined } as unknown as AuthenticatedRequest;
+  function context(method: string, companyId?: string, path = '/inventory/movements') {
+    const request = { method, path, user: companyId ? { companyId } : undefined } as unknown as AuthenticatedRequest;
     return { switchToHttp: () => ({ getRequest: () => request }) } as unknown as ExecutionContext;
   }
 
@@ -23,6 +23,13 @@ describe('DemoProtectionInterceptor', () => {
 
   it('blocks authenticated writes to the public demo', () => {
     expect(() => interceptor.intercept(context('POST', demoCompanyId), next)).toThrow(ForbiddenException);
+  });
+
+  it('lets demo visitors use the price calculators, which never write', () => {
+    expect(() => interceptor.intercept(context('POST', demoCompanyId, '/inventory/pricing-preview/quote'), next)).not.toThrow();
+    expect(() => interceptor.intercept(context('POST', demoCompanyId, '/inventory/sales/quote'), next)).not.toThrow();
+    expect(() => interceptor.intercept(context('POST', demoCompanyId, '/inventory/sales/complete'), next)).toThrow(ForbiddenException);
+    expect(() => interceptor.intercept(context('PATCH', demoCompanyId, '/inventory/pricing-preview/quote'), next)).toThrow(ForbiddenException);
   });
 
   it('does not affect real workspaces or public requests', () => {

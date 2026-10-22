@@ -1,0 +1,478 @@
+[
+  {
+    "id": "table.item_pricing_versions",
+    "label": "Create table \"item_pricing_versions\"",
+    "summary": "Creates table \"item_pricing_versions\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "item_pricing_versions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"item_pricing_versions\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"item_pricing_versions\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"item_pricing_versions\"",
+        "sql": "CREATE TABLE \"public\".\"item_pricing_versions\" (\n  \"base_unit\" character varying(20) NOT NULL,\n  \"bulk_tiers\" jsonb NOT NULL,\n  \"company_id\" uuid NOT NULL,\n  \"created_at\" timestamptz DEFAULT (now()) NOT NULL,\n  \"created_by_user_id\" uuid NOT NULL,\n  \"id\" uuid NOT NULL,\n  \"item_id\" uuid NOT NULL,\n  \"package_label\" character varying(20),\n  \"package_price_cents\" int4,\n  \"package_size\" int4,\n  \"preview_enabled\" bool DEFAULT false NOT NULL,\n  \"version\" int4 NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"item_pricing_base_unit_present_169acc26\" CHECK (length(btrim(base_unit)) > 0),\n  CONSTRAINT \"item_pricing_package_valid_dbc7f253\" CHECK ((package_label IS NULL AND package_size IS NULL AND package_price_cents IS NULL) OR (package_label IS NOT NULL AND length(btrim(package_label)) > 0 AND package_size IS NOT NULL AND package_size > 1 AND package_price_cents IS NOT NULL AND package_price_cents >= 0)),\n  CONSTRAINT \"item_pricing_tiers_array_47c3262c\" CHECK (jsonb_typeof(bulk_tiers) = 'array'),\n  CONSTRAINT \"item_pricing_version_positive_341aaa74\" CHECK (version > 0)\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"item_pricing_versions\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"item_pricing_versions\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.item_pricing_versions.item_pricing_versions_company_id_item_id_version_key",
+    "label": "Add unique constraint on \"item_pricing_versions\" (company_id, item_id, version)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "item_pricing_versions_company_id_item_id_version_key",
+        "table": "item_pricing_versions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"item_pricing_versions_company_id_item_id_version_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "item_pricing_versions_company_id_item_id_version_key",
+          "public",
+          "\"public\".\"item_pricing_versions\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"item_pricing_versions_company_id_item_id_version_key\"",
+        "sql": "ALTER TABLE \"public\".\"item_pricing_versions\" ADD CONSTRAINT \"item_pricing_versions_company_id_item_id_version_key\" UNIQUE (\"company_id\", \"item_id\", \"version\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"item_pricing_versions_company_id_item_id_version_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "item_pricing_versions_company_id_item_id_version_key",
+          "public",
+          "\"public\".\"item_pricing_versions\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.item_pricing_versions.item_pricing_actor_idx",
+    "label": "Create index \"item_pricing_actor_idx\" on \"item_pricing_versions\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "item_pricing_actor_idx",
+        "table": "item_pricing_versions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"item_pricing_actor_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"item_pricing_actor_idx\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"item_pricing_actor_idx\"",
+        "sql": "CREATE INDEX \"item_pricing_actor_idx\" ON \"public\".\"item_pricing_versions\" (\"company_id\", \"created_by_user_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"item_pricing_actor_idx\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"item_pricing_actor_idx\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.item_pricing_versions.item_pricing_versions_company_id_idx_1303a718",
+    "label": "Create index \"item_pricing_versions_company_id_idx_1303a718\" on \"item_pricing_versions\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "item_pricing_versions_company_id_idx_1303a718",
+        "table": "item_pricing_versions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"item_pricing_versions_company_id_idx_1303a718\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"item_pricing_versions_company_id_idx_1303a718\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"item_pricing_versions_company_id_idx_1303a718\"",
+        "sql": "CREATE INDEX \"item_pricing_versions_company_id_idx_1303a718\" ON \"public\".\"item_pricing_versions\" (\"company_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"item_pricing_versions_company_id_idx_1303a718\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"item_pricing_versions_company_id_idx_1303a718\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.item_pricing_versions.item_pricing_versions_company_id_item_id_idx_a27622c0",
+    "label": "Create index \"item_pricing_versions_company_id_item_id_idx_a27622c0\" on \"item_pricing_versions\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "item_pricing_versions_company_id_item_id_idx_a27622c0",
+        "table": "item_pricing_versions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"item_pricing_versions_company_id_item_id_idx_a27622c0\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"item_pricing_versions_company_id_item_id_idx_a27622c0\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"item_pricing_versions_company_id_item_id_idx_a27622c0\"",
+        "sql": "CREATE INDEX \"item_pricing_versions_company_id_item_id_idx_a27622c0\" ON \"public\".\"item_pricing_versions\" (\"company_id\", \"item_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"item_pricing_versions_company_id_item_id_idx_a27622c0\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"item_pricing_versions_company_id_item_id_idx_a27622c0\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.item_pricing_versions.item_pricing_versions_company_id_item_id_fkey",
+    "label": "Add foreign key \"item_pricing_versions_company_id_item_id_fkey\" on \"item_pricing_versions\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "item_pricing_versions_company_id_item_id_fkey",
+        "table": "item_pricing_versions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"item_pricing_versions_company_id_item_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "item_pricing_versions_company_id_item_id_fkey",
+          "public",
+          "\"public\".\"item_pricing_versions\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"item_pricing_versions_company_id_item_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"item_pricing_versions\"\nADD CONSTRAINT \"item_pricing_versions_company_id_item_id_fkey\"\nFOREIGN KEY (\"company_id\", \"item_id\")\nREFERENCES \"public\".\"inventory_items\" (\"company_id\", \"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"item_pricing_versions_company_id_item_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "item_pricing_versions_company_id_item_id_fkey",
+          "public",
+          "\"public\".\"item_pricing_versions\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.item_pricing_versions.item_pricing_versions_company_id_created_by_user_id_fkey",
+    "label": "Add foreign key \"item_pricing_versions_company_id_created_by_user_id_fkey\" on \"item_pricing_versions\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "item_pricing_versions_company_id_created_by_user_id_fkey",
+        "table": "item_pricing_versions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"item_pricing_versions_company_id_created_by_user_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "item_pricing_versions_company_id_created_by_user_id_fkey",
+          "public",
+          "\"public\".\"item_pricing_versions\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"item_pricing_versions_company_id_created_by_user_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"item_pricing_versions\"\nADD CONSTRAINT \"item_pricing_versions_company_id_created_by_user_id_fkey\"\nFOREIGN KEY (\"company_id\", \"created_by_user_id\")\nREFERENCES \"public\".\"users\" (\"company_id\", \"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"item_pricing_versions_company_id_created_by_user_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "item_pricing_versions_company_id_created_by_user_id_fkey",
+          "public",
+          "\"public\".\"item_pricing_versions\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "pricing_preview.grant_runtime_access",
+    "label": "Grant append-only pricing access and guarded workspace deletion",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres"
+    },
+    "precheck": [
+      {
+        "description": "Runtime pricing permissions need to be granted",
+        "sql": "SELECT NOT has_table_privilege('stockledger_app', 'public.item_pricing_versions', 'SELECT, INSERT, DELETE') AS result"
+      }
+    ],
+    "execute": [
+      {
+        "description": "Allow reads, new versions, and RLS-guarded workspace deletion only",
+        "sql": "GRANT SELECT, INSERT, DELETE ON TABLE public.item_pricing_versions TO stockledger_app"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "Runtime pricing permissions are present without update access",
+        "sql": "SELECT has_table_privilege('stockledger_app', 'public.item_pricing_versions', 'SELECT, INSERT, DELETE') AND NOT has_table_privilege('stockledger_app', 'public.item_pricing_versions', 'UPDATE') AS result"
+      }
+    ]
+  },
+  {
+    "id": "rowLevelSecurity.public.item_pricing_versions",
+    "label": "Enable row-level security on \"item_pricing_versions\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rowLevelSecurity",
+        "name": "item_pricing_versions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "check RLS is not already enabled on \"item_pricing_versions\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND NOT (\"c\".\"relrowsecurity\"))) AS \"result\"",
+        "params": [
+          "public",
+          "item_pricing_versions"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "enable row-level security on \"item_pricing_versions\"",
+        "sql": "ALTER TABLE \"public\".\"item_pricing_versions\" ENABLE ROW LEVEL SECURITY"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify row-level security is enabled on \"item_pricing_versions\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"c\".\"relrowsecurity\")) AS \"result\"",
+        "params": [
+          "public",
+          "item_pricing_versions"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.item_pricing_versions.item_pricing_read_10e0fa81",
+    "label": "Create RLS policy \"item_pricing_read_10e0fa81\" on \"item_pricing_versions\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "item_pricing_read_10e0fa81",
+        "table": "item_pricing_versions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"item_pricing_read_10e0fa81\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "item_pricing_versions",
+          "item_pricing_read_10e0fa81"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"item_pricing_read_10e0fa81\"",
+        "sql": "CREATE POLICY \"item_pricing_read_10e0fa81\" ON \"public\".\"item_pricing_versions\" AS PERMISSIVE FOR SELECT TO stockledger_app USING (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"item_pricing_read_10e0fa81\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "item_pricing_versions",
+          "item_pricing_read_10e0fa81"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.item_pricing_versions.item_pricing_workspace_delete_336681c2",
+    "label": "Create RLS policy \"item_pricing_workspace_delete_336681c2\" on \"item_pricing_versions\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "item_pricing_workspace_delete_336681c2",
+        "table": "item_pricing_versions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"item_pricing_workspace_delete_336681c2\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "item_pricing_versions",
+          "item_pricing_workspace_delete_336681c2"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"item_pricing_workspace_delete_336681c2\"",
+        "sql": "CREATE POLICY \"item_pricing_workspace_delete_336681c2\" ON \"public\".\"item_pricing_versions\" AS PERMISSIVE FOR DELETE TO stockledger_app USING (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid AND current_setting('app.workspace_deletion_company_id', true) = company_id::text)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"item_pricing_workspace_delete_336681c2\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "item_pricing_versions",
+          "item_pricing_workspace_delete_336681c2"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.item_pricing_versions.item_pricing_write_1c87de9a",
+    "label": "Create RLS policy \"item_pricing_write_1c87de9a\" on \"item_pricing_versions\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "item_pricing_write_1c87de9a",
+        "table": "item_pricing_versions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"item_pricing_write_1c87de9a\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "item_pricing_versions",
+          "item_pricing_write_1c87de9a"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"item_pricing_write_1c87de9a\"",
+        "sql": "CREATE POLICY \"item_pricing_write_1c87de9a\" ON \"public\".\"item_pricing_versions\" AS PERMISSIVE FOR INSERT TO stockledger_app WITH CHECK (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"item_pricing_write_1c87de9a\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "item_pricing_versions",
+          "item_pricing_write_1c87de9a"
+        ]
+      }
+    ]
+  }
+]

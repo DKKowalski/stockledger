@@ -84,7 +84,7 @@ export function SecuritySettingsPage() {
   const eligibleOwners = useMemo(() => users.filter((user) => user.role !== 'administrator' && user.isActive && !user.setupPending), [users]);
 
   return <>
-    <PageHeader title="Security and access" subtitle="Review active sessions, recent sign-ins, and workspace ownership." />
+    <PageHeader title="Security and access" />
     <SettingsNavigation />
     {error && <div className="form-error settings-page-error" role="alert">{error}</div>}
     <div className="settings-content-column">
@@ -100,7 +100,7 @@ export function SecuritySettingsPage() {
         })}</div> : <EmptyState text="No active sessions were found." />}
       </Panel>
 
-      <Panel className="spaced" title="Recent sign-ins" subtitle="The latest successful sign-ins across your team.">
+      <Panel className="spaced" title="Recent sign-ins">
         {!overview ? <div className="empty"><p>Loading activity</p></div> : overview.recentSignIns.length ? <div className="security-signin-list">{overview.recentSignIns.map((signIn) => <article key={signIn.id}><span><History size={15} /></span><div><h3>{signIn.user?.fullName ?? 'Former team member'}</h3><p>{deviceDetails(signIn.userAgent).label} · {signIn.ipAddress || 'IP not available'}</p></div><time>{dateTime(signIn.createdAt)}</time></article>)}</div> : <EmptyState text="New sign-ins will appear here." />}
       </Panel>
 

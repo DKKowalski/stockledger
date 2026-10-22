@@ -1,4 +1,4 @@
-import { Barcode, Boxes, MapPin, Save, ShieldCheck } from 'lucide-react';
+import { Barcode, Boxes, MapPin, Save, ShieldCheck, Tags, type LucideIcon } from 'lucide-react';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 import { api } from '../../api';
@@ -25,7 +25,7 @@ export function InventorySettingsPage() {
   }, [accessToken]);
 
   if (loading && !settings) return <div className="empty page-state"><StockLedgerMark animated size={40} /><p>Loading inventory settings</p></div>;
-  if (!settings) return <><PageHeader title="Inventory settings" subtitle="Defaults and safeguards for daily stock work." /><div className="form-error settings-page-error">{error ?? 'Inventory settings are not available'}</div></>;
+  if (!settings) return <><PageHeader title="Inventory settings" /><div className="form-error settings-page-error">{error ?? 'Inventory settings are not available'}</div></>;
 
   return <InventorySettingsForm key={JSON.stringify(settings)} initial={settings} locations={locations} loadError={error ?? locationsError} save={saveInventory} />;
 }
@@ -51,7 +51,7 @@ function InventorySettingsForm({ initial, locations, loadError, save }: { initia
   };
 
   return <>
-    <PageHeader title="Inventory settings" subtitle="Set sensible defaults and decide how strict stock recording should be." />
+    <PageHeader title="Inventory settings" />
     <SettingsNavigation />
     {(loadError || formError) && <div className="form-error settings-page-error" role="alert">{formError ?? loadError}</div>}
     <form className="settings-content-column" onSubmit={(event) => void submit(event)}>
@@ -71,9 +71,16 @@ function InventorySettingsForm({ initial, locations, loadError, save }: { initia
         </div>
       </Panel>
 
+      <Panel className="spaced" title="Selling" subtitle="How shops charge for items.">
+        <div className="settings-switch-list">
+          <SettingsSwitch checked={form.hybridPricingEnabled} icon={Tags} title="Box and quantity deals" description="Shops charge the box and quantity prices you set on each item under Items → Pricing, and you can take customer returns under Movements. Items without deals keep their single price." onChange={(hybridPricingEnabled) => setForm({ ...form, hybridPricingEnabled, allowNegativeStock: hybridPricingEnabled ? false : form.allowNegativeStock })} />
+        </div>
+        {form.hybridPricingEnabled && initial.allowNegativeStock && <p className="settings-switch-note">Saving this also switches off negative stock, because checkout never sells stock a shop does not have.</p>}
+      </Panel>
+
       <Panel className="spaced" title="Recording safeguards" subtitle="These rules are checked by the API for every stock change.">
         <div className="settings-switch-list">
-          <SettingsSwitch checked={form.allowNegativeStock} title="Allow negative stock" description="Let outgoing stock take a location below zero when the physical count is ahead of the system." onChange={(allowNegativeStock) => setForm({ ...form, allowNegativeStock })} />
+          <SettingsSwitch checked={form.allowNegativeStock} disabled={form.hybridPricingEnabled} title="Allow negative stock" description={form.hybridPricingEnabled ? 'Unavailable while box and quantity deals are on.' : 'Let outgoing stock take a location below zero when the physical count is ahead of the system.'} onChange={(allowNegativeStock) => setForm({ ...form, allowNegativeStock })} />
           <SettingsSwitch checked={form.requirePurchaseSource} title="Require a purchase source" description="Every purchase needs either a supplier or a reference number." onChange={(requirePurchaseSource) => setForm({ ...form, requirePurchaseSource })} />
           <SettingsSwitch checked={form.requireAdjustmentReason} title="Require adjustment reasons" description="Damage and non-zero stock-count variances need a note." onChange={(requireAdjustmentReason) => setForm({ ...form, requireAdjustmentReason })} />
         </div>
@@ -84,10 +91,10 @@ function InventorySettingsForm({ initial, locations, loadError, save }: { initia
   </>;
 }
 
-function SettingsSwitch({ checked, title, description, onChange }: { checked: boolean; title: string; description: string; onChange: (checked: boolean) => void }) {
+function SettingsSwitch({ checked, disabled = false, icon: Icon = ShieldCheck, title, description, onChange }: { checked: boolean; disabled?: boolean; icon?: LucideIcon; title: string; description: string; onChange: (checked: boolean) => void }) {
   return <label className="settings-switch-row">
-    <span className="settings-switch-copy"><b><ShieldCheck size={16} />{title}</b><small>{description}</small></span>
-    <input checked={checked} type="checkbox" onChange={(event) => onChange(event.target.checked)} />
+    <span className="settings-switch-copy"><b><Icon size={16} />{title}</b><small>{description}</small></span>
+    <input checked={checked} disabled={disabled} type="checkbox" onChange={(event) => onChange(event.target.checked)} />
     <span className="settings-switch" aria-hidden="true"><i /></span>
   </label>;
 }

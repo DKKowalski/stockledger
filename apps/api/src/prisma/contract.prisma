@@ -45,6 +45,7 @@ model Company {
   allowNegativeStock    Boolean                    @default(false) @map("allow_negative_stock")
   requirePurchaseSource Boolean                    @default(false) @map("require_purchase_source")
   requireAdjustmentReason Boolean                  @default(true) @map("require_adjustment_reason")
+  hybridPricingEnabled  Boolean                    @default(false) @map("hybrid_pricing_enabled")
   shopTerm              VarChar(20)                @default("shop") @map("shop_term")
   warehouseTerm         VarChar(20)                @default("warehouse") @map("warehouse_term")
   itemTerm              VarChar(20)                @default("item") @map("item_term")
@@ -127,6 +128,273 @@ model InventoryItem {
   @@index([companyId])
   @@rls
   @@map("inventory_items")
+}
+
+model ItemPricingVersion {
+  id                  Uuid              @id @default(uuid())
+  companyId           Uuid              @map("company_id")
+  itemId              Uuid              @map("item_id")
+  version             Int
+  baseUnit            VarChar(20)       @map("base_unit")
+  previewEnabled      Boolean           @default(false) @map("preview_enabled")
+  packageLabel        VarChar(20)?      @map("package_label")
+  packageSize         Int?              @map("package_size")
+  packagePriceCents   Int?              @map("package_price_cents")
+  bulkTiers           Jsonb             @map("bulk_tiers")
+  createdByUserId     Uuid              @map("created_by_user_id")
+  createdAt           TimestamptzString @default(now()) @map("created_at")
+
+  item                InventoryItem     @relation(fields:[companyId, itemId], references:[companyId, id], onDelete: Restrict, onUpdate: Cascade)
+  createdBy           User              @relation(fields:[companyId, createdByUserId], references:[companyId, id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([companyId, itemId, version])
+  @@check(expression: "version > 0", name: "item_pricing_version_positive")
+  @@check(expression: "length(btrim(base_unit)) > 0", name: "item_pricing_base_unit_present")
+  @@check(expression: "(package_label IS NULL AND package_size IS NULL AND package_price_cents IS NULL) OR (package_label IS NOT NULL AND length(btrim(package_label)) > 0 AND package_size IS NOT NULL AND package_size > 1 AND package_price_cents IS NOT NULL AND package_price_cents >= 0)", name: "item_pricing_package_valid")
+  @@check(expression: "jsonb_typeof(bulk_tiers) = 'array'", name: "item_pricing_tiers_array")
+  @@index([companyId])
+  @@index([companyId, createdByUserId], map: "item_pricing_actor_idx")
+  @@rls
+  @@map("item_pricing_versions")
+}
+
+// Prospective exact carrying values. No legacy rows are enrolled or backfilled.
+model InventoryValuationRequest {
+  id Uuid @id @default(uuid())
+  companyId Uuid @map("company_id")
+  requestKey Uuid @map("request_key")
+  createdByUserId Uuid @map("created_by_user_id")
+  itemId Uuid? @map("item_id")
+  inputJson Jsonb? @map("input_json")
+  inputHash VarChar(64)? @map("input_hash")
+  status VarChar(12)
+  createdAt TimestamptzString @default(now()) @map("created_at")
+  finishedAt TimestamptzString? @map("finished_at")
+
+  company Company @relation(fields:[companyId], references:[id], onDelete: Restrict, onUpdate: Cascade)
+  actor User @relation(fields:[companyId, createdByUserId], references:[companyId, id], onDelete: Restrict, onUpdate: Cascade)
+  item InventoryItem? @relation(fields:[companyId, itemId], references:[companyId, id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([companyId, id])
+  @@unique([companyId, requestKey])
+  @@check(expression: "status IN ('prepared','applied','cancelled') AND ((status = 'prepared' AND finished_at IS NULL) OR (status <> 'prepared' AND finished_at IS NOT NULL)) AND ((item_id IS NOT NULL AND input_json IS NOT NULL AND input_hash IS NOT NULL) OR (status = 'cancelled' AND item_id IS NULL AND input_json IS NULL AND input_hash IS NULL))", name: "valuation_request_valid")
+  @@index([companyId, itemId])
+  @@rls
+  @@map("inventory_valuation_requests")
+}
+
+model InventoryValuationCheckpoint {
+  id Uuid @id @default(uuid())
+  companyId Uuid @map("company_id")
+  itemId Uuid @map("item_id")
+  requestId Uuid @map("request_id")
+  createdByUserId Uuid @map("created_by_user_id")
+  baseUnit VarChar(20) @map("base_unit")
+  currency VarChar(3)
+  openingQuantity Int @map("opening_quantity")
+  openingValueCents Int @map("opening_value_cents")
+  reference VarChar(200)
+  costReviewId Uuid? @map("cost_review_id")
+  createdAt TimestamptzString @default(now()) @map("created_at")
+
+  item InventoryItem @relation(fields:[companyId, itemId], references:[companyId, id], onDelete: Restrict, onUpdate: Cascade)
+  request InventoryValuationRequest @relation(fields:[companyId, requestId], references:[companyId, id], onDelete: Restrict, onUpdate: Cascade)
+  actor User @relation(fields:[companyId, createdByUserId], references:[companyId, id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([companyId, itemId])
+  @@unique([companyId, itemId, id])
+  @@unique([companyId, requestId])
+  @@check(expression: "opening_quantity >= 0 AND opening_value_cents >= 0 AND (opening_quantity > 0 OR opening_value_cents = 0) AND length(btrim(reference)) > 0 AND length(btrim(base_unit)) > 0", name: "valuation_checkpoint_valid")
+  @@rls
+  @@map("inventory_valuation_checkpoints")
+}
+
+model InventoryValuationEntry {
+  id Uuid @id @default(uuid())
+  companyId Uuid @map("company_id")
+  itemId Uuid @map("item_id")
+  checkpointId Uuid @map("checkpoint_id")
+  requestId Uuid? @map("request_id")
+  movementId Uuid? @map("movement_id")
+  createdByUserId Uuid @map("created_by_user_id")
+  sequence Int
+  kind VarChar(20)
+  quantityDelta Int @map("quantity_delta")
+  valueDeltaCents Int @map("value_delta_cents")
+  quantityAfter Int @map("quantity_after")
+  valueAfterCents Int @map("value_after_cents")
+  reference VarChar(200)
+  createdAt TimestamptzString @default(now()) @map("created_at")
+
+  checkpoint InventoryValuationCheckpoint @relation(fields:[companyId, itemId, checkpointId], references:[companyId, itemId, id], onDelete: Restrict, onUpdate: Cascade)
+  request InventoryValuationRequest? @relation(fields:[companyId, requestId], references:[companyId, id], onDelete: Restrict, onUpdate: Cascade)
+  movement StockMovement? @relation(fields:[companyId, movementId], references:[companyId, id], onDelete: Restrict, onUpdate: Cascade)
+  actor User @relation(fields:[companyId, createdByUserId], references:[companyId, id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([companyId, itemId, sequence])
+  @@unique([companyId, movementId])
+  @@index([companyId, requestId])
+  @@check(expression: "sequence > 0 AND quantity_after >= 0 AND value_after_cents >= 0 AND (quantity_after > 0 OR value_after_cents = 0) AND length(btrim(reference)) > 0 AND ((kind = 'receipt' AND quantity_delta > 0 AND value_delta_cents >= 0 AND movement_id IS NOT NULL AND request_id IS NOT NULL) OR (kind = 'sale' AND quantity_delta < 0 AND value_delta_cents <= 0 AND movement_id IS NOT NULL AND request_id IS NULL) OR (kind = 'customer_return' AND quantity_delta > 0 AND value_delta_cents >= 0 AND movement_id IS NOT NULL AND request_id IS NULL) OR (kind = 'return_disposal' AND quantity_delta = 0 AND value_delta_cents = 0 AND movement_id IS NOT NULL AND request_id IS NULL) OR (kind IN ('damage','count_out','supplier_return','receipt_reversal') AND quantity_delta < 0 AND value_delta_cents <= 0 AND movement_id IS NOT NULL AND request_id IS NOT NULL) OR (kind = 'count_in' AND quantity_delta > 0 AND value_delta_cents >= 0 AND movement_id IS NOT NULL AND request_id IS NOT NULL) OR (kind = 'transfer' AND quantity_delta = 0 AND value_delta_cents = 0 AND movement_id IS NOT NULL AND request_id IS NOT NULL) OR (kind = 'count_check' AND quantity_delta = 0 AND value_delta_cents = 0 AND movement_id IS NULL AND request_id IS NOT NULL) OR (kind = 'value_adjustment' AND quantity_delta = 0 AND movement_id IS NULL AND request_id IS NOT NULL))", name: "valuation_entry_valid")
+  @@rls
+  @@map("inventory_valuation_entries")
+}
+
+// Completed development sales only. Legacy movements are neither backfilled nor reclassified.
+model Sale {
+  id                     Uuid              @id @default(uuid())
+  companyId              Uuid              @map("company_id")
+  locationId             Uuid              @map("location_id")
+  createdByUserId        Uuid              @map("created_by_user_id")
+  idempotencyKey         Uuid              @map("idempotency_key")
+  requestHash            VarChar(64)       @map("request_hash")
+  currency               VarChar(3)
+  movementDate           DateString        @map("movement_date")
+  grossSalesCents        Int               @map("gross_sales_cents")
+  automaticDiscountCents Int               @map("automatic_discount_cents")
+  totalCents             Int               @map("total_cents")
+  cogsCents              Int               @map("cogs_cents")
+  createdAt              TimestamptzString @default(now()) @map("created_at")
+
+  location               Location @relation(fields:[companyId, locationId], references:[companyId, id], onDelete: Restrict, onUpdate: Cascade)
+  createdBy              User @relation(fields:[companyId, createdByUserId], references:[companyId, id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([companyId, id])
+  @@unique([companyId, idempotencyKey])
+  @@check(expression: "gross_sales_cents >= 0 AND automatic_discount_cents >= 0 AND total_cents >= 0 AND cogs_cents >= 0 AND gross_sales_cents::bigint - automatic_discount_cents = total_cents", name: "sale_amounts_valid")
+  @@index([companyId, locationId, createdAt])
+  @@index([companyId, createdByUserId])
+  @@rls
+  @@map("sales")
+}
+
+model SaleLine {
+  id                     Uuid              @id @default(uuid())
+  companyId              Uuid              @map("company_id")
+  saleId                 Uuid              @map("sale_id")
+  itemId                 Uuid              @map("item_id")
+  position               Int
+  itemName               VarChar(120)      @map("item_name")
+  sku                    VarChar(40)
+  category               VarChar(80)
+  baseUnit               VarChar(20)       @map("base_unit")
+  quantity               Int
+  retailPriceCents        Int               @map("retail_price_cents")
+  unitCostCents           Int               @map("unit_cost_cents")
+  grossSalesCents         Int               @map("gross_sales_cents")
+  automaticDiscountCents  Int               @map("automatic_discount_cents")
+  totalCents              Int               @map("total_cents")
+  cogsCents               Int               @map("cogs_cents")
+  pricingSnapshot         Jsonb             @map("pricing_snapshot")
+  valuationCheckpointId Uuid? @map("valuation_checkpoint_id")
+
+  valuationCheckpoint InventoryValuationCheckpoint? @relation(fields:[companyId, itemId, valuationCheckpointId], references:[companyId, itemId, id], onDelete: Restrict, onUpdate: Cascade)
+
+  sale                    Sale @relation(fields:[companyId, saleId], references:[companyId, id], onDelete: Restrict, onUpdate: Cascade)
+  item                    InventoryItem @relation(fields:[companyId, itemId], references:[companyId, id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([companyId, id])
+  @@unique([companyId, saleId, itemId])
+  @@unique([companyId, saleId, position])
+  @@check(expression: "position >= 0 AND quantity > 0 AND retail_price_cents >= 0 AND unit_cost_cents >= 0 AND gross_sales_cents::bigint = quantity::bigint * retail_price_cents AND cogs_cents >= 0 AND (valuation_checkpoint_id IS NOT NULL OR cogs_cents::bigint = quantity::bigint * unit_cost_cents) AND total_cents >= 0 AND automatic_discount_cents >= 0 AND gross_sales_cents::bigint - automatic_discount_cents = total_cents", name: "sale_line_amounts_valid")
+  @@index([companyId, itemId])
+  @@rls
+  @@map("sale_lines")
+}
+
+model SaleComponent {
+  id             Uuid        @id @default(uuid())
+  companyId      Uuid        @map("company_id")
+  saleLineId     Uuid        @map("sale_line_id")
+  movementId     Uuid        @map("movement_id")
+  position       Int
+  category       VarChar(10)
+  quantity       Int
+  unitPriceCents Int         @map("unit_price_cents")
+  totalCents     Int         @map("total_cents")
+
+  line           SaleLine @relation(fields:[companyId, saleLineId], references:[companyId, id], onDelete: Restrict, onUpdate: Cascade)
+  movement       StockMovement @relation(fields:[companyId, movementId], references:[companyId, id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([companyId, movementId])
+  @@unique([companyId, saleLineId, position])
+  @@check(expression: "position >= 0 AND quantity > 0 AND unit_price_cents >= 0 AND total_cents::bigint = quantity::bigint * unit_price_cents AND category IN ('retail', 'bulk', 'box')", name: "sale_component_valid")
+  @@rls
+  @@map("sale_components")
+}
+
+
+model SaleReturnRequest {
+  id Uuid @id @default(uuid())
+  companyId Uuid @map("company_id")
+  requestKey Uuid @map("request_key")
+  createdByUserId Uuid @map("created_by_user_id")
+  inputJson Jsonb? @map("input_json")
+  previewJson Jsonb? @map("preview_json")
+  inputHash VarChar(64)? @map("input_hash")
+  status VarChar(12)
+  createdAt TimestamptzString @default(now()) @map("created_at")
+  finishedAt TimestamptzString? @map("finished_at")
+  company Company @relation(fields:[companyId], references:[id], onDelete: Restrict, onUpdate: Cascade)
+  actor User @relation(fields:[companyId,createdByUserId], references:[companyId,id], onDelete: Restrict, onUpdate: Cascade)
+  @@unique([companyId,id])
+  @@unique([companyId,requestKey])
+  @@check(expression: "status IN ('prepared','applied','cancelled') AND ((status = 'prepared' AND finished_at IS NULL) OR (status <> 'prepared' AND finished_at IS NOT NULL)) AND ((input_json IS NOT NULL AND preview_json IS NOT NULL AND input_hash IS NOT NULL) OR (status = 'cancelled' AND input_json IS NULL AND preview_json IS NULL AND input_hash IS NULL))", name: "sale_return_request_valid")
+  @@rls
+  @@map("sale_return_requests")
+}
+model SaleReturn {
+  id Uuid @id @default(uuid())
+  companyId Uuid @map("company_id")
+  requestId Uuid @map("request_id")
+  sourceSaleId Uuid? @map("source_sale_id")
+  legacyMovementId Uuid? @map("legacy_movement_id")
+  locationId Uuid @map("location_id")
+  createdByUserId Uuid @map("created_by_user_id")
+  kind VarChar(12)
+  currency VarChar(3)
+  movementDate DateString @map("movement_date")
+  refundCents Int @map("refund_cents")
+  cogsCents Int @map("cogs_cents")
+  reason VarChar(200)
+  reference VarChar(200)
+  createdAt TimestamptzString @default(now()) @map("created_at")
+  request SaleReturnRequest @relation(fields:[companyId,requestId], references:[companyId,id], onDelete: Restrict, onUpdate: Cascade)
+  sale Sale? @relation(fields:[companyId,sourceSaleId], references:[companyId,id], onDelete: Restrict, onUpdate: Cascade)
+  legacy StockMovement? @relation("return_legacy", fields:[companyId,legacyMovementId], references:[companyId,id], onDelete: Restrict, onUpdate: Cascade)
+  location Location @relation(fields:[companyId,locationId], references:[companyId,id], onDelete: Restrict, onUpdate: Cascade)
+  actor User @relation(fields:[companyId,createdByUserId], references:[companyId,id], onDelete: Restrict, onUpdate: Cascade)
+  @@unique([companyId,id])
+  @@unique([companyId,requestId])
+  @@check(expression: "(source_sale_id IS NULL) <> (legacy_movement_id IS NULL) AND kind IN ('return','reversal') AND refund_cents >= 0 AND cogs_cents >= 0 AND length(btrim(reason)) > 0 AND length(btrim(reference)) > 0", name: "sale_return_valid")
+  @@rls
+  @@map("sale_returns")
+}
+model SaleReturnAllocation {
+  id Uuid @id @default(uuid())
+  companyId Uuid @map("company_id")
+  returnId Uuid @map("return_id")
+  itemId Uuid @map("item_id")
+  originalMovementId Uuid @map("original_movement_id")
+  returnMovementId Uuid @map("return_movement_id")
+  lossMovementId Uuid? @map("loss_movement_id")
+  position Int
+  quantity Int
+  unitPriceCents Int @map("unit_price_cents")
+  unitCostCents Int @map("unit_cost_cents")
+  refundCents Int @map("refund_cents")
+  cogsCents Int @map("cogs_cents")
+  disposition VarChar(12)
+  returned SaleReturn @relation(fields:[companyId,returnId], references:[companyId,id], onDelete: Restrict, onUpdate: Cascade)
+  item InventoryItem @relation(fields:[companyId,itemId], references:[companyId,id], onDelete: Restrict, onUpdate: Cascade)
+  original StockMovement @relation("return_original",fields:[companyId,originalMovementId], references:[companyId,id], onDelete: Restrict, onUpdate: Cascade)
+  movement StockMovement @relation("return_restock",fields:[companyId,returnMovementId], references:[companyId,id], onDelete: Restrict, onUpdate: Cascade)
+  loss StockMovement? @relation("return_loss",fields:[companyId,lossMovementId], references:[companyId,id], onDelete: Restrict, onUpdate: Cascade)
+  @@unique([companyId,returnId,position])
+  @@unique([companyId,returnMovementId])
+  @@unique([companyId,lossMovementId])
+  @@check(expression: "position >= 0 AND quantity > 0 AND unit_price_cents >= 0 AND unit_cost_cents >= 0 AND refund_cents::bigint = quantity::bigint * unit_price_cents AND cogs_cents::bigint = quantity::bigint * unit_cost_cents AND ((disposition = 'resellable' AND loss_movement_id IS NULL) OR (disposition = 'damaged' AND loss_movement_id IS NOT NULL))", name: "sale_return_allocation_valid")
+  @@rls
+  @@map("sale_return_allocations")
 }
 
 model Supplier {
@@ -316,6 +584,24 @@ policy_all inventory_item_tenant {
   withCheck = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
 }
 
+policy_select item_pricing_read {
+  target = ItemPricingVersion
+  roles =[stockledger_app]
+  using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+}
+
+policy_insert item_pricing_write {
+  target = ItemPricingVersion
+  roles =[stockledger_app]
+  withCheck = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+}
+
+policy_delete item_pricing_workspace_delete {
+  target = ItemPricingVersion
+  roles =[stockledger_app]
+  using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid AND current_setting('app.workspace_deletion_company_id', true) = company_id::text"
+}
+
 policy_all supplier_tenant {
   target = Supplier
   roles =[stockledger_app]
@@ -367,4 +653,180 @@ policy_delete audit_event_workspace_delete {
   target = AuditEvent
   roles =[stockledger_app]
   using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid AND current_setting('app.workspace_deletion_company_id', true) = company_id::text"
+}
+
+policy_select sale_read {
+  target = Sale
+  roles =[stockledger_app]
+  using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+}
+
+policy_insert sale_write {
+  target = Sale
+  roles =[stockledger_app]
+  withCheck = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+}
+
+policy_delete sale_workspace_delete {
+  target = Sale
+  roles =[stockledger_app]
+  using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid AND current_setting('app.workspace_deletion_company_id', true) = company_id::text"
+}
+
+policy_select sale_line_read {
+  target = SaleLine
+  roles =[stockledger_app]
+  using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+}
+
+policy_insert sale_line_write {
+  target = SaleLine
+  roles =[stockledger_app]
+  withCheck = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+}
+
+policy_delete sale_line_workspace_delete {
+  target = SaleLine
+  roles =[stockledger_app]
+  using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid AND current_setting('app.workspace_deletion_company_id', true) = company_id::text"
+}
+
+policy_select sale_component_read {
+  target = SaleComponent
+  roles =[stockledger_app]
+  using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+}
+
+policy_insert sale_component_write {
+  target = SaleComponent
+  roles =[stockledger_app]
+  withCheck = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+}
+
+policy_delete sale_component_workspace_delete {
+  target = SaleComponent
+  roles =[stockledger_app]
+  using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid AND current_setting('app.workspace_deletion_company_id', true) = company_id::text"
+}
+
+policy_select valuation_request_select {
+  target = InventoryValuationRequest
+  roles =[stockledger_app]
+  using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+}
+
+policy_insert valuation_request_insert {
+  target = InventoryValuationRequest
+  roles =[stockledger_app]
+  withCheck = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+}
+
+policy_delete valuation_request_delete {
+  target = InventoryValuationRequest
+  roles =[stockledger_app]
+  using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid AND current_setting('app.workspace_deletion_company_id', true) = company_id::text"
+}
+
+policy_select valuation_checkpoint_select {
+  target = InventoryValuationCheckpoint
+  roles =[stockledger_app]
+  using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+}
+
+policy_insert valuation_checkpoint_insert {
+  target = InventoryValuationCheckpoint
+  roles =[stockledger_app]
+  withCheck = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+}
+
+policy_delete valuation_checkpoint_delete {
+  target = InventoryValuationCheckpoint
+  roles =[stockledger_app]
+  using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid AND current_setting('app.workspace_deletion_company_id', true) = company_id::text"
+}
+
+policy_select valuation_entry_select {
+  target = InventoryValuationEntry
+  roles =[stockledger_app]
+  using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+}
+
+policy_insert valuation_entry_insert {
+  target = InventoryValuationEntry
+  roles =[stockledger_app]
+  withCheck = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+}
+
+policy_delete valuation_entry_delete {
+  target = InventoryValuationEntry
+  roles =[stockledger_app]
+  using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid AND current_setting('app.workspace_deletion_company_id', true) = company_id::text"
+}
+
+policy_update valuation_request_finish {
+  target = InventoryValuationRequest
+  roles =[stockledger_app]
+  using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid AND status = 'prepared'"
+  withCheck = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid AND status IN ('applied','cancelled')"
+}
+
+policy_select sale_return_request_select {
+  target = SaleReturnRequest
+  roles =[stockledger_app]
+  using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+}
+
+policy_insert sale_return_request_insert {
+  target = SaleReturnRequest
+  roles =[stockledger_app]
+  withCheck = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+}
+
+policy_delete sale_return_request_delete {
+  target = SaleReturnRequest
+  roles =[stockledger_app]
+  using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid AND current_setting('app.workspace_deletion_company_id', true) = company_id::text"
+}
+
+policy_select sale_return_select {
+  target = SaleReturn
+  roles =[stockledger_app]
+  using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+}
+
+policy_insert sale_return_insert {
+  target = SaleReturn
+  roles =[stockledger_app]
+  withCheck = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+}
+
+policy_delete sale_return_delete {
+  target = SaleReturn
+  roles =[stockledger_app]
+  using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid AND current_setting('app.workspace_deletion_company_id', true) = company_id::text"
+}
+
+policy_select sale_return_allocation_select {
+  target = SaleReturnAllocation
+  roles =[stockledger_app]
+  using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+}
+
+policy_insert sale_return_allocation_insert {
+  target = SaleReturnAllocation
+  roles =[stockledger_app]
+  withCheck = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+}
+
+policy_delete sale_return_allocation_delete {
+  target = SaleReturnAllocation
+  roles =[stockledger_app]
+  using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid AND current_setting('app.workspace_deletion_company_id', true) = company_id::text"
+}
+
+policy_update sale_return_request_finish {
+  target = SaleReturnRequest
+  roles =[stockledger_app]
+  using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid AND status = 'prepared'"
+  withCheck = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid AND status IN ('applied','cancelled')"
 }

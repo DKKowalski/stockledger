@@ -23,8 +23,8 @@ export function PlacesPage() {
   };
 
   return <PageState>
-    <PageHeader title="Places" subtitle={`${terms.Warehouses} and ${terms.shops} that hold their own stock.`} />
-    <Panel title="Add a place" subtitle={`Stock can move between any ${terms.warehouse} or ${terms.shop}.`}>
+    <PageHeader title="Places" />
+    <Panel title="Add a place">
       <form className="form-grid place-form" onSubmit={(event) => void submit(event).catch(() => {})}>
         <label><span>Name</span><InputControl required maxLength={120} value={form.name} onValueChange={(name) => setForm({ ...form, name })} /></label>
         <label><span>Type</span><SelectControl aria-label="Type" value={form.type} onValueChange={(value) => setForm({ ...form, type: value as LocationType })} options={[{ value: 'shop', label: terms.Shop }, { value: 'warehouse', label: terms.Warehouse }]} /></label>

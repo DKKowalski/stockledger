@@ -47,6 +47,28 @@ function movement(
 }
 
 describe('buildProfitability', () => {
+  it('reports checkout discounts beside net sales within the selected period and place', () => {
+    const report = buildProfitability(
+      [item],
+      [shop, warehouse],
+      [movement(StockMovementType.SALE, 10, { unitPriceCents: 1_800, unitCostCents: 1_200 })],
+      allFilters,
+      new Date('2026-09-25T12:00:00.000Z'),
+      [
+        { locationId: shop.id, itemId: item.id, movementDate: '2026-09-20', discountCents: 2_000 },
+        { locationId: shop.id, itemId: item.id, movementDate: '2026-07-01', discountCents: 900 },
+      ],
+    );
+
+    expect(report.summary).toMatchObject({ netSalesCents: 18_000, discountsGivenCents: 2_000, fullPriceSalesCents: 20_000 });
+    expect(report.lines[0].discountCents).toBe(2_000);
+
+    const warehouseOnly = buildProfitability([item], [shop, warehouse], [], { ...allFilters, locationId: warehouse.id }, new Date('2026-09-25T12:00:00.000Z'), [
+      { locationId: shop.id, itemId: item.id, movementDate: '2026-09-20', discountCents: 2_000 },
+    ]);
+    expect(warehouseOnly.summary.discountsGivenCents).toBe(0);
+  });
+
   it('subtracts linked customer returns from sales and cost of goods', () => {
     const report = buildProfitability(
       [item],

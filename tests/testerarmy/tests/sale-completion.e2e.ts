@@ -1,0 +1,35 @@
+import { test } from '@e2e-dev/web';
+import { credentials, expect } from 'e2e';
+import { fixture, token, get } from '../fixture';
+
+test('development checkout agent completes one grouped sale with exact pricing and stock effect', async ({app,screen,agent,browser}) => {
+  if (process.env.STOCKLEDGER_TEST_SALE_COMPLETION !== '1') test.skip('Requires the explicitly enabled development checkout fixture');
+  const auth = await token('attendant');
+  expect((await get('/inventory/sale-completion',auth)).available).toBe(true);
+  const before = await get('/inventory/snapshot?days=30',auth);
+  const closing = before.positions.find(p => p.item.id===fixture.item).closing;
+  const user = credentials.user('attendant');
+  await app.open('/login');
+  await screen.getByLabel('Email address').fill(user.username);
+  await screen.getByPlaceholder('Enter your password').fill(user.password);
+  await screen.getByRole('button','Sign in').tap();
+  await expect(screen.getByRole('link','Overview').first()).toBeVisible();
+  await app.open('/sell');
+  await agent.act('Open the Sell page; checkout opens directly.');
+  await expect(screen.getByRole('button','Review sale')).toBeVisible();
+  await agent.act('Review a sale of {quantity} pcs of {product}, leaving the calculated quote ready for confirmation. Do not complete it yet.',{params:{quantity:'15',product:'Live preview product'}});
+  await expect(browser.locator('.pricing-quote-result strong')).toContainText('185.00');
+  await agent.act('Complete the reviewed sale exactly once using Complete sale.');
+  await expect(browser.locator('.checkout-body')).toContainText('Sale recorded');
+  await expect.poll(async () => (await get('/inventory/snapshot?days=30',auth)).positions.find(p=>p.item.id===fixture.item).closing).toBe(closing-15);
+  const after = await get('/inventory/snapshot?days=30',auth);
+  const oldIds = new Set(before.movements.map(m=>m.id));
+  const added = after.movements.filter(m=>!oldIds.has(m.id));
+  expect(added).toHaveLength(2);
+  expect(added.reduce((sum,m)=>sum+m.quantity,0)).toBe(15);
+  expect(added.reduce((sum,m)=>sum+m.saleTotalCents,0)).toBe(18500);
+  expect(new Set(added.map(m=>m.saleId)).size).toBe(1);
+  const saved = await get(`/inventory/sales/${added[0].saleId}`,auth);
+  expect(saved).toMatchObject({status:'completed',totalCents:18500});
+  expect(await browser.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});

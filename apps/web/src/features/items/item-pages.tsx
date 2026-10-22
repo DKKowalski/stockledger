@@ -1,35 +1,18 @@
 import { Dialog } from '@base-ui/react/dialog';
-import { Archive, Check, Pencil, RotateCcw, Save, X } from 'lucide-react';
+import { Save, X } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
-import { toast } from 'sonner';
-import { useSearchParams } from 'react-router-dom';
 import { api } from '../../api';
 import { useInventoryStore } from '../../app/inventory-store';
 import { useCompanySettings } from '../../app/company-settings-store';
 import { useAuth } from '../../auth-context';
 import { EmptyState, PageHeader, PageState, Panel, SelectControl } from '../../components/inventory-ui';
-import { SpreadsheetImportIcon } from '../../components/animated-icons';
 import { InputControl } from '../../components/ui/input-control';
 import { AsyncActionButton } from '../../components/ui/async-action-button';
 import { useAsyncActionState } from '../../components/ui/use-async-action-state';
 import { SpreadsheetImportForm } from './spreadsheet-import-form';
 import type { Item } from '../../types';
 
-export function AdminItemsPage() {
-  const { settings, terms } = useCompanySettings();
-  const [searchParams] = useSearchParams();
-  const [importOpen, setImportOpen] = useState(searchParams.get('import') === '1');
-  return <PageState>
-    <PageHeader title={terms.Items} subtitle={`Manage the company ${terms.item} catalog, costs, prices, and opening stock.`} actions={<button className="button secondary spreadsheet-open-button" onClick={() => setImportOpen((open) => !open)} type="button"><SpreadsheetImportIcon />{importOpen ? 'Close import' : 'Import spreadsheet'}</button>} />
-    {importOpen && <SpreadsheetImportPanel onClose={() => setImportOpen(false)} />}
-    <AddItemPanel key={`${settings?.defaultUnit}:${settings?.defaultReorderLevel}:${settings?.defaultLocationId}`} />
-    <SellingPricesPanel />
-    <CatalogMaintenancePanel />
-    <OperationsCatalog />
-  </PageState>;
-}
-
-function SpreadsheetImportPanel({ onClose }: { onClose: () => void }) {
+export function SpreadsheetImportPanel({ onClose }: { onClose: () => void }) {
   const { money, settings, terms } = useCompanySettings();
   const { accessToken } = useAuth();
   const { snapshot, mutate, busy } = useInventoryStore();
@@ -48,7 +31,7 @@ function SpreadsheetImportPanel({ onClose }: { onClose: () => void }) {
 export function ManagerItemsPage() {
   const { terms } = useCompanySettings();
   return <PageState>
-    <PageHeader title={terms.Items} subtitle={`The company ${terms.item} catalog and stock held at each place.`} />
+    <PageHeader title={terms.Items} />
     <OperationsCatalog />
   </PageState>;
 }
@@ -66,7 +49,7 @@ export function ShopCatalogPage() {
   </PageState>;
 }
 
-function AddItemPanel() {
+export function AddItemPanel({ onClose }: { onClose: () => void }) {
   const { accessToken } = useAuth();
   const { snapshot, mutate, busy } = useInventoryStore();
   const { settings, terms } = useCompanySettings();
@@ -85,7 +68,9 @@ function AddItemPanel() {
     }), `${form.name} was added to inventory.`));
     setForm(defaults());
   };
-  return <Panel title={`Add ${terms.item}`} subtitle="Opening stock lands at the place you choose"><form className="form-grid item-form" onSubmit={(event) => void submit(event).catch(() => {})}>
+  return <Panel title={`Add ${terms.item}`} className="add-item-panel">
+    <button aria-label={`Close add ${terms.item}`} className="panel-close" onClick={onClose} type="button"><X size={16} /></button>
+    <form className="form-grid item-form" onSubmit={(event) => void submit(event).catch(() => {})}>
     {(['sku', 'name', 'category', 'unit'] as const).map((key) => <label key={key}><span>{key === 'sku' ? `${terms.Item} code (optional)` : key[0].toUpperCase() + key.slice(1)}</span><InputControl placeholder={key === 'sku' ? 'Created automatically' : undefined} required={key === 'name' || key === 'unit'} value={form[key]} onValueChange={(value) => change(key, value)} /></label>)}
     <label><span>Reorder level</span><InputControl type="number" min="0" required value={form.reorderLevel} onValueChange={(value) => change('reorderLevel', value)} /></label>
     <label><span>Unit cost</span><InputControl type="number" min="0" step="0.01" required value={form.unitCost} onValueChange={(value) => change('unitCost', value)} /></label>
@@ -93,29 +78,8 @@ function AddItemPanel() {
     <label><span>Opening place</span><SelectControl aria-label="Opening place" required value={form.locationId} onValueChange={(value) => change('locationId', value)} options={[{ value: '', label: 'Select place' }, ...(snapshot?.locations.map((place) => ({ value: place.id, label: place.name })) ?? [])]} /></label>
     <label><span>Opening stock</span><InputControl type="number" min="0" required value={form.openingStock} onValueChange={(value) => change('openingStock', value)} /></label>
     <AsyncActionButton disabled={busy || !snapshot?.locations.length} idleLabel={`Add ${terms.item}`} pendingLabel="Adding" state={addAction.state} successLabel={`${terms.Item} added`} />
-  </form></Panel>;
-}
-
-function SellingPricesPanel() {
-  const { accessToken } = useAuth();
-  const { snapshot, mutate, busy } = useInventoryStore();
-  const { money, terms } = useCompanySettings();
-  const [itemId, setItemId] = useState('');
-  const [price, setPrice] = useState('');
-  const catalog = snapshot?.items.filter((item) => item.isActive) ?? [];
-  const selected = catalog.find((item) => item.id === itemId);
-  const submit = async (event: FormEvent) => {
-    event.preventDefault();
-    if (!accessToken || !selected || price === '') return;
-    await mutate(() => api.updateSellingPrice(accessToken, selected.id, Math.round(Number(price) * 100)), `Selling price updated for ${selected.name}.`);
-    setItemId('');
-    setPrice('');
-  };
-  return <Panel title="Selling prices" subtitle={`One price per ${terms.item} across all ${terms.shops}. Past sales keep their original price.`} className="spaced"><form className="form-grid place-form" onSubmit={(event) => void submit(event).catch(() => {})}>
-    <label><span>{terms.Item}</span><SelectControl aria-label={terms.Item} required value={itemId} disabled={busy} onValueChange={(value) => { const item = catalog.find((candidate) => candidate.id === value); setItemId(value); setPrice(item?.sellingPriceCents == null ? '' : (item.sellingPriceCents / 100).toFixed(2)); }} options={[{ value: '', label: `Select ${terms.item}` }, ...catalog.map((item) => ({ value: item.id, label: <>{item.name} · {item.sellingPriceCents == null ? 'Not set' : money(item.sellingPriceCents)}</> }))]} /></label>
-    <label><span>Selling price</span><InputControl type="number" min="0" max="21474836.47" step="0.01" required disabled={busy || !selected} value={price} onValueChange={setPrice} /></label>
-    <button className="button" disabled={busy || !selected || price === ''}>Save price<Check size={16} /></button>
-  </form></Panel>;
+  </form>
+  </Panel>;
 }
 
 type ItemForm = {
@@ -140,28 +104,17 @@ function itemForm(item: Item): ItemForm {
   };
 }
 
-function CatalogMaintenancePanel() {
+/** Edits an item's catalog details; archiving lives beside it in the item panel. */
+export function ItemEditDialog({ item, onClose }: { item: Item; onClose: () => void }) {
   const { accessToken } = useAuth();
-  const { snapshot, mutate, busy } = useInventoryStore();
-  const { money, terms } = useCompanySettings();
-  const [selected, setSelected] = useState<Item | null>(null);
-  const [form, setForm] = useState<ItemForm | null>(null);
-  const catalog = snapshot?.items ?? [];
-
-  const openEditor = (item: Item) => {
-    setSelected(item);
-    setForm(itemForm(item));
-  };
-
-  const closeEditor = () => {
-    setSelected(null);
-    setForm(null);
-  };
-
+  const { mutate, busy } = useInventoryStore();
+  const { terms } = useCompanySettings();
+  const [form, setForm] = useState<ItemForm>(() => itemForm(item));
+  const change = (key: keyof ItemForm, value: string) => setForm((current) => ({ ...current, [key]: value }));
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!accessToken || !selected || !form) return;
-    await mutate(() => api.updateItem(accessToken, selected.id, {
+    if (!accessToken) return;
+    await mutate(() => api.updateItem(accessToken, item.id, {
       sku: form.sku.trim(),
       name: form.name.trim(),
       category: form.category.trim(),
@@ -170,51 +123,28 @@ function CatalogMaintenancePanel() {
       unitCostCents: Math.round(Number(form.unitCost) * 100),
       ...(form.sellingPrice !== '' ? { sellingPriceCents: Math.round(Number(form.sellingPrice) * 100) } : {}),
     }), `${form.name} was updated.`);
-    closeEditor();
+    onClose();
   };
-
-  const toggleActive = async (item: Item) => {
-    if (!accessToken) return;
-    try {
-      await mutate(
-        () => api.updateItem(accessToken, item.id, { isActive: !item.isActive }),
-        item.isActive ? `${item.name} was archived.` : `${item.name} was restored.`,
-      );
-      if (selected?.id === item.id) closeEditor();
-    } catch (caught) {
-      toast.error(item.isActive ? 'Could not archive item' : 'Could not restore item', {
-        description: caught instanceof Error ? caught.message : 'Try again.',
-      });
-    }
-  };
-
-  const change = (key: keyof ItemForm, value: string) => setForm((current) => current ? { ...current, [key]: value } : current);
-
-  return <>
-    <Panel title={`Catalog maintenance (${catalog.length})`} subtitle={`Edit ${terms.item} details or archive ${terms.items} you no longer stock.`} className="spaced">
-      {catalog.length ? <div className="table-wrap"><table><thead><tr><th>{terms.Item}</th><th>Category</th><th>Unit</th><th className="num">Cost</th><th className="num">Price</th><th>Status</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>{catalog.map((item) => <tr className={item.isActive ? '' : 'inactive-account-row'} key={item.id}><td><b>{item.name}</b><small>{item.sku}</small></td><td>{item.category}</td><td>{item.unit}</td><td className="num">{money(item.unitCostCents)}</td><td className="num">{item.sellingPriceCents == null ? 'Not set' : money(item.sellingPriceCents)}</td><td><span className={`account-status ${item.isActive ? 'active' : 'inactive'}`}><i />{item.isActive ? 'Active' : 'Archived'}</span></td><td className="catalog-actions"><button className="icon-button" aria-label={`Edit ${item.name}`} onClick={() => openEditor(item)} type="button"><Pencil size={15} /></button><button className="icon-button" aria-label={`${item.isActive ? 'Archive' : 'Restore'} ${item.name}`} disabled={busy} onClick={() => void toggleActive(item)} type="button">{item.isActive ? <Archive size={15} /> : <RotateCcw size={15} />}</button></td></tr>)}</tbody></table></div> : <EmptyState text={`No catalog ${terms.items} yet.`} />}
-    </Panel>
-    <Dialog.Root open={Boolean(selected && form)} onOpenChange={(open) => { if (!open) closeEditor(); }}>
-      {selected && form && <Dialog.Portal>
-        <Dialog.Backdrop className="team-share-backdrop" />
-        <Dialog.Viewport className="team-share-viewport">
-          <Dialog.Popup className="team-share-dialog item-edit-dialog">
-            <div className="team-share-heading"><div><Dialog.Title>Edit {terms.item}</Dialog.Title><Dialog.Description>Changes apply everywhere this {terms.item} is stocked.</Dialog.Description></div><Dialog.Close className="team-share-dismiss" aria-label={`Close ${terms.item} editor`}><X size={17} /></Dialog.Close></div>
-            <form className="form-grid item-edit-form" onSubmit={(event) => void submit(event).catch(() => {})}>
-              <label><span>{terms.Item} code</span><InputControl required maxLength={80} value={form.sku} onValueChange={(value) => change('sku', value)} /></label>
-              <label><span>Name</span><InputControl required maxLength={160} value={form.name} onValueChange={(value) => change('name', value)} /></label>
-              <label><span>Category</span><InputControl required maxLength={100} value={form.category} onValueChange={(value) => change('category', value)} /></label>
-              <label><span>Unit</span><InputControl required maxLength={40} value={form.unit} onValueChange={(value) => change('unit', value)} /></label>
-              <label><span>Reorder level</span><InputControl type="number" min="0" required value={form.reorderLevel} onValueChange={(value) => change('reorderLevel', value)} /></label>
-              <label><span>Unit cost</span><InputControl type="number" min="0" step="0.01" required value={form.unitCost} onValueChange={(value) => change('unitCost', value)} /></label>
-              <label><span>Selling price</span><InputControl type="number" min="0" step="0.01" value={form.sellingPrice} onValueChange={(value) => change('sellingPrice', value)} /></label>
-              <div className="item-edit-actions"><button className="button secondary" onClick={() => void toggleActive(selected)} type="button">{selected.isActive ? <><Archive size={15} />Archive</> : <><RotateCcw size={15} />Restore</>}</button><button className="button" disabled={busy}><Save size={15} />Save changes</button></div>
-            </form>
-          </Dialog.Popup>
-        </Dialog.Viewport>
-      </Dialog.Portal>}
-    </Dialog.Root>
-  </>;
+  return <Dialog.Root open onOpenChange={(open) => { if (!open) onClose(); }}>
+    <Dialog.Portal>
+      <Dialog.Backdrop className="team-share-backdrop" />
+      <Dialog.Viewport className="team-share-viewport">
+        <Dialog.Popup className="team-share-dialog item-edit-dialog">
+          <div className="team-share-heading"><div><Dialog.Title>Edit {terms.item}</Dialog.Title><Dialog.Description>Changes apply everywhere this {terms.item} is stocked.</Dialog.Description></div><Dialog.Close className="team-share-dismiss" aria-label={`Close ${terms.item} editor`}><X size={17} /></Dialog.Close></div>
+          <form className="form-grid item-edit-form" onSubmit={(event) => void submit(event).catch(() => {})}>
+            <label><span>{terms.Item} code</span><InputControl required maxLength={80} value={form.sku} onValueChange={(value) => change('sku', value)} /></label>
+            <label><span>Name</span><InputControl required maxLength={160} value={form.name} onValueChange={(value) => change('name', value)} /></label>
+            <label><span>Category</span><InputControl required maxLength={100} value={form.category} onValueChange={(value) => change('category', value)} /></label>
+            <label><span>Unit</span><InputControl required maxLength={40} value={form.unit} onValueChange={(value) => change('unit', value)} /></label>
+            <label><span>Reorder level</span><InputControl type="number" min="0" required value={form.reorderLevel} onValueChange={(value) => change('reorderLevel', value)} /></label>
+            <label><span>Unit cost</span><InputControl type="number" min="0" step="0.01" required value={form.unitCost} onValueChange={(value) => change('unitCost', value)} /></label>
+            <label><span>Selling price</span><InputControl type="number" min="0" step="0.01" value={form.sellingPrice} onValueChange={(value) => change('sellingPrice', value)} /></label>
+            <div className="item-edit-actions"><button className="button" disabled={busy}><Save size={15} />Save changes</button></div>
+          </form>
+        </Dialog.Popup>
+      </Dialog.Viewport>
+    </Dialog.Portal>
+  </Dialog.Root>;
 }
 
 function OperationsCatalog() {

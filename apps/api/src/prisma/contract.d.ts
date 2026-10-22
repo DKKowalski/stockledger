@@ -34,9 +34,9 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'af0f799e84bed462c8c7be7ef11cd3ccc5971603b3c727b8ef34b4b55918fb19'>;
+  StorageHashBase<'5ccb1739876988e11fc0dc2dfeb65052a75dbaebb1d4f138d285b2c9f8d8ecb6'>;
 export type ExecutionHash =
-  ExecutionHashBase<'b43e3bc4b16addb2d1b967638641ba478fb9e6d206de9632cbb70e7e68055c8e'>;
+  ExecutionHashBase<'c6a58d0b341efd94a6fc30f245eb9f467084e1e2f1ea5de1aaf0d62423d89217'>;
 export type ProfileHash =
   ProfileHashBase<'3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2'>;
 
@@ -271,6 +271,7 @@ export type FieldOutputTypes = {
       readonly allowNegativeStock: CodecTypes['pg/bool@1']['output'];
       readonly requirePurchaseSource: CodecTypes['pg/bool@1']['output'];
       readonly requireAdjustmentReason: CodecTypes['pg/bool@1']['output'];
+      readonly hybridPricingEnabled: CodecTypes['pg/bool@1']['output'];
       readonly shopTerm: Varchar<20>;
       readonly warehouseTerm: Varchar<20>;
       readonly itemTerm: Varchar<20>;
@@ -291,6 +292,63 @@ export type FieldOutputTypes = {
       readonly isActive: CodecTypes['pg/bool@1']['output'];
       readonly createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
       readonly updatedAt: CodecTypes['pg/timestamptz-string@1']['output'];
+    };
+    readonly InventoryValuationCheckpoint: {
+      readonly id: CodecTypes['pg/uuid@1']['output'];
+      readonly companyId: CodecTypes['pg/uuid@1']['output'];
+      readonly itemId: CodecTypes['pg/uuid@1']['output'];
+      readonly requestId: CodecTypes['pg/uuid@1']['output'];
+      readonly createdByUserId: CodecTypes['pg/uuid@1']['output'];
+      readonly baseUnit: Varchar<20>;
+      readonly currency: Varchar<3>;
+      readonly openingQuantity: CodecTypes['pg/int4@1']['output'];
+      readonly openingValueCents: CodecTypes['pg/int4@1']['output'];
+      readonly reference: Varchar<200>;
+      readonly costReviewId: CodecTypes['pg/uuid@1']['output'] | null;
+      readonly createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
+    };
+    readonly InventoryValuationEntry: {
+      readonly id: CodecTypes['pg/uuid@1']['output'];
+      readonly companyId: CodecTypes['pg/uuid@1']['output'];
+      readonly itemId: CodecTypes['pg/uuid@1']['output'];
+      readonly checkpointId: CodecTypes['pg/uuid@1']['output'];
+      readonly requestId: CodecTypes['pg/uuid@1']['output'] | null;
+      readonly movementId: CodecTypes['pg/uuid@1']['output'] | null;
+      readonly createdByUserId: CodecTypes['pg/uuid@1']['output'];
+      readonly sequence: CodecTypes['pg/int4@1']['output'];
+      readonly kind: Varchar<20>;
+      readonly quantityDelta: CodecTypes['pg/int4@1']['output'];
+      readonly valueDeltaCents: CodecTypes['pg/int4@1']['output'];
+      readonly quantityAfter: CodecTypes['pg/int4@1']['output'];
+      readonly valueAfterCents: CodecTypes['pg/int4@1']['output'];
+      readonly reference: Varchar<200>;
+      readonly createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
+    };
+    readonly InventoryValuationRequest: {
+      readonly id: CodecTypes['pg/uuid@1']['output'];
+      readonly companyId: CodecTypes['pg/uuid@1']['output'];
+      readonly requestKey: CodecTypes['pg/uuid@1']['output'];
+      readonly createdByUserId: CodecTypes['pg/uuid@1']['output'];
+      readonly itemId: CodecTypes['pg/uuid@1']['output'] | null;
+      readonly inputJson: CodecTypes['pg/jsonb@1']['output'] | null;
+      readonly inputHash: Varchar<64> | null;
+      readonly status: Varchar<12>;
+      readonly createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
+      readonly finishedAt: CodecTypes['pg/timestamptz-string@1']['output'] | null;
+    };
+    readonly ItemPricingVersion: {
+      readonly id: CodecTypes['pg/uuid@1']['output'];
+      readonly companyId: CodecTypes['pg/uuid@1']['output'];
+      readonly itemId: CodecTypes['pg/uuid@1']['output'];
+      readonly version: CodecTypes['pg/int4@1']['output'];
+      readonly baseUnit: Varchar<20>;
+      readonly previewEnabled: CodecTypes['pg/bool@1']['output'];
+      readonly packageLabel: Varchar<20> | null;
+      readonly packageSize: CodecTypes['pg/int4@1']['output'] | null;
+      readonly packagePriceCents: CodecTypes['pg/int4@1']['output'] | null;
+      readonly bulkTiers: CodecTypes['pg/jsonb@1']['output'];
+      readonly createdByUserId: CodecTypes['pg/uuid@1']['output'];
+      readonly createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
     };
     readonly Location: {
       readonly id: CodecTypes['pg/uuid@1']['output'];
@@ -320,6 +378,97 @@ export type FieldOutputTypes = {
       readonly lastUsedAt: CodecTypes['pg/timestamptz-string@1']['output'];
       readonly createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
       readonly updatedAt: CodecTypes['pg/timestamptz-string@1']['output'];
+    };
+    readonly Sale: {
+      readonly id: CodecTypes['pg/uuid@1']['output'];
+      readonly companyId: CodecTypes['pg/uuid@1']['output'];
+      readonly locationId: CodecTypes['pg/uuid@1']['output'];
+      readonly createdByUserId: CodecTypes['pg/uuid@1']['output'];
+      readonly idempotencyKey: CodecTypes['pg/uuid@1']['output'];
+      readonly requestHash: Varchar<64>;
+      readonly currency: Varchar<3>;
+      readonly movementDate: CodecTypes['pg/date-string@1']['output'];
+      readonly grossSalesCents: CodecTypes['pg/int4@1']['output'];
+      readonly automaticDiscountCents: CodecTypes['pg/int4@1']['output'];
+      readonly totalCents: CodecTypes['pg/int4@1']['output'];
+      readonly cogsCents: CodecTypes['pg/int4@1']['output'];
+      readonly createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
+    };
+    readonly SaleComponent: {
+      readonly id: CodecTypes['pg/uuid@1']['output'];
+      readonly companyId: CodecTypes['pg/uuid@1']['output'];
+      readonly saleLineId: CodecTypes['pg/uuid@1']['output'];
+      readonly movementId: CodecTypes['pg/uuid@1']['output'];
+      readonly position: CodecTypes['pg/int4@1']['output'];
+      readonly category: Varchar<10>;
+      readonly quantity: CodecTypes['pg/int4@1']['output'];
+      readonly unitPriceCents: CodecTypes['pg/int4@1']['output'];
+      readonly totalCents: CodecTypes['pg/int4@1']['output'];
+    };
+    readonly SaleLine: {
+      readonly id: CodecTypes['pg/uuid@1']['output'];
+      readonly companyId: CodecTypes['pg/uuid@1']['output'];
+      readonly saleId: CodecTypes['pg/uuid@1']['output'];
+      readonly itemId: CodecTypes['pg/uuid@1']['output'];
+      readonly position: CodecTypes['pg/int4@1']['output'];
+      readonly itemName: Varchar<120>;
+      readonly sku: Varchar<40>;
+      readonly category: Varchar<80>;
+      readonly baseUnit: Varchar<20>;
+      readonly quantity: CodecTypes['pg/int4@1']['output'];
+      readonly retailPriceCents: CodecTypes['pg/int4@1']['output'];
+      readonly unitCostCents: CodecTypes['pg/int4@1']['output'];
+      readonly grossSalesCents: CodecTypes['pg/int4@1']['output'];
+      readonly automaticDiscountCents: CodecTypes['pg/int4@1']['output'];
+      readonly totalCents: CodecTypes['pg/int4@1']['output'];
+      readonly cogsCents: CodecTypes['pg/int4@1']['output'];
+      readonly pricingSnapshot: CodecTypes['pg/jsonb@1']['output'];
+      readonly valuationCheckpointId: CodecTypes['pg/uuid@1']['output'] | null;
+    };
+    readonly SaleReturn: {
+      readonly id: CodecTypes['pg/uuid@1']['output'];
+      readonly companyId: CodecTypes['pg/uuid@1']['output'];
+      readonly requestId: CodecTypes['pg/uuid@1']['output'];
+      readonly sourceSaleId: CodecTypes['pg/uuid@1']['output'] | null;
+      readonly legacyMovementId: CodecTypes['pg/uuid@1']['output'] | null;
+      readonly locationId: CodecTypes['pg/uuid@1']['output'];
+      readonly createdByUserId: CodecTypes['pg/uuid@1']['output'];
+      readonly kind: Varchar<12>;
+      readonly currency: Varchar<3>;
+      readonly movementDate: CodecTypes['pg/date-string@1']['output'];
+      readonly refundCents: CodecTypes['pg/int4@1']['output'];
+      readonly cogsCents: CodecTypes['pg/int4@1']['output'];
+      readonly reason: Varchar<200>;
+      readonly reference: Varchar<200>;
+      readonly createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
+    };
+    readonly SaleReturnAllocation: {
+      readonly id: CodecTypes['pg/uuid@1']['output'];
+      readonly companyId: CodecTypes['pg/uuid@1']['output'];
+      readonly returnId: CodecTypes['pg/uuid@1']['output'];
+      readonly itemId: CodecTypes['pg/uuid@1']['output'];
+      readonly originalMovementId: CodecTypes['pg/uuid@1']['output'];
+      readonly returnMovementId: CodecTypes['pg/uuid@1']['output'];
+      readonly lossMovementId: CodecTypes['pg/uuid@1']['output'] | null;
+      readonly position: CodecTypes['pg/int4@1']['output'];
+      readonly quantity: CodecTypes['pg/int4@1']['output'];
+      readonly unitPriceCents: CodecTypes['pg/int4@1']['output'];
+      readonly unitCostCents: CodecTypes['pg/int4@1']['output'];
+      readonly refundCents: CodecTypes['pg/int4@1']['output'];
+      readonly cogsCents: CodecTypes['pg/int4@1']['output'];
+      readonly disposition: Varchar<12>;
+    };
+    readonly SaleReturnRequest: {
+      readonly id: CodecTypes['pg/uuid@1']['output'];
+      readonly companyId: CodecTypes['pg/uuid@1']['output'];
+      readonly requestKey: CodecTypes['pg/uuid@1']['output'];
+      readonly createdByUserId: CodecTypes['pg/uuid@1']['output'];
+      readonly inputJson: CodecTypes['pg/jsonb@1']['output'] | null;
+      readonly previewJson: CodecTypes['pg/jsonb@1']['output'] | null;
+      readonly inputHash: Varchar<64> | null;
+      readonly status: Varchar<12>;
+      readonly createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
+      readonly finishedAt: CodecTypes['pg/timestamptz-string@1']['output'] | null;
     };
     readonly StockCount: {
       readonly id: CodecTypes['pg/uuid@1']['output'];
@@ -425,6 +574,7 @@ export type FieldInputTypes = {
       readonly allowNegativeStock: CodecTypes['pg/bool@1']['input'];
       readonly requirePurchaseSource: CodecTypes['pg/bool@1']['input'];
       readonly requireAdjustmentReason: CodecTypes['pg/bool@1']['input'];
+      readonly hybridPricingEnabled: CodecTypes['pg/bool@1']['input'];
       readonly shopTerm: CodecTypes['sql/varchar@1']['input'];
       readonly warehouseTerm: CodecTypes['sql/varchar@1']['input'];
       readonly itemTerm: CodecTypes['sql/varchar@1']['input'];
@@ -445,6 +595,63 @@ export type FieldInputTypes = {
       readonly isActive: CodecTypes['pg/bool@1']['input'];
       readonly createdAt: CodecTypes['pg/timestamptz-string@1']['input'];
       readonly updatedAt: CodecTypes['pg/timestamptz-string@1']['input'];
+    };
+    readonly InventoryValuationCheckpoint: {
+      readonly id: CodecTypes['pg/uuid@1']['input'];
+      readonly companyId: CodecTypes['pg/uuid@1']['input'];
+      readonly itemId: CodecTypes['pg/uuid@1']['input'];
+      readonly requestId: CodecTypes['pg/uuid@1']['input'];
+      readonly createdByUserId: CodecTypes['pg/uuid@1']['input'];
+      readonly baseUnit: CodecTypes['sql/varchar@1']['input'];
+      readonly currency: CodecTypes['sql/varchar@1']['input'];
+      readonly openingQuantity: CodecTypes['pg/int4@1']['input'];
+      readonly openingValueCents: CodecTypes['pg/int4@1']['input'];
+      readonly reference: CodecTypes['sql/varchar@1']['input'];
+      readonly costReviewId: CodecTypes['pg/uuid@1']['input'] | null;
+      readonly createdAt: CodecTypes['pg/timestamptz-string@1']['input'];
+    };
+    readonly InventoryValuationEntry: {
+      readonly id: CodecTypes['pg/uuid@1']['input'];
+      readonly companyId: CodecTypes['pg/uuid@1']['input'];
+      readonly itemId: CodecTypes['pg/uuid@1']['input'];
+      readonly checkpointId: CodecTypes['pg/uuid@1']['input'];
+      readonly requestId: CodecTypes['pg/uuid@1']['input'] | null;
+      readonly movementId: CodecTypes['pg/uuid@1']['input'] | null;
+      readonly createdByUserId: CodecTypes['pg/uuid@1']['input'];
+      readonly sequence: CodecTypes['pg/int4@1']['input'];
+      readonly kind: CodecTypes['sql/varchar@1']['input'];
+      readonly quantityDelta: CodecTypes['pg/int4@1']['input'];
+      readonly valueDeltaCents: CodecTypes['pg/int4@1']['input'];
+      readonly quantityAfter: CodecTypes['pg/int4@1']['input'];
+      readonly valueAfterCents: CodecTypes['pg/int4@1']['input'];
+      readonly reference: CodecTypes['sql/varchar@1']['input'];
+      readonly createdAt: CodecTypes['pg/timestamptz-string@1']['input'];
+    };
+    readonly InventoryValuationRequest: {
+      readonly id: CodecTypes['pg/uuid@1']['input'];
+      readonly companyId: CodecTypes['pg/uuid@1']['input'];
+      readonly requestKey: CodecTypes['pg/uuid@1']['input'];
+      readonly createdByUserId: CodecTypes['pg/uuid@1']['input'];
+      readonly itemId: CodecTypes['pg/uuid@1']['input'] | null;
+      readonly inputJson: CodecTypes['pg/jsonb@1']['input'] | null;
+      readonly inputHash: CodecTypes['sql/varchar@1']['input'] | null;
+      readonly status: CodecTypes['sql/varchar@1']['input'];
+      readonly createdAt: CodecTypes['pg/timestamptz-string@1']['input'];
+      readonly finishedAt: CodecTypes['pg/timestamptz-string@1']['input'] | null;
+    };
+    readonly ItemPricingVersion: {
+      readonly id: CodecTypes['pg/uuid@1']['input'];
+      readonly companyId: CodecTypes['pg/uuid@1']['input'];
+      readonly itemId: CodecTypes['pg/uuid@1']['input'];
+      readonly version: CodecTypes['pg/int4@1']['input'];
+      readonly baseUnit: CodecTypes['sql/varchar@1']['input'];
+      readonly previewEnabled: CodecTypes['pg/bool@1']['input'];
+      readonly packageLabel: CodecTypes['sql/varchar@1']['input'] | null;
+      readonly packageSize: CodecTypes['pg/int4@1']['input'] | null;
+      readonly packagePriceCents: CodecTypes['pg/int4@1']['input'] | null;
+      readonly bulkTiers: CodecTypes['pg/jsonb@1']['input'];
+      readonly createdByUserId: CodecTypes['pg/uuid@1']['input'];
+      readonly createdAt: CodecTypes['pg/timestamptz-string@1']['input'];
     };
     readonly Location: {
       readonly id: CodecTypes['pg/uuid@1']['input'];
@@ -474,6 +681,97 @@ export type FieldInputTypes = {
       readonly lastUsedAt: CodecTypes['pg/timestamptz-string@1']['input'];
       readonly createdAt: CodecTypes['pg/timestamptz-string@1']['input'];
       readonly updatedAt: CodecTypes['pg/timestamptz-string@1']['input'];
+    };
+    readonly Sale: {
+      readonly id: CodecTypes['pg/uuid@1']['input'];
+      readonly companyId: CodecTypes['pg/uuid@1']['input'];
+      readonly locationId: CodecTypes['pg/uuid@1']['input'];
+      readonly createdByUserId: CodecTypes['pg/uuid@1']['input'];
+      readonly idempotencyKey: CodecTypes['pg/uuid@1']['input'];
+      readonly requestHash: CodecTypes['sql/varchar@1']['input'];
+      readonly currency: CodecTypes['sql/varchar@1']['input'];
+      readonly movementDate: CodecTypes['pg/date-string@1']['input'];
+      readonly grossSalesCents: CodecTypes['pg/int4@1']['input'];
+      readonly automaticDiscountCents: CodecTypes['pg/int4@1']['input'];
+      readonly totalCents: CodecTypes['pg/int4@1']['input'];
+      readonly cogsCents: CodecTypes['pg/int4@1']['input'];
+      readonly createdAt: CodecTypes['pg/timestamptz-string@1']['input'];
+    };
+    readonly SaleComponent: {
+      readonly id: CodecTypes['pg/uuid@1']['input'];
+      readonly companyId: CodecTypes['pg/uuid@1']['input'];
+      readonly saleLineId: CodecTypes['pg/uuid@1']['input'];
+      readonly movementId: CodecTypes['pg/uuid@1']['input'];
+      readonly position: CodecTypes['pg/int4@1']['input'];
+      readonly category: CodecTypes['sql/varchar@1']['input'];
+      readonly quantity: CodecTypes['pg/int4@1']['input'];
+      readonly unitPriceCents: CodecTypes['pg/int4@1']['input'];
+      readonly totalCents: CodecTypes['pg/int4@1']['input'];
+    };
+    readonly SaleLine: {
+      readonly id: CodecTypes['pg/uuid@1']['input'];
+      readonly companyId: CodecTypes['pg/uuid@1']['input'];
+      readonly saleId: CodecTypes['pg/uuid@1']['input'];
+      readonly itemId: CodecTypes['pg/uuid@1']['input'];
+      readonly position: CodecTypes['pg/int4@1']['input'];
+      readonly itemName: CodecTypes['sql/varchar@1']['input'];
+      readonly sku: CodecTypes['sql/varchar@1']['input'];
+      readonly category: CodecTypes['sql/varchar@1']['input'];
+      readonly baseUnit: CodecTypes['sql/varchar@1']['input'];
+      readonly quantity: CodecTypes['pg/int4@1']['input'];
+      readonly retailPriceCents: CodecTypes['pg/int4@1']['input'];
+      readonly unitCostCents: CodecTypes['pg/int4@1']['input'];
+      readonly grossSalesCents: CodecTypes['pg/int4@1']['input'];
+      readonly automaticDiscountCents: CodecTypes['pg/int4@1']['input'];
+      readonly totalCents: CodecTypes['pg/int4@1']['input'];
+      readonly cogsCents: CodecTypes['pg/int4@1']['input'];
+      readonly pricingSnapshot: CodecTypes['pg/jsonb@1']['input'];
+      readonly valuationCheckpointId: CodecTypes['pg/uuid@1']['input'] | null;
+    };
+    readonly SaleReturn: {
+      readonly id: CodecTypes['pg/uuid@1']['input'];
+      readonly companyId: CodecTypes['pg/uuid@1']['input'];
+      readonly requestId: CodecTypes['pg/uuid@1']['input'];
+      readonly sourceSaleId: CodecTypes['pg/uuid@1']['input'] | null;
+      readonly legacyMovementId: CodecTypes['pg/uuid@1']['input'] | null;
+      readonly locationId: CodecTypes['pg/uuid@1']['input'];
+      readonly createdByUserId: CodecTypes['pg/uuid@1']['input'];
+      readonly kind: CodecTypes['sql/varchar@1']['input'];
+      readonly currency: CodecTypes['sql/varchar@1']['input'];
+      readonly movementDate: CodecTypes['pg/date-string@1']['input'];
+      readonly refundCents: CodecTypes['pg/int4@1']['input'];
+      readonly cogsCents: CodecTypes['pg/int4@1']['input'];
+      readonly reason: CodecTypes['sql/varchar@1']['input'];
+      readonly reference: CodecTypes['sql/varchar@1']['input'];
+      readonly createdAt: CodecTypes['pg/timestamptz-string@1']['input'];
+    };
+    readonly SaleReturnAllocation: {
+      readonly id: CodecTypes['pg/uuid@1']['input'];
+      readonly companyId: CodecTypes['pg/uuid@1']['input'];
+      readonly returnId: CodecTypes['pg/uuid@1']['input'];
+      readonly itemId: CodecTypes['pg/uuid@1']['input'];
+      readonly originalMovementId: CodecTypes['pg/uuid@1']['input'];
+      readonly returnMovementId: CodecTypes['pg/uuid@1']['input'];
+      readonly lossMovementId: CodecTypes['pg/uuid@1']['input'] | null;
+      readonly position: CodecTypes['pg/int4@1']['input'];
+      readonly quantity: CodecTypes['pg/int4@1']['input'];
+      readonly unitPriceCents: CodecTypes['pg/int4@1']['input'];
+      readonly unitCostCents: CodecTypes['pg/int4@1']['input'];
+      readonly refundCents: CodecTypes['pg/int4@1']['input'];
+      readonly cogsCents: CodecTypes['pg/int4@1']['input'];
+      readonly disposition: CodecTypes['sql/varchar@1']['input'];
+    };
+    readonly SaleReturnRequest: {
+      readonly id: CodecTypes['pg/uuid@1']['input'];
+      readonly companyId: CodecTypes['pg/uuid@1']['input'];
+      readonly requestKey: CodecTypes['pg/uuid@1']['input'];
+      readonly createdByUserId: CodecTypes['pg/uuid@1']['input'];
+      readonly inputJson: CodecTypes['pg/jsonb@1']['input'] | null;
+      readonly previewJson: CodecTypes['pg/jsonb@1']['input'] | null;
+      readonly inputHash: CodecTypes['sql/varchar@1']['input'] | null;
+      readonly status: CodecTypes['sql/varchar@1']['input'];
+      readonly createdAt: CodecTypes['pg/timestamptz-string@1']['input'];
+      readonly finishedAt: CodecTypes['pg/timestamptz-string@1']['input'] | null;
     };
     readonly StockCount: {
       readonly id: CodecTypes['pg/uuid@1']['input'];
@@ -572,6 +870,7 @@ export type StorageColumnTypes = {
       readonly default_location_id: CodecTypes['pg/uuid@1']['output'] | null;
       readonly default_reorder_level: CodecTypes['pg/int4@1']['output'];
       readonly default_unit: Varchar<20>;
+      readonly hybrid_pricing_enabled: CodecTypes['pg/bool@1']['output'];
       readonly id: CodecTypes['pg/uuid@1']['output'];
       readonly inventory_source: Varchar<40> | null;
       readonly item_term: Varchar<20>;
@@ -601,6 +900,63 @@ export type StorageColumnTypes = {
       readonly unit_cost_cents: CodecTypes['pg/int4@1']['output'];
       readonly updated_at: CodecTypes['pg/timestamptz-string@1']['output'];
     };
+    readonly inventory_valuation_checkpoints: {
+      readonly base_unit: Varchar<20>;
+      readonly company_id: CodecTypes['pg/uuid@1']['output'];
+      readonly cost_review_id: CodecTypes['pg/uuid@1']['output'] | null;
+      readonly created_at: CodecTypes['pg/timestamptz-string@1']['output'];
+      readonly created_by_user_id: CodecTypes['pg/uuid@1']['output'];
+      readonly currency: Varchar<3>;
+      readonly id: CodecTypes['pg/uuid@1']['output'];
+      readonly item_id: CodecTypes['pg/uuid@1']['output'];
+      readonly opening_quantity: CodecTypes['pg/int4@1']['output'];
+      readonly opening_value_cents: CodecTypes['pg/int4@1']['output'];
+      readonly reference: Varchar<200>;
+      readonly request_id: CodecTypes['pg/uuid@1']['output'];
+    };
+    readonly inventory_valuation_entries: {
+      readonly checkpoint_id: CodecTypes['pg/uuid@1']['output'];
+      readonly company_id: CodecTypes['pg/uuid@1']['output'];
+      readonly created_at: CodecTypes['pg/timestamptz-string@1']['output'];
+      readonly created_by_user_id: CodecTypes['pg/uuid@1']['output'];
+      readonly id: CodecTypes['pg/uuid@1']['output'];
+      readonly item_id: CodecTypes['pg/uuid@1']['output'];
+      readonly kind: Varchar<20>;
+      readonly movement_id: CodecTypes['pg/uuid@1']['output'] | null;
+      readonly quantity_after: CodecTypes['pg/int4@1']['output'];
+      readonly quantity_delta: CodecTypes['pg/int4@1']['output'];
+      readonly reference: Varchar<200>;
+      readonly request_id: CodecTypes['pg/uuid@1']['output'] | null;
+      readonly sequence: CodecTypes['pg/int4@1']['output'];
+      readonly value_after_cents: CodecTypes['pg/int4@1']['output'];
+      readonly value_delta_cents: CodecTypes['pg/int4@1']['output'];
+    };
+    readonly inventory_valuation_requests: {
+      readonly company_id: CodecTypes['pg/uuid@1']['output'];
+      readonly created_at: CodecTypes['pg/timestamptz-string@1']['output'];
+      readonly created_by_user_id: CodecTypes['pg/uuid@1']['output'];
+      readonly finished_at: CodecTypes['pg/timestamptz-string@1']['output'] | null;
+      readonly id: CodecTypes['pg/uuid@1']['output'];
+      readonly input_hash: Varchar<64> | null;
+      readonly input_json: CodecTypes['pg/jsonb@1']['output'] | null;
+      readonly item_id: CodecTypes['pg/uuid@1']['output'] | null;
+      readonly request_key: CodecTypes['pg/uuid@1']['output'];
+      readonly status: Varchar<12>;
+    };
+    readonly item_pricing_versions: {
+      readonly base_unit: Varchar<20>;
+      readonly bulk_tiers: CodecTypes['pg/jsonb@1']['output'];
+      readonly company_id: CodecTypes['pg/uuid@1']['output'];
+      readonly created_at: CodecTypes['pg/timestamptz-string@1']['output'];
+      readonly created_by_user_id: CodecTypes['pg/uuid@1']['output'];
+      readonly id: CodecTypes['pg/uuid@1']['output'];
+      readonly item_id: CodecTypes['pg/uuid@1']['output'];
+      readonly package_label: Varchar<20> | null;
+      readonly package_price_cents: CodecTypes['pg/int4@1']['output'] | null;
+      readonly package_size: CodecTypes['pg/int4@1']['output'] | null;
+      readonly preview_enabled: CodecTypes['pg/bool@1']['output'];
+      readonly version: CodecTypes['pg/int4@1']['output'];
+    };
     readonly location_stocks: {
       readonly company_id: CodecTypes['pg/uuid@1']['output'];
       readonly created_at: CodecTypes['pg/timestamptz-string@1']['output'];
@@ -629,6 +985,97 @@ export type StorageColumnTypes = {
       readonly updated_at: CodecTypes['pg/timestamptz-string@1']['output'];
       readonly user_agent: Varchar<300> | null;
       readonly user_id: CodecTypes['pg/uuid@1']['output'];
+    };
+    readonly sale_components: {
+      readonly category: Varchar<10>;
+      readonly company_id: CodecTypes['pg/uuid@1']['output'];
+      readonly id: CodecTypes['pg/uuid@1']['output'];
+      readonly movement_id: CodecTypes['pg/uuid@1']['output'];
+      readonly position: CodecTypes['pg/int4@1']['output'];
+      readonly quantity: CodecTypes['pg/int4@1']['output'];
+      readonly sale_line_id: CodecTypes['pg/uuid@1']['output'];
+      readonly total_cents: CodecTypes['pg/int4@1']['output'];
+      readonly unit_price_cents: CodecTypes['pg/int4@1']['output'];
+    };
+    readonly sale_lines: {
+      readonly automatic_discount_cents: CodecTypes['pg/int4@1']['output'];
+      readonly base_unit: Varchar<20>;
+      readonly category: Varchar<80>;
+      readonly cogs_cents: CodecTypes['pg/int4@1']['output'];
+      readonly company_id: CodecTypes['pg/uuid@1']['output'];
+      readonly gross_sales_cents: CodecTypes['pg/int4@1']['output'];
+      readonly id: CodecTypes['pg/uuid@1']['output'];
+      readonly item_id: CodecTypes['pg/uuid@1']['output'];
+      readonly item_name: Varchar<120>;
+      readonly position: CodecTypes['pg/int4@1']['output'];
+      readonly pricing_snapshot: CodecTypes['pg/jsonb@1']['output'];
+      readonly quantity: CodecTypes['pg/int4@1']['output'];
+      readonly retail_price_cents: CodecTypes['pg/int4@1']['output'];
+      readonly sale_id: CodecTypes['pg/uuid@1']['output'];
+      readonly sku: Varchar<40>;
+      readonly total_cents: CodecTypes['pg/int4@1']['output'];
+      readonly unit_cost_cents: CodecTypes['pg/int4@1']['output'];
+      readonly valuation_checkpoint_id: CodecTypes['pg/uuid@1']['output'] | null;
+    };
+    readonly sale_return_allocations: {
+      readonly cogs_cents: CodecTypes['pg/int4@1']['output'];
+      readonly company_id: CodecTypes['pg/uuid@1']['output'];
+      readonly disposition: Varchar<12>;
+      readonly id: CodecTypes['pg/uuid@1']['output'];
+      readonly item_id: CodecTypes['pg/uuid@1']['output'];
+      readonly loss_movement_id: CodecTypes['pg/uuid@1']['output'] | null;
+      readonly original_movement_id: CodecTypes['pg/uuid@1']['output'];
+      readonly position: CodecTypes['pg/int4@1']['output'];
+      readonly quantity: CodecTypes['pg/int4@1']['output'];
+      readonly refund_cents: CodecTypes['pg/int4@1']['output'];
+      readonly return_id: CodecTypes['pg/uuid@1']['output'];
+      readonly return_movement_id: CodecTypes['pg/uuid@1']['output'];
+      readonly unit_cost_cents: CodecTypes['pg/int4@1']['output'];
+      readonly unit_price_cents: CodecTypes['pg/int4@1']['output'];
+    };
+    readonly sale_return_requests: {
+      readonly company_id: CodecTypes['pg/uuid@1']['output'];
+      readonly created_at: CodecTypes['pg/timestamptz-string@1']['output'];
+      readonly created_by_user_id: CodecTypes['pg/uuid@1']['output'];
+      readonly finished_at: CodecTypes['pg/timestamptz-string@1']['output'] | null;
+      readonly id: CodecTypes['pg/uuid@1']['output'];
+      readonly input_hash: Varchar<64> | null;
+      readonly input_json: CodecTypes['pg/jsonb@1']['output'] | null;
+      readonly preview_json: CodecTypes['pg/jsonb@1']['output'] | null;
+      readonly request_key: CodecTypes['pg/uuid@1']['output'];
+      readonly status: Varchar<12>;
+    };
+    readonly sale_returns: {
+      readonly cogs_cents: CodecTypes['pg/int4@1']['output'];
+      readonly company_id: CodecTypes['pg/uuid@1']['output'];
+      readonly created_at: CodecTypes['pg/timestamptz-string@1']['output'];
+      readonly created_by_user_id: CodecTypes['pg/uuid@1']['output'];
+      readonly currency: Varchar<3>;
+      readonly id: CodecTypes['pg/uuid@1']['output'];
+      readonly kind: Varchar<12>;
+      readonly legacy_movement_id: CodecTypes['pg/uuid@1']['output'] | null;
+      readonly location_id: CodecTypes['pg/uuid@1']['output'];
+      readonly movement_date: CodecTypes['pg/date-string@1']['output'];
+      readonly reason: Varchar<200>;
+      readonly reference: Varchar<200>;
+      readonly refund_cents: CodecTypes['pg/int4@1']['output'];
+      readonly request_id: CodecTypes['pg/uuid@1']['output'];
+      readonly source_sale_id: CodecTypes['pg/uuid@1']['output'] | null;
+    };
+    readonly sales: {
+      readonly automatic_discount_cents: CodecTypes['pg/int4@1']['output'];
+      readonly cogs_cents: CodecTypes['pg/int4@1']['output'];
+      readonly company_id: CodecTypes['pg/uuid@1']['output'];
+      readonly created_at: CodecTypes['pg/timestamptz-string@1']['output'];
+      readonly created_by_user_id: CodecTypes['pg/uuid@1']['output'];
+      readonly currency: Varchar<3>;
+      readonly gross_sales_cents: CodecTypes['pg/int4@1']['output'];
+      readonly id: CodecTypes['pg/uuid@1']['output'];
+      readonly idempotency_key: CodecTypes['pg/uuid@1']['output'];
+      readonly location_id: CodecTypes['pg/uuid@1']['output'];
+      readonly movement_date: CodecTypes['pg/date-string@1']['output'];
+      readonly request_hash: Varchar<64>;
+      readonly total_cents: CodecTypes['pg/int4@1']['output'];
     };
     readonly stock_counts: {
       readonly company_id: CodecTypes['pg/uuid@1']['output'];
@@ -728,6 +1175,7 @@ export type StorageColumnInputTypes = {
       readonly default_location_id: CodecTypes['pg/uuid@1']['input'] | null;
       readonly default_reorder_level: CodecTypes['pg/int4@1']['input'];
       readonly default_unit: CodecTypes['sql/varchar@1']['input'];
+      readonly hybrid_pricing_enabled: CodecTypes['pg/bool@1']['input'];
       readonly id: CodecTypes['pg/uuid@1']['input'];
       readonly inventory_source: CodecTypes['sql/varchar@1']['input'] | null;
       readonly item_term: CodecTypes['sql/varchar@1']['input'];
@@ -757,6 +1205,63 @@ export type StorageColumnInputTypes = {
       readonly unit_cost_cents: CodecTypes['pg/int4@1']['input'];
       readonly updated_at: CodecTypes['pg/timestamptz-string@1']['input'];
     };
+    readonly inventory_valuation_checkpoints: {
+      readonly base_unit: CodecTypes['sql/varchar@1']['input'];
+      readonly company_id: CodecTypes['pg/uuid@1']['input'];
+      readonly cost_review_id: CodecTypes['pg/uuid@1']['input'] | null;
+      readonly created_at: CodecTypes['pg/timestamptz-string@1']['input'];
+      readonly created_by_user_id: CodecTypes['pg/uuid@1']['input'];
+      readonly currency: CodecTypes['sql/varchar@1']['input'];
+      readonly id: CodecTypes['pg/uuid@1']['input'];
+      readonly item_id: CodecTypes['pg/uuid@1']['input'];
+      readonly opening_quantity: CodecTypes['pg/int4@1']['input'];
+      readonly opening_value_cents: CodecTypes['pg/int4@1']['input'];
+      readonly reference: CodecTypes['sql/varchar@1']['input'];
+      readonly request_id: CodecTypes['pg/uuid@1']['input'];
+    };
+    readonly inventory_valuation_entries: {
+      readonly checkpoint_id: CodecTypes['pg/uuid@1']['input'];
+      readonly company_id: CodecTypes['pg/uuid@1']['input'];
+      readonly created_at: CodecTypes['pg/timestamptz-string@1']['input'];
+      readonly created_by_user_id: CodecTypes['pg/uuid@1']['input'];
+      readonly id: CodecTypes['pg/uuid@1']['input'];
+      readonly item_id: CodecTypes['pg/uuid@1']['input'];
+      readonly kind: CodecTypes['sql/varchar@1']['input'];
+      readonly movement_id: CodecTypes['pg/uuid@1']['input'] | null;
+      readonly quantity_after: CodecTypes['pg/int4@1']['input'];
+      readonly quantity_delta: CodecTypes['pg/int4@1']['input'];
+      readonly reference: CodecTypes['sql/varchar@1']['input'];
+      readonly request_id: CodecTypes['pg/uuid@1']['input'] | null;
+      readonly sequence: CodecTypes['pg/int4@1']['input'];
+      readonly value_after_cents: CodecTypes['pg/int4@1']['input'];
+      readonly value_delta_cents: CodecTypes['pg/int4@1']['input'];
+    };
+    readonly inventory_valuation_requests: {
+      readonly company_id: CodecTypes['pg/uuid@1']['input'];
+      readonly created_at: CodecTypes['pg/timestamptz-string@1']['input'];
+      readonly created_by_user_id: CodecTypes['pg/uuid@1']['input'];
+      readonly finished_at: CodecTypes['pg/timestamptz-string@1']['input'] | null;
+      readonly id: CodecTypes['pg/uuid@1']['input'];
+      readonly input_hash: CodecTypes['sql/varchar@1']['input'] | null;
+      readonly input_json: CodecTypes['pg/jsonb@1']['input'] | null;
+      readonly item_id: CodecTypes['pg/uuid@1']['input'] | null;
+      readonly request_key: CodecTypes['pg/uuid@1']['input'];
+      readonly status: CodecTypes['sql/varchar@1']['input'];
+    };
+    readonly item_pricing_versions: {
+      readonly base_unit: CodecTypes['sql/varchar@1']['input'];
+      readonly bulk_tiers: CodecTypes['pg/jsonb@1']['input'];
+      readonly company_id: CodecTypes['pg/uuid@1']['input'];
+      readonly created_at: CodecTypes['pg/timestamptz-string@1']['input'];
+      readonly created_by_user_id: CodecTypes['pg/uuid@1']['input'];
+      readonly id: CodecTypes['pg/uuid@1']['input'];
+      readonly item_id: CodecTypes['pg/uuid@1']['input'];
+      readonly package_label: CodecTypes['sql/varchar@1']['input'] | null;
+      readonly package_price_cents: CodecTypes['pg/int4@1']['input'] | null;
+      readonly package_size: CodecTypes['pg/int4@1']['input'] | null;
+      readonly preview_enabled: CodecTypes['pg/bool@1']['input'];
+      readonly version: CodecTypes['pg/int4@1']['input'];
+    };
     readonly location_stocks: {
       readonly company_id: CodecTypes['pg/uuid@1']['input'];
       readonly created_at: CodecTypes['pg/timestamptz-string@1']['input'];
@@ -785,6 +1290,97 @@ export type StorageColumnInputTypes = {
       readonly updated_at: CodecTypes['pg/timestamptz-string@1']['input'];
       readonly user_agent: CodecTypes['sql/varchar@1']['input'] | null;
       readonly user_id: CodecTypes['pg/uuid@1']['input'];
+    };
+    readonly sale_components: {
+      readonly category: CodecTypes['sql/varchar@1']['input'];
+      readonly company_id: CodecTypes['pg/uuid@1']['input'];
+      readonly id: CodecTypes['pg/uuid@1']['input'];
+      readonly movement_id: CodecTypes['pg/uuid@1']['input'];
+      readonly position: CodecTypes['pg/int4@1']['input'];
+      readonly quantity: CodecTypes['pg/int4@1']['input'];
+      readonly sale_line_id: CodecTypes['pg/uuid@1']['input'];
+      readonly total_cents: CodecTypes['pg/int4@1']['input'];
+      readonly unit_price_cents: CodecTypes['pg/int4@1']['input'];
+    };
+    readonly sale_lines: {
+      readonly automatic_discount_cents: CodecTypes['pg/int4@1']['input'];
+      readonly base_unit: CodecTypes['sql/varchar@1']['input'];
+      readonly category: CodecTypes['sql/varchar@1']['input'];
+      readonly cogs_cents: CodecTypes['pg/int4@1']['input'];
+      readonly company_id: CodecTypes['pg/uuid@1']['input'];
+      readonly gross_sales_cents: CodecTypes['pg/int4@1']['input'];
+      readonly id: CodecTypes['pg/uuid@1']['input'];
+      readonly item_id: CodecTypes['pg/uuid@1']['input'];
+      readonly item_name: CodecTypes['sql/varchar@1']['input'];
+      readonly position: CodecTypes['pg/int4@1']['input'];
+      readonly pricing_snapshot: CodecTypes['pg/jsonb@1']['input'];
+      readonly quantity: CodecTypes['pg/int4@1']['input'];
+      readonly retail_price_cents: CodecTypes['pg/int4@1']['input'];
+      readonly sale_id: CodecTypes['pg/uuid@1']['input'];
+      readonly sku: CodecTypes['sql/varchar@1']['input'];
+      readonly total_cents: CodecTypes['pg/int4@1']['input'];
+      readonly unit_cost_cents: CodecTypes['pg/int4@1']['input'];
+      readonly valuation_checkpoint_id: CodecTypes['pg/uuid@1']['input'] | null;
+    };
+    readonly sale_return_allocations: {
+      readonly cogs_cents: CodecTypes['pg/int4@1']['input'];
+      readonly company_id: CodecTypes['pg/uuid@1']['input'];
+      readonly disposition: CodecTypes['sql/varchar@1']['input'];
+      readonly id: CodecTypes['pg/uuid@1']['input'];
+      readonly item_id: CodecTypes['pg/uuid@1']['input'];
+      readonly loss_movement_id: CodecTypes['pg/uuid@1']['input'] | null;
+      readonly original_movement_id: CodecTypes['pg/uuid@1']['input'];
+      readonly position: CodecTypes['pg/int4@1']['input'];
+      readonly quantity: CodecTypes['pg/int4@1']['input'];
+      readonly refund_cents: CodecTypes['pg/int4@1']['input'];
+      readonly return_id: CodecTypes['pg/uuid@1']['input'];
+      readonly return_movement_id: CodecTypes['pg/uuid@1']['input'];
+      readonly unit_cost_cents: CodecTypes['pg/int4@1']['input'];
+      readonly unit_price_cents: CodecTypes['pg/int4@1']['input'];
+    };
+    readonly sale_return_requests: {
+      readonly company_id: CodecTypes['pg/uuid@1']['input'];
+      readonly created_at: CodecTypes['pg/timestamptz-string@1']['input'];
+      readonly created_by_user_id: CodecTypes['pg/uuid@1']['input'];
+      readonly finished_at: CodecTypes['pg/timestamptz-string@1']['input'] | null;
+      readonly id: CodecTypes['pg/uuid@1']['input'];
+      readonly input_hash: CodecTypes['sql/varchar@1']['input'] | null;
+      readonly input_json: CodecTypes['pg/jsonb@1']['input'] | null;
+      readonly preview_json: CodecTypes['pg/jsonb@1']['input'] | null;
+      readonly request_key: CodecTypes['pg/uuid@1']['input'];
+      readonly status: CodecTypes['sql/varchar@1']['input'];
+    };
+    readonly sale_returns: {
+      readonly cogs_cents: CodecTypes['pg/int4@1']['input'];
+      readonly company_id: CodecTypes['pg/uuid@1']['input'];
+      readonly created_at: CodecTypes['pg/timestamptz-string@1']['input'];
+      readonly created_by_user_id: CodecTypes['pg/uuid@1']['input'];
+      readonly currency: CodecTypes['sql/varchar@1']['input'];
+      readonly id: CodecTypes['pg/uuid@1']['input'];
+      readonly kind: CodecTypes['sql/varchar@1']['input'];
+      readonly legacy_movement_id: CodecTypes['pg/uuid@1']['input'] | null;
+      readonly location_id: CodecTypes['pg/uuid@1']['input'];
+      readonly movement_date: CodecTypes['pg/date-string@1']['input'];
+      readonly reason: CodecTypes['sql/varchar@1']['input'];
+      readonly reference: CodecTypes['sql/varchar@1']['input'];
+      readonly refund_cents: CodecTypes['pg/int4@1']['input'];
+      readonly request_id: CodecTypes['pg/uuid@1']['input'];
+      readonly source_sale_id: CodecTypes['pg/uuid@1']['input'] | null;
+    };
+    readonly sales: {
+      readonly automatic_discount_cents: CodecTypes['pg/int4@1']['input'];
+      readonly cogs_cents: CodecTypes['pg/int4@1']['input'];
+      readonly company_id: CodecTypes['pg/uuid@1']['input'];
+      readonly created_at: CodecTypes['pg/timestamptz-string@1']['input'];
+      readonly created_by_user_id: CodecTypes['pg/uuid@1']['input'];
+      readonly currency: CodecTypes['sql/varchar@1']['input'];
+      readonly gross_sales_cents: CodecTypes['pg/int4@1']['input'];
+      readonly id: CodecTypes['pg/uuid@1']['input'];
+      readonly idempotency_key: CodecTypes['pg/uuid@1']['input'];
+      readonly location_id: CodecTypes['pg/uuid@1']['input'];
+      readonly movement_date: CodecTypes['pg/date-string@1']['input'];
+      readonly request_hash: CodecTypes['sql/varchar@1']['input'];
+      readonly total_cents: CodecTypes['pg/int4@1']['input'];
     };
     readonly stock_counts: {
       readonly company_id: CodecTypes['pg/uuid@1']['input'];
@@ -880,6 +1476,7 @@ export namespace Models {
     allowNegativeStock: CodecTypes['pg/bool@1']['output'];
     requirePurchaseSource: CodecTypes['pg/bool@1']['output'];
     requireAdjustmentReason: CodecTypes['pg/bool@1']['output'];
+    hybridPricingEnabled: CodecTypes['pg/bool@1']['output'];
     shopTerm: Varchar<20>;
     warehouseTerm: Varchar<20>;
     itemTerm: Varchar<20>;
@@ -936,6 +1533,195 @@ export namespace Models {
     updatedAt: CodecTypes['pg/timestamptz-string@1']['output'];
     company: public_Company;
     readonly [RelationKeys]?: 'company';
+  };
+  export type public_ItemPricingVersion = {
+    id: CodecTypes['pg/uuid@1']['output'];
+    companyId: CodecTypes['pg/uuid@1']['output'];
+    itemId: CodecTypes['pg/uuid@1']['output'];
+    version: CodecTypes['pg/int4@1']['output'];
+    baseUnit: Varchar<20>;
+    previewEnabled: CodecTypes['pg/bool@1']['output'];
+    packageLabel: Varchar<20> | null;
+    packageSize: CodecTypes['pg/int4@1']['output'] | null;
+    packagePriceCents: CodecTypes['pg/int4@1']['output'] | null;
+    bulkTiers: CodecTypes['pg/jsonb@1']['output'];
+    createdByUserId: CodecTypes['pg/uuid@1']['output'];
+    createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
+    createdBy: public_User;
+    item: public_InventoryItem;
+    readonly [RelationKeys]?: 'createdBy' | 'item';
+  };
+  export type public_InventoryValuationRequest = {
+    id: CodecTypes['pg/uuid@1']['output'];
+    companyId: CodecTypes['pg/uuid@1']['output'];
+    requestKey: CodecTypes['pg/uuid@1']['output'];
+    createdByUserId: CodecTypes['pg/uuid@1']['output'];
+    itemId: CodecTypes['pg/uuid@1']['output'] | null;
+    inputJson: CodecTypes['pg/jsonb@1']['output'] | null;
+    inputHash: Varchar<64> | null;
+    status: Varchar<12>;
+    createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
+    finishedAt: CodecTypes['pg/timestamptz-string@1']['output'] | null;
+    actor: public_User;
+    company: public_Company;
+    item: public_InventoryItem | null;
+    readonly [RelationKeys]?: 'actor' | 'company' | 'item';
+  };
+  export type public_InventoryValuationCheckpoint = {
+    id: CodecTypes['pg/uuid@1']['output'];
+    companyId: CodecTypes['pg/uuid@1']['output'];
+    itemId: CodecTypes['pg/uuid@1']['output'];
+    requestId: CodecTypes['pg/uuid@1']['output'];
+    createdByUserId: CodecTypes['pg/uuid@1']['output'];
+    baseUnit: Varchar<20>;
+    currency: Varchar<3>;
+    openingQuantity: CodecTypes['pg/int4@1']['output'];
+    openingValueCents: CodecTypes['pg/int4@1']['output'];
+    reference: Varchar<200>;
+    costReviewId: CodecTypes['pg/uuid@1']['output'] | null;
+    createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
+    actor: public_User;
+    item: public_InventoryItem;
+    request: public_InventoryValuationRequest;
+    readonly [RelationKeys]?: 'actor' | 'item' | 'request';
+  };
+  export type public_InventoryValuationEntry = {
+    id: CodecTypes['pg/uuid@1']['output'];
+    companyId: CodecTypes['pg/uuid@1']['output'];
+    itemId: CodecTypes['pg/uuid@1']['output'];
+    checkpointId: CodecTypes['pg/uuid@1']['output'];
+    requestId: CodecTypes['pg/uuid@1']['output'] | null;
+    movementId: CodecTypes['pg/uuid@1']['output'] | null;
+    createdByUserId: CodecTypes['pg/uuid@1']['output'];
+    sequence: CodecTypes['pg/int4@1']['output'];
+    kind: Varchar<20>;
+    quantityDelta: CodecTypes['pg/int4@1']['output'];
+    valueDeltaCents: CodecTypes['pg/int4@1']['output'];
+    quantityAfter: CodecTypes['pg/int4@1']['output'];
+    valueAfterCents: CodecTypes['pg/int4@1']['output'];
+    reference: Varchar<200>;
+    createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
+    actor: public_User;
+    checkpoint: public_InventoryValuationCheckpoint;
+    movement: public_StockMovement | null;
+    request: public_InventoryValuationRequest | null;
+    readonly [RelationKeys]?: 'actor' | 'checkpoint' | 'movement' | 'request';
+  };
+  export type public_Sale = {
+    id: CodecTypes['pg/uuid@1']['output'];
+    companyId: CodecTypes['pg/uuid@1']['output'];
+    locationId: CodecTypes['pg/uuid@1']['output'];
+    createdByUserId: CodecTypes['pg/uuid@1']['output'];
+    idempotencyKey: CodecTypes['pg/uuid@1']['output'];
+    requestHash: Varchar<64>;
+    currency: Varchar<3>;
+    movementDate: CodecTypes['pg/date-string@1']['output'];
+    grossSalesCents: CodecTypes['pg/int4@1']['output'];
+    automaticDiscountCents: CodecTypes['pg/int4@1']['output'];
+    totalCents: CodecTypes['pg/int4@1']['output'];
+    cogsCents: CodecTypes['pg/int4@1']['output'];
+    createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
+    createdBy: public_User;
+    location: public_Location;
+    readonly [RelationKeys]?: 'createdBy' | 'location';
+  };
+  export type public_SaleLine = {
+    id: CodecTypes['pg/uuid@1']['output'];
+    companyId: CodecTypes['pg/uuid@1']['output'];
+    saleId: CodecTypes['pg/uuid@1']['output'];
+    itemId: CodecTypes['pg/uuid@1']['output'];
+    position: CodecTypes['pg/int4@1']['output'];
+    itemName: Varchar<120>;
+    sku: Varchar<40>;
+    category: Varchar<80>;
+    baseUnit: Varchar<20>;
+    quantity: CodecTypes['pg/int4@1']['output'];
+    retailPriceCents: CodecTypes['pg/int4@1']['output'];
+    unitCostCents: CodecTypes['pg/int4@1']['output'];
+    grossSalesCents: CodecTypes['pg/int4@1']['output'];
+    automaticDiscountCents: CodecTypes['pg/int4@1']['output'];
+    totalCents: CodecTypes['pg/int4@1']['output'];
+    cogsCents: CodecTypes['pg/int4@1']['output'];
+    pricingSnapshot: CodecTypes['pg/jsonb@1']['output'];
+    valuationCheckpointId: CodecTypes['pg/uuid@1']['output'] | null;
+    item: public_InventoryItem;
+    sale: public_Sale;
+    valuationCheckpoint: public_InventoryValuationCheckpoint | null;
+    readonly [RelationKeys]?: 'item' | 'sale' | 'valuationCheckpoint';
+  };
+  export type public_SaleComponent = {
+    id: CodecTypes['pg/uuid@1']['output'];
+    companyId: CodecTypes['pg/uuid@1']['output'];
+    saleLineId: CodecTypes['pg/uuid@1']['output'];
+    movementId: CodecTypes['pg/uuid@1']['output'];
+    position: CodecTypes['pg/int4@1']['output'];
+    category: Varchar<10>;
+    quantity: CodecTypes['pg/int4@1']['output'];
+    unitPriceCents: CodecTypes['pg/int4@1']['output'];
+    totalCents: CodecTypes['pg/int4@1']['output'];
+    line: public_SaleLine;
+    movement: public_StockMovement;
+    readonly [RelationKeys]?: 'line' | 'movement';
+  };
+  export type public_SaleReturnRequest = {
+    id: CodecTypes['pg/uuid@1']['output'];
+    companyId: CodecTypes['pg/uuid@1']['output'];
+    requestKey: CodecTypes['pg/uuid@1']['output'];
+    createdByUserId: CodecTypes['pg/uuid@1']['output'];
+    inputJson: CodecTypes['pg/jsonb@1']['output'] | null;
+    previewJson: CodecTypes['pg/jsonb@1']['output'] | null;
+    inputHash: Varchar<64> | null;
+    status: Varchar<12>;
+    createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
+    finishedAt: CodecTypes['pg/timestamptz-string@1']['output'] | null;
+    actor: public_User;
+    company: public_Company;
+    readonly [RelationKeys]?: 'actor' | 'company';
+  };
+  export type public_SaleReturn = {
+    id: CodecTypes['pg/uuid@1']['output'];
+    companyId: CodecTypes['pg/uuid@1']['output'];
+    requestId: CodecTypes['pg/uuid@1']['output'];
+    sourceSaleId: CodecTypes['pg/uuid@1']['output'] | null;
+    legacyMovementId: CodecTypes['pg/uuid@1']['output'] | null;
+    locationId: CodecTypes['pg/uuid@1']['output'];
+    createdByUserId: CodecTypes['pg/uuid@1']['output'];
+    kind: Varchar<12>;
+    currency: Varchar<3>;
+    movementDate: CodecTypes['pg/date-string@1']['output'];
+    refundCents: CodecTypes['pg/int4@1']['output'];
+    cogsCents: CodecTypes['pg/int4@1']['output'];
+    reason: Varchar<200>;
+    reference: Varchar<200>;
+    createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
+    actor: public_User;
+    legacy: public_StockMovement | null;
+    location: public_Location;
+    request: public_SaleReturnRequest;
+    sale: public_Sale | null;
+    readonly [RelationKeys]?: 'actor' | 'legacy' | 'location' | 'request' | 'sale';
+  };
+  export type public_SaleReturnAllocation = {
+    id: CodecTypes['pg/uuid@1']['output'];
+    companyId: CodecTypes['pg/uuid@1']['output'];
+    returnId: CodecTypes['pg/uuid@1']['output'];
+    itemId: CodecTypes['pg/uuid@1']['output'];
+    originalMovementId: CodecTypes['pg/uuid@1']['output'];
+    returnMovementId: CodecTypes['pg/uuid@1']['output'];
+    lossMovementId: CodecTypes['pg/uuid@1']['output'] | null;
+    position: CodecTypes['pg/int4@1']['output'];
+    quantity: CodecTypes['pg/int4@1']['output'];
+    unitPriceCents: CodecTypes['pg/int4@1']['output'];
+    unitCostCents: CodecTypes['pg/int4@1']['output'];
+    refundCents: CodecTypes['pg/int4@1']['output'];
+    cogsCents: CodecTypes['pg/int4@1']['output'];
+    disposition: Varchar<12>;
+    item: public_InventoryItem;
+    loss: public_StockMovement | null;
+    movement: public_StockMovement;
+    original: public_StockMovement;
+    returned: public_SaleReturn;
+    readonly [RelationKeys]?: 'item' | 'loss' | 'movement' | 'original' | 'returned';
   };
   export type public_Supplier = {
     id: CodecTypes['pg/uuid@1']['output'];
@@ -1048,6 +1834,16 @@ export declare const models: {
     Location: Models.public_Location;
     User: Models.public_User;
     InventoryItem: Models.public_InventoryItem;
+    ItemPricingVersion: Models.public_ItemPricingVersion;
+    InventoryValuationRequest: Models.public_InventoryValuationRequest;
+    InventoryValuationCheckpoint: Models.public_InventoryValuationCheckpoint;
+    InventoryValuationEntry: Models.public_InventoryValuationEntry;
+    Sale: Models.public_Sale;
+    SaleLine: Models.public_SaleLine;
+    SaleComponent: Models.public_SaleComponent;
+    SaleReturnRequest: Models.public_SaleReturnRequest;
+    SaleReturn: Models.public_SaleReturn;
+    SaleReturnAllocation: Models.public_SaleReturnAllocation;
     Supplier: Models.public_Supplier;
     LocationStock: Models.public_LocationStock;
     StockMovement: Models.public_StockMovement;
@@ -1306,6 +2102,15 @@ type ContractBase = Omit<
                     readonly value: DefaultLiteralValue<'pg/bool@1', true>;
                   };
                 };
+                readonly hybrid_pricing_enabled: {
+                  readonly nativeType: 'bool';
+                  readonly codecId: 'pg/bool@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/bool@1', false>;
+                  };
+                };
                 readonly shop_term: {
                   readonly nativeType: 'character varying';
                   readonly codecId: 'sql/varchar@1';
@@ -1462,6 +2267,523 @@ type ContractBase = Omit<
                     readonly namespaceId: 'public' & NamespaceId;
                     readonly tableName: 'companies';
                     readonly columns: readonly ['id'];
+                  };
+                },
+              ];
+            };
+            readonly inventory_valuation_checkpoints: {
+              columns: {
+                readonly id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: false;
+                };
+                readonly company_id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: false;
+                };
+                readonly item_id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: false;
+                };
+                readonly request_id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: false;
+                };
+                readonly created_by_user_id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: false;
+                };
+                readonly base_unit: {
+                  readonly nativeType: 'character varying';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly length: 20 };
+                };
+                readonly currency: {
+                  readonly nativeType: 'character varying';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly length: 3 };
+                };
+                readonly opening_quantity: {
+                  readonly nativeType: 'int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                };
+                readonly opening_value_cents: {
+                  readonly nativeType: 'int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                };
+                readonly reference: {
+                  readonly nativeType: 'character varying';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly length: 200 };
+                };
+                readonly cost_review_id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: true;
+                };
+                readonly created_at: {
+                  readonly nativeType: 'timestamptz';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                };
+              };
+              primaryKey: { readonly columns: readonly ['id'] };
+              uniques: readonly [
+                { readonly columns: readonly ['company_id', 'item_id'] },
+                { readonly columns: readonly ['company_id', 'item_id', 'id'] },
+                { readonly columns: readonly ['company_id', 'request_id'] },
+              ];
+              indexes: readonly [
+                {
+                  readonly name: 'inventory_valuation_checkpoints_company_id_created_by__fd5eba49';
+                  readonly prefix: 'inventory_valuation_checkpoints_company_id_created_by_';
+                  readonly columns: readonly ['company_id', 'created_by_user_id'];
+                  readonly unique: false;
+                },
+              ];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'inventory_valuation_checkpoints';
+                    readonly columns: readonly ['company_id', 'item_id'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'inventory_items';
+                    readonly columns: readonly ['company_id', 'id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'inventory_valuation_checkpoints';
+                    readonly columns: readonly ['company_id', 'request_id'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'inventory_valuation_requests';
+                    readonly columns: readonly ['company_id', 'id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'inventory_valuation_checkpoints';
+                    readonly columns: readonly ['company_id', 'created_by_user_id'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'users';
+                    readonly columns: readonly ['company_id', 'id'];
+                  };
+                },
+              ];
+            };
+            readonly inventory_valuation_entries: {
+              columns: {
+                readonly id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: false;
+                };
+                readonly company_id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: false;
+                };
+                readonly item_id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: false;
+                };
+                readonly checkpoint_id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: false;
+                };
+                readonly request_id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: true;
+                };
+                readonly movement_id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: true;
+                };
+                readonly created_by_user_id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: false;
+                };
+                readonly sequence: {
+                  readonly nativeType: 'int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                };
+                readonly kind: {
+                  readonly nativeType: 'character varying';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly length: 20 };
+                };
+                readonly quantity_delta: {
+                  readonly nativeType: 'int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                };
+                readonly value_delta_cents: {
+                  readonly nativeType: 'int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                };
+                readonly quantity_after: {
+                  readonly nativeType: 'int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                };
+                readonly value_after_cents: {
+                  readonly nativeType: 'int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                };
+                readonly reference: {
+                  readonly nativeType: 'character varying';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly length: 200 };
+                };
+                readonly created_at: {
+                  readonly nativeType: 'timestamptz';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                };
+              };
+              primaryKey: { readonly columns: readonly ['id'] };
+              uniques: readonly [
+                { readonly columns: readonly ['company_id', 'item_id', 'sequence'] },
+                { readonly columns: readonly ['company_id', 'movement_id'] },
+              ];
+              indexes: readonly [
+                {
+                  readonly name: 'inventory_valuation_entries_company_id_request_id_idx_47368113';
+                  readonly prefix: 'inventory_valuation_entries_company_id_request_id_idx';
+                  readonly columns: readonly ['company_id', 'request_id'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'inventory_valuation_entries_company_id_item_id_checkpo_083480a5';
+                  readonly prefix: 'inventory_valuation_entries_company_id_item_id_checkpo';
+                  readonly columns: readonly ['company_id', 'item_id', 'checkpoint_id'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'inventory_valuation_entries_company_id_created_by_user_fd5eba49';
+                  readonly prefix: 'inventory_valuation_entries_company_id_created_by_user';
+                  readonly columns: readonly ['company_id', 'created_by_user_id'];
+                  readonly unique: false;
+                },
+              ];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'inventory_valuation_entries';
+                    readonly columns: readonly ['company_id', 'item_id', 'checkpoint_id'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'inventory_valuation_checkpoints';
+                    readonly columns: readonly ['company_id', 'item_id', 'id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'inventory_valuation_entries';
+                    readonly columns: readonly ['company_id', 'request_id'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'inventory_valuation_requests';
+                    readonly columns: readonly ['company_id', 'id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'inventory_valuation_entries';
+                    readonly columns: readonly ['company_id', 'movement_id'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'stock_movements';
+                    readonly columns: readonly ['company_id', 'id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'inventory_valuation_entries';
+                    readonly columns: readonly ['company_id', 'created_by_user_id'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'users';
+                    readonly columns: readonly ['company_id', 'id'];
+                  };
+                },
+              ];
+            };
+            readonly inventory_valuation_requests: {
+              columns: {
+                readonly id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: false;
+                };
+                readonly company_id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: false;
+                };
+                readonly request_key: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: false;
+                };
+                readonly created_by_user_id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: false;
+                };
+                readonly item_id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: true;
+                };
+                readonly input_json: {
+                  readonly nativeType: 'jsonb';
+                  readonly codecId: 'pg/jsonb@1';
+                  readonly nullable: true;
+                };
+                readonly input_hash: {
+                  readonly nativeType: 'character varying';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly length: 64 };
+                };
+                readonly status: {
+                  readonly nativeType: 'character varying';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly length: 12 };
+                };
+                readonly created_at: {
+                  readonly nativeType: 'timestamptz';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                };
+                readonly finished_at: {
+                  readonly nativeType: 'timestamptz';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                  readonly nullable: true;
+                };
+              };
+              primaryKey: { readonly columns: readonly ['id'] };
+              uniques: readonly [
+                { readonly columns: readonly ['company_id', 'id'] },
+                { readonly columns: readonly ['company_id', 'request_key'] },
+              ];
+              indexes: readonly [
+                {
+                  readonly name: 'inventory_valuation_requests_company_id_item_id_idx_a27622c0';
+                  readonly prefix: 'inventory_valuation_requests_company_id_item_id_idx';
+                  readonly columns: readonly ['company_id', 'item_id'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'inventory_valuation_requests_company_id_idx_1303a718';
+                  readonly prefix: 'inventory_valuation_requests_company_id_idx';
+                  readonly columns: readonly ['company_id'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'inventory_valuation_requests_company_id_created_by_use_fd5eba49';
+                  readonly prefix: 'inventory_valuation_requests_company_id_created_by_use';
+                  readonly columns: readonly ['company_id', 'created_by_user_id'];
+                  readonly unique: false;
+                },
+              ];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'inventory_valuation_requests';
+                    readonly columns: readonly ['company_id'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'companies';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'inventory_valuation_requests';
+                    readonly columns: readonly ['company_id', 'created_by_user_id'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'users';
+                    readonly columns: readonly ['company_id', 'id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'inventory_valuation_requests';
+                    readonly columns: readonly ['company_id', 'item_id'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'inventory_items';
+                    readonly columns: readonly ['company_id', 'id'];
+                  };
+                },
+              ];
+            };
+            readonly item_pricing_versions: {
+              columns: {
+                readonly id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: false;
+                };
+                readonly company_id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: false;
+                };
+                readonly item_id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: false;
+                };
+                readonly version: {
+                  readonly nativeType: 'int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                };
+                readonly base_unit: {
+                  readonly nativeType: 'character varying';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly length: 20 };
+                };
+                readonly preview_enabled: {
+                  readonly nativeType: 'bool';
+                  readonly codecId: 'pg/bool@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/bool@1', false>;
+                  };
+                };
+                readonly package_label: {
+                  readonly nativeType: 'character varying';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly length: 20 };
+                };
+                readonly package_size: {
+                  readonly nativeType: 'int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: true;
+                };
+                readonly package_price_cents: {
+                  readonly nativeType: 'int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: true;
+                };
+                readonly bulk_tiers: {
+                  readonly nativeType: 'jsonb';
+                  readonly codecId: 'pg/jsonb@1';
+                  readonly nullable: false;
+                };
+                readonly created_by_user_id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: false;
+                };
+                readonly created_at: {
+                  readonly nativeType: 'timestamptz';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                };
+              };
+              primaryKey: { readonly columns: readonly ['id'] };
+              uniques: readonly [
+                { readonly columns: readonly ['company_id', 'item_id', 'version'] },
+              ];
+              indexes: readonly [
+                {
+                  readonly name: 'item_pricing_versions_company_id_idx_1303a718';
+                  readonly prefix: 'item_pricing_versions_company_id_idx';
+                  readonly columns: readonly ['company_id'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'item_pricing_actor_idx';
+                  readonly columns: readonly ['company_id', 'created_by_user_id'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'item_pricing_versions_company_id_item_id_idx_a27622c0';
+                  readonly prefix: 'item_pricing_versions_company_id_item_id_idx';
+                  readonly columns: readonly ['company_id', 'item_id'];
+                  readonly unique: false;
+                },
+              ];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'item_pricing_versions';
+                    readonly columns: readonly ['company_id', 'item_id'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'inventory_items';
+                    readonly columns: readonly ['company_id', 'id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'item_pricing_versions';
+                    readonly columns: readonly ['company_id', 'created_by_user_id'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'users';
+                    readonly columns: readonly ['company_id', 'id'];
                   };
                 },
               ];
@@ -1715,6 +3037,822 @@ type ContractBase = Omit<
                     readonly namespaceId: 'public' & NamespaceId;
                     readonly tableName: 'refresh_sessions';
                     readonly columns: readonly ['company_id', 'user_id'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'users';
+                    readonly columns: readonly ['company_id', 'id'];
+                  };
+                },
+              ];
+            };
+            readonly sale_components: {
+              columns: {
+                readonly id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: false;
+                };
+                readonly company_id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: false;
+                };
+                readonly sale_line_id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: false;
+                };
+                readonly movement_id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: false;
+                };
+                readonly position: {
+                  readonly nativeType: 'int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                };
+                readonly category: {
+                  readonly nativeType: 'character varying';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly length: 10 };
+                };
+                readonly quantity: {
+                  readonly nativeType: 'int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                };
+                readonly unit_price_cents: {
+                  readonly nativeType: 'int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                };
+                readonly total_cents: {
+                  readonly nativeType: 'int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                };
+              };
+              primaryKey: { readonly columns: readonly ['id'] };
+              uniques: readonly [
+                { readonly columns: readonly ['company_id', 'movement_id'] },
+                { readonly columns: readonly ['company_id', 'sale_line_id', 'position'] },
+              ];
+              indexes: readonly [
+                {
+                  readonly name: 'sale_components_company_id_sale_line_id_idx_5575d9da';
+                  readonly prefix: 'sale_components_company_id_sale_line_id_idx';
+                  readonly columns: readonly ['company_id', 'sale_line_id'];
+                  readonly unique: false;
+                },
+              ];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'sale_components';
+                    readonly columns: readonly ['company_id', 'sale_line_id'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'sale_lines';
+                    readonly columns: readonly ['company_id', 'id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'sale_components';
+                    readonly columns: readonly ['company_id', 'movement_id'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'stock_movements';
+                    readonly columns: readonly ['company_id', 'id'];
+                  };
+                },
+              ];
+            };
+            readonly sale_lines: {
+              columns: {
+                readonly id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: false;
+                };
+                readonly company_id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: false;
+                };
+                readonly sale_id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: false;
+                };
+                readonly item_id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: false;
+                };
+                readonly position: {
+                  readonly nativeType: 'int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                };
+                readonly item_name: {
+                  readonly nativeType: 'character varying';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly length: 120 };
+                };
+                readonly sku: {
+                  readonly nativeType: 'character varying';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly length: 40 };
+                };
+                readonly category: {
+                  readonly nativeType: 'character varying';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly length: 80 };
+                };
+                readonly base_unit: {
+                  readonly nativeType: 'character varying';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly length: 20 };
+                };
+                readonly quantity: {
+                  readonly nativeType: 'int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                };
+                readonly retail_price_cents: {
+                  readonly nativeType: 'int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                };
+                readonly unit_cost_cents: {
+                  readonly nativeType: 'int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                };
+                readonly gross_sales_cents: {
+                  readonly nativeType: 'int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                };
+                readonly automatic_discount_cents: {
+                  readonly nativeType: 'int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                };
+                readonly total_cents: {
+                  readonly nativeType: 'int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                };
+                readonly cogs_cents: {
+                  readonly nativeType: 'int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                };
+                readonly pricing_snapshot: {
+                  readonly nativeType: 'jsonb';
+                  readonly codecId: 'pg/jsonb@1';
+                  readonly nullable: false;
+                };
+                readonly valuation_checkpoint_id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: true;
+                };
+              };
+              primaryKey: { readonly columns: readonly ['id'] };
+              uniques: readonly [
+                { readonly columns: readonly ['company_id', 'id'] },
+                { readonly columns: readonly ['company_id', 'sale_id', 'item_id'] },
+                { readonly columns: readonly ['company_id', 'sale_id', 'position'] },
+              ];
+              indexes: readonly [
+                {
+                  readonly name: 'sale_lines_company_id_item_id_idx_a27622c0';
+                  readonly prefix: 'sale_lines_company_id_item_id_idx';
+                  readonly columns: readonly ['company_id', 'item_id'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'sale_lines_company_id_item_id_valuation_checkpoint_id__2fc0facd';
+                  readonly prefix: 'sale_lines_company_id_item_id_valuation_checkpoint_id_';
+                  readonly columns: readonly ['company_id', 'item_id', 'valuation_checkpoint_id'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'sale_lines_company_id_sale_id_idx_792a8b41';
+                  readonly prefix: 'sale_lines_company_id_sale_id_idx';
+                  readonly columns: readonly ['company_id', 'sale_id'];
+                  readonly unique: false;
+                },
+              ];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'sale_lines';
+                    readonly columns: readonly ['company_id', 'item_id', 'valuation_checkpoint_id'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'inventory_valuation_checkpoints';
+                    readonly columns: readonly ['company_id', 'item_id', 'id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'sale_lines';
+                    readonly columns: readonly ['company_id', 'sale_id'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'sales';
+                    readonly columns: readonly ['company_id', 'id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'sale_lines';
+                    readonly columns: readonly ['company_id', 'item_id'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'inventory_items';
+                    readonly columns: readonly ['company_id', 'id'];
+                  };
+                },
+              ];
+            };
+            readonly sale_return_allocations: {
+              columns: {
+                readonly id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: false;
+                };
+                readonly company_id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: false;
+                };
+                readonly return_id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: false;
+                };
+                readonly item_id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: false;
+                };
+                readonly original_movement_id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: false;
+                };
+                readonly return_movement_id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: false;
+                };
+                readonly loss_movement_id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: true;
+                };
+                readonly position: {
+                  readonly nativeType: 'int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                };
+                readonly quantity: {
+                  readonly nativeType: 'int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                };
+                readonly unit_price_cents: {
+                  readonly nativeType: 'int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                };
+                readonly unit_cost_cents: {
+                  readonly nativeType: 'int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                };
+                readonly refund_cents: {
+                  readonly nativeType: 'int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                };
+                readonly cogs_cents: {
+                  readonly nativeType: 'int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                };
+                readonly disposition: {
+                  readonly nativeType: 'character varying';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly length: 12 };
+                };
+              };
+              primaryKey: { readonly columns: readonly ['id'] };
+              uniques: readonly [
+                { readonly columns: readonly ['company_id', 'return_id', 'position'] },
+                { readonly columns: readonly ['company_id', 'return_movement_id'] },
+                { readonly columns: readonly ['company_id', 'loss_movement_id'] },
+              ];
+              indexes: readonly [
+                {
+                  readonly name: 'sale_return_allocations_company_id_return_id_idx_a2d80f4e';
+                  readonly prefix: 'sale_return_allocations_company_id_return_id_idx';
+                  readonly columns: readonly ['company_id', 'return_id'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'sale_return_allocations_company_id_item_id_idx_a27622c0';
+                  readonly prefix: 'sale_return_allocations_company_id_item_id_idx';
+                  readonly columns: readonly ['company_id', 'item_id'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'sale_return_allocations_company_id_original_movement_i_e6cab644';
+                  readonly prefix: 'sale_return_allocations_company_id_original_movement_i';
+                  readonly columns: readonly ['company_id', 'original_movement_id'];
+                  readonly unique: false;
+                },
+              ];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'sale_return_allocations';
+                    readonly columns: readonly ['company_id', 'return_id'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'sale_returns';
+                    readonly columns: readonly ['company_id', 'id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'sale_return_allocations';
+                    readonly columns: readonly ['company_id', 'item_id'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'inventory_items';
+                    readonly columns: readonly ['company_id', 'id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'sale_return_allocations';
+                    readonly columns: readonly ['company_id', 'original_movement_id'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'stock_movements';
+                    readonly columns: readonly ['company_id', 'id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'sale_return_allocations';
+                    readonly columns: readonly ['company_id', 'return_movement_id'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'stock_movements';
+                    readonly columns: readonly ['company_id', 'id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'sale_return_allocations';
+                    readonly columns: readonly ['company_id', 'loss_movement_id'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'stock_movements';
+                    readonly columns: readonly ['company_id', 'id'];
+                  };
+                },
+              ];
+            };
+            readonly sale_return_requests: {
+              columns: {
+                readonly id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: false;
+                };
+                readonly company_id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: false;
+                };
+                readonly request_key: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: false;
+                };
+                readonly created_by_user_id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: false;
+                };
+                readonly input_json: {
+                  readonly nativeType: 'jsonb';
+                  readonly codecId: 'pg/jsonb@1';
+                  readonly nullable: true;
+                };
+                readonly preview_json: {
+                  readonly nativeType: 'jsonb';
+                  readonly codecId: 'pg/jsonb@1';
+                  readonly nullable: true;
+                };
+                readonly input_hash: {
+                  readonly nativeType: 'character varying';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly length: 64 };
+                };
+                readonly status: {
+                  readonly nativeType: 'character varying';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly length: 12 };
+                };
+                readonly created_at: {
+                  readonly nativeType: 'timestamptz';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                };
+                readonly finished_at: {
+                  readonly nativeType: 'timestamptz';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                  readonly nullable: true;
+                };
+              };
+              primaryKey: { readonly columns: readonly ['id'] };
+              uniques: readonly [
+                { readonly columns: readonly ['company_id', 'id'] },
+                { readonly columns: readonly ['company_id', 'request_key'] },
+              ];
+              indexes: readonly [
+                {
+                  readonly name: 'sale_return_requests_company_id_idx_1303a718';
+                  readonly prefix: 'sale_return_requests_company_id_idx';
+                  readonly columns: readonly ['company_id'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'sale_return_requests_company_id_created_by_user_id_idx_fd5eba49';
+                  readonly prefix: 'sale_return_requests_company_id_created_by_user_id_idx';
+                  readonly columns: readonly ['company_id', 'created_by_user_id'];
+                  readonly unique: false;
+                },
+              ];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'sale_return_requests';
+                    readonly columns: readonly ['company_id'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'companies';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'sale_return_requests';
+                    readonly columns: readonly ['company_id', 'created_by_user_id'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'users';
+                    readonly columns: readonly ['company_id', 'id'];
+                  };
+                },
+              ];
+            };
+            readonly sale_returns: {
+              columns: {
+                readonly id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: false;
+                };
+                readonly company_id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: false;
+                };
+                readonly request_id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: false;
+                };
+                readonly source_sale_id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: true;
+                };
+                readonly legacy_movement_id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: true;
+                };
+                readonly location_id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: false;
+                };
+                readonly created_by_user_id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: false;
+                };
+                readonly kind: {
+                  readonly nativeType: 'character varying';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly length: 12 };
+                };
+                readonly currency: {
+                  readonly nativeType: 'character varying';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly length: 3 };
+                };
+                readonly movement_date: {
+                  readonly nativeType: 'date';
+                  readonly codecId: 'pg/date-string@1';
+                  readonly nullable: false;
+                };
+                readonly refund_cents: {
+                  readonly nativeType: 'int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                };
+                readonly cogs_cents: {
+                  readonly nativeType: 'int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                };
+                readonly reason: {
+                  readonly nativeType: 'character varying';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly length: 200 };
+                };
+                readonly reference: {
+                  readonly nativeType: 'character varying';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly length: 200 };
+                };
+                readonly created_at: {
+                  readonly nativeType: 'timestamptz';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                };
+              };
+              primaryKey: { readonly columns: readonly ['id'] };
+              uniques: readonly [
+                { readonly columns: readonly ['company_id', 'id'] },
+                { readonly columns: readonly ['company_id', 'request_id'] },
+              ];
+              indexes: readonly [
+                {
+                  readonly name: 'sale_returns_company_id_source_sale_id_idx_f69ee873';
+                  readonly prefix: 'sale_returns_company_id_source_sale_id_idx';
+                  readonly columns: readonly ['company_id', 'source_sale_id'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'sale_returns_company_id_legacy_movement_id_idx_25046540';
+                  readonly prefix: 'sale_returns_company_id_legacy_movement_id_idx';
+                  readonly columns: readonly ['company_id', 'legacy_movement_id'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'sale_returns_company_id_location_id_idx_a140a7ef';
+                  readonly prefix: 'sale_returns_company_id_location_id_idx';
+                  readonly columns: readonly ['company_id', 'location_id'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'sale_returns_company_id_created_by_user_id_idx_fd5eba49';
+                  readonly prefix: 'sale_returns_company_id_created_by_user_id_idx';
+                  readonly columns: readonly ['company_id', 'created_by_user_id'];
+                  readonly unique: false;
+                },
+              ];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'sale_returns';
+                    readonly columns: readonly ['company_id', 'request_id'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'sale_return_requests';
+                    readonly columns: readonly ['company_id', 'id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'sale_returns';
+                    readonly columns: readonly ['company_id', 'source_sale_id'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'sales';
+                    readonly columns: readonly ['company_id', 'id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'sale_returns';
+                    readonly columns: readonly ['company_id', 'legacy_movement_id'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'stock_movements';
+                    readonly columns: readonly ['company_id', 'id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'sale_returns';
+                    readonly columns: readonly ['company_id', 'location_id'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'locations';
+                    readonly columns: readonly ['company_id', 'id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'sale_returns';
+                    readonly columns: readonly ['company_id', 'created_by_user_id'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'users';
+                    readonly columns: readonly ['company_id', 'id'];
+                  };
+                },
+              ];
+            };
+            readonly sales: {
+              columns: {
+                readonly id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: false;
+                };
+                readonly company_id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: false;
+                };
+                readonly location_id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: false;
+                };
+                readonly created_by_user_id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: false;
+                };
+                readonly idempotency_key: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: false;
+                };
+                readonly request_hash: {
+                  readonly nativeType: 'character varying';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly length: 64 };
+                };
+                readonly currency: {
+                  readonly nativeType: 'character varying';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly length: 3 };
+                };
+                readonly movement_date: {
+                  readonly nativeType: 'date';
+                  readonly codecId: 'pg/date-string@1';
+                  readonly nullable: false;
+                };
+                readonly gross_sales_cents: {
+                  readonly nativeType: 'int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                };
+                readonly automatic_discount_cents: {
+                  readonly nativeType: 'int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                };
+                readonly total_cents: {
+                  readonly nativeType: 'int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                };
+                readonly cogs_cents: {
+                  readonly nativeType: 'int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                };
+                readonly created_at: {
+                  readonly nativeType: 'timestamptz';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                };
+              };
+              primaryKey: { readonly columns: readonly ['id'] };
+              uniques: readonly [
+                { readonly columns: readonly ['company_id', 'id'] },
+                { readonly columns: readonly ['company_id', 'idempotency_key'] },
+              ];
+              indexes: readonly [
+                {
+                  readonly name: 'sales_company_id_location_id_created_at_idx_b7eac4a2';
+                  readonly prefix: 'sales_company_id_location_id_created_at_idx';
+                  readonly columns: readonly ['company_id', 'location_id', 'created_at'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'sales_company_id_created_by_user_id_idx_fd5eba49';
+                  readonly prefix: 'sales_company_id_created_by_user_id_idx';
+                  readonly columns: readonly ['company_id', 'created_by_user_id'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'sales_company_id_location_id_idx_a140a7ef';
+                  readonly prefix: 'sales_company_id_location_id_idx';
+                  readonly columns: readonly ['company_id', 'location_id'];
+                  readonly unique: false;
+                },
+              ];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'sales';
+                    readonly columns: readonly ['company_id', 'location_id'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'locations';
+                    readonly columns: readonly ['company_id', 'id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'sales';
+                    readonly columns: readonly ['company_id', 'created_by_user_id'];
                   };
                   readonly target: {
                     readonly namespaceId: 'public' & NamespaceId;
@@ -2406,6 +4544,40 @@ type ContractBase = Omit<
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'InventoryItem';
     };
+    readonly item_pricing_versions: {
+      readonly namespace: 'public' & NamespaceId;
+      readonly model: 'ItemPricingVersion';
+    };
+    readonly inventory_valuation_requests: {
+      readonly namespace: 'public' & NamespaceId;
+      readonly model: 'InventoryValuationRequest';
+    };
+    readonly inventory_valuation_checkpoints: {
+      readonly namespace: 'public' & NamespaceId;
+      readonly model: 'InventoryValuationCheckpoint';
+    };
+    readonly inventory_valuation_entries: {
+      readonly namespace: 'public' & NamespaceId;
+      readonly model: 'InventoryValuationEntry';
+    };
+    readonly sales: { readonly namespace: 'public' & NamespaceId; readonly model: 'Sale' };
+    readonly sale_lines: { readonly namespace: 'public' & NamespaceId; readonly model: 'SaleLine' };
+    readonly sale_components: {
+      readonly namespace: 'public' & NamespaceId;
+      readonly model: 'SaleComponent';
+    };
+    readonly sale_return_requests: {
+      readonly namespace: 'public' & NamespaceId;
+      readonly model: 'SaleReturnRequest';
+    };
+    readonly sale_returns: {
+      readonly namespace: 'public' & NamespaceId;
+      readonly model: 'SaleReturn';
+    };
+    readonly sale_return_allocations: {
+      readonly namespace: 'public' & NamespaceId;
+      readonly model: 'SaleReturnAllocation';
+    };
     readonly suppliers: { readonly namespace: 'public' & NamespaceId; readonly model: 'Supplier' };
     readonly location_stocks: {
       readonly namespace: 'public' & NamespaceId;
@@ -2622,6 +4794,10 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
               };
+              readonly hybridPricingEnabled: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
+              };
               readonly shopTerm: {
                 readonly nullable: false;
                 readonly type: {
@@ -2691,6 +4867,7 @@ type ContractBase = Omit<
                 readonly allowNegativeStock: { readonly column: 'allow_negative_stock' };
                 readonly requirePurchaseSource: { readonly column: 'require_purchase_source' };
                 readonly requireAdjustmentReason: { readonly column: 'require_adjustment_reason' };
+                readonly hybridPricingEnabled: { readonly column: 'hybrid_pricing_enabled' };
                 readonly shopTerm: { readonly column: 'shop_term' };
                 readonly warehouseTerm: { readonly column: 'warehouse_term' };
                 readonly itemTerm: { readonly column: 'item_term' };
@@ -2803,6 +4980,482 @@ type ContractBase = Omit<
                 readonly isActive: { readonly column: 'is_active' };
                 readonly createdAt: { readonly column: 'created_at' };
                 readonly updatedAt: { readonly column: 'updated_at' };
+              };
+            };
+          };
+          readonly InventoryValuationCheckpoint: {
+            readonly fields: {
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly companyId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly itemId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly requestId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly createdByUserId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly baseUnit: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly typeParams: { readonly length: 20 };
+                };
+              };
+              readonly currency: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly typeParams: { readonly length: 3 };
+                };
+              };
+              readonly openingQuantity: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly openingValueCents: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly reference: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly typeParams: { readonly length: 200 };
+                };
+              };
+              readonly costReviewId: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                };
+              };
+            };
+            readonly relations: {
+              readonly actor: {
+                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['companyId', 'createdByUserId'];
+                  readonly targetFields: readonly ['companyId', 'id'];
+                };
+              };
+              readonly item: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'InventoryItem';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['companyId', 'itemId'];
+                  readonly targetFields: readonly ['companyId', 'id'];
+                };
+              };
+              readonly request: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'InventoryValuationRequest';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['companyId', 'requestId'];
+                  readonly targetFields: readonly ['companyId', 'id'];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: 'inventory_valuation_checkpoints';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly id: { readonly column: 'id' };
+                readonly companyId: { readonly column: 'company_id' };
+                readonly itemId: { readonly column: 'item_id' };
+                readonly requestId: { readonly column: 'request_id' };
+                readonly createdByUserId: { readonly column: 'created_by_user_id' };
+                readonly baseUnit: { readonly column: 'base_unit' };
+                readonly currency: { readonly column: 'currency' };
+                readonly openingQuantity: { readonly column: 'opening_quantity' };
+                readonly openingValueCents: { readonly column: 'opening_value_cents' };
+                readonly reference: { readonly column: 'reference' };
+                readonly costReviewId: { readonly column: 'cost_review_id' };
+                readonly createdAt: { readonly column: 'created_at' };
+              };
+            };
+          };
+          readonly InventoryValuationEntry: {
+            readonly fields: {
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly companyId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly itemId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly checkpointId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly requestId: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly movementId: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly createdByUserId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly sequence: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly kind: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly typeParams: { readonly length: 20 };
+                };
+              };
+              readonly quantityDelta: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly valueDeltaCents: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly quantityAfter: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly valueAfterCents: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly reference: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly typeParams: { readonly length: 200 };
+                };
+              };
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                };
+              };
+            };
+            readonly relations: {
+              readonly actor: {
+                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['companyId', 'createdByUserId'];
+                  readonly targetFields: readonly ['companyId', 'id'];
+                };
+              };
+              readonly checkpoint: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'InventoryValuationCheckpoint';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['companyId', 'itemId', 'checkpointId'];
+                  readonly targetFields: readonly ['companyId', 'itemId', 'id'];
+                };
+              };
+              readonly movement: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'StockMovement';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: true;
+                readonly on: {
+                  readonly localFields: readonly ['companyId', 'movementId'];
+                  readonly targetFields: readonly ['companyId', 'id'];
+                };
+              };
+              readonly request: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'InventoryValuationRequest';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: true;
+                readonly on: {
+                  readonly localFields: readonly ['companyId', 'requestId'];
+                  readonly targetFields: readonly ['companyId', 'id'];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: 'inventory_valuation_entries';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly id: { readonly column: 'id' };
+                readonly companyId: { readonly column: 'company_id' };
+                readonly itemId: { readonly column: 'item_id' };
+                readonly checkpointId: { readonly column: 'checkpoint_id' };
+                readonly requestId: { readonly column: 'request_id' };
+                readonly movementId: { readonly column: 'movement_id' };
+                readonly createdByUserId: { readonly column: 'created_by_user_id' };
+                readonly sequence: { readonly column: 'sequence' };
+                readonly kind: { readonly column: 'kind' };
+                readonly quantityDelta: { readonly column: 'quantity_delta' };
+                readonly valueDeltaCents: { readonly column: 'value_delta_cents' };
+                readonly quantityAfter: { readonly column: 'quantity_after' };
+                readonly valueAfterCents: { readonly column: 'value_after_cents' };
+                readonly reference: { readonly column: 'reference' };
+                readonly createdAt: { readonly column: 'created_at' };
+              };
+            };
+          };
+          readonly InventoryValuationRequest: {
+            readonly fields: {
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly companyId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly requestKey: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly createdByUserId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly itemId: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly inputJson: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/jsonb@1' };
+              };
+              readonly inputHash: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly typeParams: { readonly length: 64 };
+                };
+              };
+              readonly status: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly typeParams: { readonly length: 12 };
+                };
+              };
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                };
+              };
+              readonly finishedAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                };
+              };
+            };
+            readonly relations: {
+              readonly actor: {
+                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['companyId', 'createdByUserId'];
+                  readonly targetFields: readonly ['companyId', 'id'];
+                };
+              };
+              readonly company: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'Company';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['companyId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+              readonly item: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'InventoryItem';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: true;
+                readonly on: {
+                  readonly localFields: readonly ['companyId', 'itemId'];
+                  readonly targetFields: readonly ['companyId', 'id'];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: 'inventory_valuation_requests';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly id: { readonly column: 'id' };
+                readonly companyId: { readonly column: 'company_id' };
+                readonly requestKey: { readonly column: 'request_key' };
+                readonly createdByUserId: { readonly column: 'created_by_user_id' };
+                readonly itemId: { readonly column: 'item_id' };
+                readonly inputJson: { readonly column: 'input_json' };
+                readonly inputHash: { readonly column: 'input_hash' };
+                readonly status: { readonly column: 'status' };
+                readonly createdAt: { readonly column: 'created_at' };
+                readonly finishedAt: { readonly column: 'finished_at' };
+              };
+            };
+          };
+          readonly ItemPricingVersion: {
+            readonly fields: {
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly companyId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly itemId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly version: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly baseUnit: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly typeParams: { readonly length: 20 };
+                };
+              };
+              readonly previewEnabled: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
+              };
+              readonly packageLabel: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly typeParams: { readonly length: 20 };
+                };
+              };
+              readonly packageSize: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly packagePriceCents: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly bulkTiers: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/jsonb@1' };
+              };
+              readonly createdByUserId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                };
+              };
+            };
+            readonly relations: {
+              readonly createdBy: {
+                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['companyId', 'createdByUserId'];
+                  readonly targetFields: readonly ['companyId', 'id'];
+                };
+              };
+              readonly item: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'InventoryItem';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['companyId', 'itemId'];
+                  readonly targetFields: readonly ['companyId', 'id'];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: 'item_pricing_versions';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly id: { readonly column: 'id' };
+                readonly companyId: { readonly column: 'company_id' };
+                readonly itemId: { readonly column: 'item_id' };
+                readonly version: { readonly column: 'version' };
+                readonly baseUnit: { readonly column: 'base_unit' };
+                readonly previewEnabled: { readonly column: 'preview_enabled' };
+                readonly packageLabel: { readonly column: 'package_label' };
+                readonly packageSize: { readonly column: 'package_size' };
+                readonly packagePriceCents: { readonly column: 'package_price_cents' };
+                readonly bulkTiers: { readonly column: 'bulk_tiers' };
+                readonly createdByUserId: { readonly column: 'created_by_user_id' };
+                readonly createdAt: { readonly column: 'created_at' };
               };
             };
           };
@@ -3039,6 +5692,754 @@ type ContractBase = Omit<
                 readonly lastUsedAt: { readonly column: 'last_used_at' };
                 readonly createdAt: { readonly column: 'created_at' };
                 readonly updatedAt: { readonly column: 'updated_at' };
+              };
+            };
+          };
+          readonly Sale: {
+            readonly fields: {
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly companyId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly locationId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly createdByUserId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly idempotencyKey: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly requestHash: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly typeParams: { readonly length: 64 };
+                };
+              };
+              readonly currency: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly typeParams: { readonly length: 3 };
+                };
+              };
+              readonly movementDate: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/date-string@1' };
+              };
+              readonly grossSalesCents: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly automaticDiscountCents: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly totalCents: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly cogsCents: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                };
+              };
+            };
+            readonly relations: {
+              readonly createdBy: {
+                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['companyId', 'createdByUserId'];
+                  readonly targetFields: readonly ['companyId', 'id'];
+                };
+              };
+              readonly location: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'Location';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['companyId', 'locationId'];
+                  readonly targetFields: readonly ['companyId', 'id'];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: 'sales';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly id: { readonly column: 'id' };
+                readonly companyId: { readonly column: 'company_id' };
+                readonly locationId: { readonly column: 'location_id' };
+                readonly createdByUserId: { readonly column: 'created_by_user_id' };
+                readonly idempotencyKey: { readonly column: 'idempotency_key' };
+                readonly requestHash: { readonly column: 'request_hash' };
+                readonly currency: { readonly column: 'currency' };
+                readonly movementDate: { readonly column: 'movement_date' };
+                readonly grossSalesCents: { readonly column: 'gross_sales_cents' };
+                readonly automaticDiscountCents: { readonly column: 'automatic_discount_cents' };
+                readonly totalCents: { readonly column: 'total_cents' };
+                readonly cogsCents: { readonly column: 'cogs_cents' };
+                readonly createdAt: { readonly column: 'created_at' };
+              };
+            };
+          };
+          readonly SaleComponent: {
+            readonly fields: {
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly companyId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly saleLineId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly movementId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly position: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly category: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly typeParams: { readonly length: 10 };
+                };
+              };
+              readonly quantity: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly unitPriceCents: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly totalCents: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+            };
+            readonly relations: {
+              readonly line: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'SaleLine';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['companyId', 'saleLineId'];
+                  readonly targetFields: readonly ['companyId', 'id'];
+                };
+              };
+              readonly movement: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'StockMovement';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['companyId', 'movementId'];
+                  readonly targetFields: readonly ['companyId', 'id'];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: 'sale_components';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly id: { readonly column: 'id' };
+                readonly companyId: { readonly column: 'company_id' };
+                readonly saleLineId: { readonly column: 'sale_line_id' };
+                readonly movementId: { readonly column: 'movement_id' };
+                readonly position: { readonly column: 'position' };
+                readonly category: { readonly column: 'category' };
+                readonly quantity: { readonly column: 'quantity' };
+                readonly unitPriceCents: { readonly column: 'unit_price_cents' };
+                readonly totalCents: { readonly column: 'total_cents' };
+              };
+            };
+          };
+          readonly SaleLine: {
+            readonly fields: {
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly companyId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly saleId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly itemId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly position: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly itemName: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly typeParams: { readonly length: 120 };
+                };
+              };
+              readonly sku: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly typeParams: { readonly length: 40 };
+                };
+              };
+              readonly category: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly typeParams: { readonly length: 80 };
+                };
+              };
+              readonly baseUnit: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly typeParams: { readonly length: 20 };
+                };
+              };
+              readonly quantity: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly retailPriceCents: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly unitCostCents: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly grossSalesCents: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly automaticDiscountCents: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly totalCents: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly cogsCents: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly pricingSnapshot: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/jsonb@1' };
+              };
+              readonly valuationCheckpointId: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+            };
+            readonly relations: {
+              readonly item: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'InventoryItem';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['companyId', 'itemId'];
+                  readonly targetFields: readonly ['companyId', 'id'];
+                };
+              };
+              readonly sale: {
+                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'Sale' };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['companyId', 'saleId'];
+                  readonly targetFields: readonly ['companyId', 'id'];
+                };
+              };
+              readonly valuationCheckpoint: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'InventoryValuationCheckpoint';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: true;
+                readonly on: {
+                  readonly localFields: readonly ['companyId', 'itemId', 'valuationCheckpointId'];
+                  readonly targetFields: readonly ['companyId', 'itemId', 'id'];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: 'sale_lines';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly id: { readonly column: 'id' };
+                readonly companyId: { readonly column: 'company_id' };
+                readonly saleId: { readonly column: 'sale_id' };
+                readonly itemId: { readonly column: 'item_id' };
+                readonly position: { readonly column: 'position' };
+                readonly itemName: { readonly column: 'item_name' };
+                readonly sku: { readonly column: 'sku' };
+                readonly category: { readonly column: 'category' };
+                readonly baseUnit: { readonly column: 'base_unit' };
+                readonly quantity: { readonly column: 'quantity' };
+                readonly retailPriceCents: { readonly column: 'retail_price_cents' };
+                readonly unitCostCents: { readonly column: 'unit_cost_cents' };
+                readonly grossSalesCents: { readonly column: 'gross_sales_cents' };
+                readonly automaticDiscountCents: { readonly column: 'automatic_discount_cents' };
+                readonly totalCents: { readonly column: 'total_cents' };
+                readonly cogsCents: { readonly column: 'cogs_cents' };
+                readonly pricingSnapshot: { readonly column: 'pricing_snapshot' };
+                readonly valuationCheckpointId: { readonly column: 'valuation_checkpoint_id' };
+              };
+            };
+          };
+          readonly SaleReturn: {
+            readonly fields: {
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly companyId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly requestId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly sourceSaleId: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly legacyMovementId: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly locationId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly createdByUserId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly kind: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly typeParams: { readonly length: 12 };
+                };
+              };
+              readonly currency: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly typeParams: { readonly length: 3 };
+                };
+              };
+              readonly movementDate: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/date-string@1' };
+              };
+              readonly refundCents: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly cogsCents: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly reason: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly typeParams: { readonly length: 200 };
+                };
+              };
+              readonly reference: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly typeParams: { readonly length: 200 };
+                };
+              };
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                };
+              };
+            };
+            readonly relations: {
+              readonly actor: {
+                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['companyId', 'createdByUserId'];
+                  readonly targetFields: readonly ['companyId', 'id'];
+                };
+              };
+              readonly legacy: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'StockMovement';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: true;
+                readonly on: {
+                  readonly localFields: readonly ['companyId', 'legacyMovementId'];
+                  readonly targetFields: readonly ['companyId', 'id'];
+                };
+              };
+              readonly location: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'Location';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['companyId', 'locationId'];
+                  readonly targetFields: readonly ['companyId', 'id'];
+                };
+              };
+              readonly request: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'SaleReturnRequest';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['companyId', 'requestId'];
+                  readonly targetFields: readonly ['companyId', 'id'];
+                };
+              };
+              readonly sale: {
+                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'Sale' };
+                readonly cardinality: 'N:1';
+                readonly nullable: true;
+                readonly on: {
+                  readonly localFields: readonly ['companyId', 'sourceSaleId'];
+                  readonly targetFields: readonly ['companyId', 'id'];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: 'sale_returns';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly id: { readonly column: 'id' };
+                readonly companyId: { readonly column: 'company_id' };
+                readonly requestId: { readonly column: 'request_id' };
+                readonly sourceSaleId: { readonly column: 'source_sale_id' };
+                readonly legacyMovementId: { readonly column: 'legacy_movement_id' };
+                readonly locationId: { readonly column: 'location_id' };
+                readonly createdByUserId: { readonly column: 'created_by_user_id' };
+                readonly kind: { readonly column: 'kind' };
+                readonly currency: { readonly column: 'currency' };
+                readonly movementDate: { readonly column: 'movement_date' };
+                readonly refundCents: { readonly column: 'refund_cents' };
+                readonly cogsCents: { readonly column: 'cogs_cents' };
+                readonly reason: { readonly column: 'reason' };
+                readonly reference: { readonly column: 'reference' };
+                readonly createdAt: { readonly column: 'created_at' };
+              };
+            };
+          };
+          readonly SaleReturnAllocation: {
+            readonly fields: {
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly companyId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly returnId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly itemId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly originalMovementId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly returnMovementId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly lossMovementId: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly position: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly quantity: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly unitPriceCents: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly unitCostCents: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly refundCents: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly cogsCents: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly disposition: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly typeParams: { readonly length: 12 };
+                };
+              };
+            };
+            readonly relations: {
+              readonly item: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'InventoryItem';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['companyId', 'itemId'];
+                  readonly targetFields: readonly ['companyId', 'id'];
+                };
+              };
+              readonly loss: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'StockMovement';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: true;
+                readonly on: {
+                  readonly localFields: readonly ['companyId', 'lossMovementId'];
+                  readonly targetFields: readonly ['companyId', 'id'];
+                };
+              };
+              readonly movement: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'StockMovement';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['companyId', 'returnMovementId'];
+                  readonly targetFields: readonly ['companyId', 'id'];
+                };
+              };
+              readonly original: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'StockMovement';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['companyId', 'originalMovementId'];
+                  readonly targetFields: readonly ['companyId', 'id'];
+                };
+              };
+              readonly returned: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'SaleReturn';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['companyId', 'returnId'];
+                  readonly targetFields: readonly ['companyId', 'id'];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: 'sale_return_allocations';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly id: { readonly column: 'id' };
+                readonly companyId: { readonly column: 'company_id' };
+                readonly returnId: { readonly column: 'return_id' };
+                readonly itemId: { readonly column: 'item_id' };
+                readonly originalMovementId: { readonly column: 'original_movement_id' };
+                readonly returnMovementId: { readonly column: 'return_movement_id' };
+                readonly lossMovementId: { readonly column: 'loss_movement_id' };
+                readonly position: { readonly column: 'position' };
+                readonly quantity: { readonly column: 'quantity' };
+                readonly unitPriceCents: { readonly column: 'unit_price_cents' };
+                readonly unitCostCents: { readonly column: 'unit_cost_cents' };
+                readonly refundCents: { readonly column: 'refund_cents' };
+                readonly cogsCents: { readonly column: 'cogs_cents' };
+                readonly disposition: { readonly column: 'disposition' };
+              };
+            };
+          };
+          readonly SaleReturnRequest: {
+            readonly fields: {
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly companyId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly requestKey: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly createdByUserId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly inputJson: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/jsonb@1' };
+              };
+              readonly previewJson: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/jsonb@1' };
+              };
+              readonly inputHash: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly typeParams: { readonly length: 64 };
+                };
+              };
+              readonly status: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly typeParams: { readonly length: 12 };
+                };
+              };
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                };
+              };
+              readonly finishedAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                };
+              };
+            };
+            readonly relations: {
+              readonly actor: {
+                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['companyId', 'createdByUserId'];
+                  readonly targetFields: readonly ['companyId', 'id'];
+                };
+              };
+              readonly company: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'Company';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['companyId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: 'sale_return_requests';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly id: { readonly column: 'id' };
+                readonly companyId: { readonly column: 'company_id' };
+                readonly requestKey: { readonly column: 'request_key' };
+                readonly createdByUserId: { readonly column: 'created_by_user_id' };
+                readonly inputJson: { readonly column: 'input_json' };
+                readonly previewJson: { readonly column: 'preview_json' };
+                readonly inputHash: { readonly column: 'input_hash' };
+                readonly status: { readonly column: 'status' };
+                readonly createdAt: { readonly column: 'created_at' };
+                readonly finishedAt: { readonly column: 'finished_at' };
               };
             };
           };
@@ -3697,6 +7098,38 @@ type ContractBase = Omit<
         {
           readonly ref: {
             readonly namespace: 'public';
+            readonly table: 'inventory_valuation_checkpoints';
+            readonly column: 'id';
+          };
+          readonly onCreate: { readonly kind: 'generator'; readonly id: 'uuidv4' };
+        },
+        {
+          readonly ref: {
+            readonly namespace: 'public';
+            readonly table: 'inventory_valuation_entries';
+            readonly column: 'id';
+          };
+          readonly onCreate: { readonly kind: 'generator'; readonly id: 'uuidv4' };
+        },
+        {
+          readonly ref: {
+            readonly namespace: 'public';
+            readonly table: 'inventory_valuation_requests';
+            readonly column: 'id';
+          };
+          readonly onCreate: { readonly kind: 'generator'; readonly id: 'uuidv4' };
+        },
+        {
+          readonly ref: {
+            readonly namespace: 'public';
+            readonly table: 'item_pricing_versions';
+            readonly column: 'id';
+          };
+          readonly onCreate: { readonly kind: 'generator'; readonly id: 'uuidv4' };
+        },
+        {
+          readonly ref: {
+            readonly namespace: 'public';
             readonly table: 'location_stocks';
             readonly column: 'id';
           };
@@ -3744,6 +7177,54 @@ type ContractBase = Omit<
           };
           readonly onCreate: { readonly kind: 'generator'; readonly id: 'timestampNow' };
           readonly onUpdate: { readonly kind: 'generator'; readonly id: 'timestampNow' };
+        },
+        {
+          readonly ref: {
+            readonly namespace: 'public';
+            readonly table: 'sale_components';
+            readonly column: 'id';
+          };
+          readonly onCreate: { readonly kind: 'generator'; readonly id: 'uuidv4' };
+        },
+        {
+          readonly ref: {
+            readonly namespace: 'public';
+            readonly table: 'sale_lines';
+            readonly column: 'id';
+          };
+          readonly onCreate: { readonly kind: 'generator'; readonly id: 'uuidv4' };
+        },
+        {
+          readonly ref: {
+            readonly namespace: 'public';
+            readonly table: 'sale_return_allocations';
+            readonly column: 'id';
+          };
+          readonly onCreate: { readonly kind: 'generator'; readonly id: 'uuidv4' };
+        },
+        {
+          readonly ref: {
+            readonly namespace: 'public';
+            readonly table: 'sale_return_requests';
+            readonly column: 'id';
+          };
+          readonly onCreate: { readonly kind: 'generator'; readonly id: 'uuidv4' };
+        },
+        {
+          readonly ref: {
+            readonly namespace: 'public';
+            readonly table: 'sale_returns';
+            readonly column: 'id';
+          };
+          readonly onCreate: { readonly kind: 'generator'; readonly id: 'uuidv4' };
+        },
+        {
+          readonly ref: {
+            readonly namespace: 'public';
+            readonly table: 'sales';
+            readonly column: 'id';
+          };
+          readonly onCreate: { readonly kind: 'generator'; readonly id: 'uuidv4' };
         },
         {
           readonly ref: {

@@ -30,12 +30,18 @@ const activityCopy: Record<string, { title: string; description: (event: Activit
   'account.other_sessions_revoked': { title: 'Other sessions revoked', description: (event) => `${numberValue(event.metadata.count)} other sessions were signed out.` },
   'company.settings_updated': { title: 'Business settings updated', description: (event) => changedSettings(event.metadata.changedFields) },
   'company.inventory_settings_updated': { title: 'Inventory policies updated', description: () => 'Inventory defaults and recording safeguards were updated.' },
+  'company.hybrid_pricing_switched_on': { title: 'Box and quantity deals switched on', description: () => 'Shops now charge the box and quantity prices set on each item.' },
+  'company.hybrid_pricing_switched_off': { title: 'Box and quantity deals switched off', description: () => 'Shops went back to charging one price per unit.' },
   'company.terminology_updated': { title: 'Workspace words updated', description: () => 'The labels used for locations and inventory records were updated.' },
   'company.ownership_transferred': { title: 'Ownership transferred', description: () => 'Administrator control was transferred to another team member.' },
   'data.exported': { title: 'Business data exported', description: (event) => `${exportName(event.metadata.type)} was downloaded.` },
   'inventory.items_imported': { title: 'Inventory imported', description: (event) => `${numberValue(event.metadata.imported)} items were added from a spreadsheet.` },
   'inventory.selling_price_changed': { title: 'Selling price changed', description: () => 'An administrator updated an item selling price.' },
   'inventory.item_updated': { title: 'Catalog item updated', description: (event) => event.metadata.isActive === false ? 'An inventory item was archived.' : 'An inventory item and its stock settings were updated.' },
+  'inventory.valuation_checkpoint': {title:'Exact opening value verified',description:()=> 'An administrator verified the starting quantity and total value for future costing.'},
+  'inventory.valuation_receipt': {title:'Exact-cost purchase recorded',description:(event)=>`Purchase reference: ${textValue(event.metadata.reference,'supporting records')}.`},
+  'inventory.valuation_value_adjustment': {title:'Current stock value corrected',description:(event)=>textValue(event.metadata.reason,'Verified current-value correction.')},
+  'inventory.cost_reviewed': { title: 'Current cost reviewed', description: (event) => `An administrator confirmed the current cost against ${textValue(event.metadata.reference, 'supporting records')}.` },
   'inventory.supplier_created': { title: 'Supplier added', description: (event) => `${textValue(event.metadata.name, 'A supplier')} was added to the supplier directory.` },
   'inventory.supplier_updated': { title: 'Supplier updated', description: (event) => `${textValue(event.metadata.name, 'A supplier')} was updated.` },
   'inventory.stock_counted': { title: 'Physical stock counted', description: (event) => `The count found a variance of ${signedNumber(event.metadata.varianceQuantity)} units.` },
@@ -68,7 +74,7 @@ export function ActivityLogPage() {
   const filtered = useMemo(() => events?.filter((event) => category === 'all' || eventCategory(event.action) === category) ?? [], [category, events]);
 
   return <>
-    <PageHeader title="Activity log" subtitle="Account, inventory, and business changes recorded for this workspace." actions={<SelectControl aria-label="Activity category" value={category} onValueChange={(value) => setCategory(value as ActivityCategory)} options={[
+    <PageHeader title="Activity log" actions={<SelectControl aria-label="Activity category" value={category} onValueChange={(value) => setCategory(value as ActivityCategory)} options={[
       { value: 'all', label: 'All activity' },
       { value: 'account', label: 'Accounts and security' },
       { value: 'inventory', label: 'Inventory' },

@@ -187,7 +187,7 @@ export function TeamPage() {
   };
 
   return <>
-    <PageHeader title="Team" subtitle={`Add inventory managers and ${terms.shop} attendants.`} />
+    <PageHeader title="Team" />
     <Panel title="Invite a person" subtitle="Send the setup link by email or copy it for private sharing.">
       <form className="form-grid team-form" onSubmit={(event) => void submit(event)}>
         {formError && <div className="form-error" role="alert">{formError}</div>}

@@ -1,4 +1,4 @@
-import { Building2, CircleDollarSign, PackageX, Percent, ReceiptText, SlidersHorizontal, Store, TrendingUp, Warehouse as WarehouseIcon } from 'lucide-react';
+import { BadgePercent, Building2, CircleDollarSign, PackageX, Percent, ReceiptText, SlidersHorizontal, Store, TrendingUp, Warehouse as WarehouseIcon } from 'lucide-react';
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { ApiError, api } from '../../api';
 import { useInventoryStore } from '../../app/inventory-store';
@@ -14,7 +14,7 @@ type ProfitPeriod = 7 | 30 | 90;
 export function ProfitabilityPage() {
   const { accessToken, signOut } = useAuth();
   const { snapshot } = useInventoryStore();
-  const { money, calendarDate, terms } = useCompanySettings();
+  const { money, calendarDate, terms, settings } = useCompanySettings();
   const [days, setDays] = useState<ProfitPeriod>(30);
   const [locationType, setLocationType] = useState<LocationScope>('');
   const [locationId, setLocationId] = useState('');
@@ -55,11 +55,12 @@ export function ProfitabilityPage() {
     return () => { cancelled = true; };
   }, [accessToken, category, days, itemId, locationId, locationType, signOut]);
 
+  const hasDiscounts = Boolean(report?.lines.some((line) => line.discountCents > 0));
   const maxTrend = useMemo(() => Math.max(...(report?.trend.flatMap((point) => [Math.abs(point.netSalesCents), Math.abs(point.grossProfitCents)]) ?? [1]), 1), [report]);
   const summary = report?.summary;
 
   return <>
-    <PageHeader title="Profitability" subtitle="Compare sales profit and recorded inventory losses across the business." />
+    <PageHeader title="Profitability" />
     <section className="panel profit-filter-panel" aria-label="Profitability filters">
       <div className="profit-filter-heading"><span><SlidersHorizontal size={16} />Report filters</span><small>Showing {scopeLabel} · {productLabel}</small></div>
       <div className="profit-filter-grid">
@@ -75,11 +76,12 @@ export function ProfitabilityPage() {
     {summary && <>
       {summary.costCoveragePercent < 100 && <div className="profit-coverage-note"><ReceiptText size={18} /><div><b>{summary.costCoveragePercent}% cost coverage</b><span>Gross profit excludes legacy sales that have no cost snapshot. Net sales still includes them.</span></div></div>}
       <section className="kpi-grid profit-kpis">
-        <Kpi icon={CircleDollarSign} label="Net sales" value={money(summary.netSalesCents)} note={`${summary.unitsSold} sold · ${summary.unitsReturned} returned`} />
-        <Kpi icon={ReceiptText} label="Cost of goods sold" value={money(summary.cogsCents)} note={`${money(summary.costedRevenueCents)} of costed sales`} />
-        <Kpi icon={TrendingUp} label="Gross profit" value={money(summary.grossProfitCents)} note={isWarehouseView ? 'Sales are recorded at shops' : 'From sales with recorded cost'} tone="success" />
+        <Kpi icon={CircleDollarSign} label="Net sales" value={money(summary.netSalesCents)} note={`${summary.unitsSold} sold · ${summary.unitsReturned} returned`} amount />
+        <Kpi icon={ReceiptText} label="Cost of goods sold" value={money(summary.cogsCents)} note={`${money(summary.costedRevenueCents)} of costed sales`} amount />
+        <Kpi icon={TrendingUp} label="Gross profit" value={money(summary.grossProfitCents)} note={isWarehouseView ? 'Sales are recorded at shops' : 'From sales with recorded cost'} tone="success" amount />
         <Kpi icon={Percent} label="Gross margin" value={summary.marginPercent === null ? '—' : `${summary.marginPercent.toFixed(1)}%`} note="Gross profit divided by costed sales" />
       </section>
+      {(summary.discountsGivenCents > 0 || settings?.hybridPricingEnabled) && <div className="profit-discount-strip"><BadgePercent size={19} /><div><b>{money(summary.discountsGivenCents)} given in box and quantity discounts</b><span>{summary.discountsGivenCents > 0 ? `At single prices these sales would have made ${money(summary.fullPriceSalesCents)}. Net sales and profit already include the discounts.` : 'No discounts were given in this period.'}</span></div></div>}
       <section className="profit-layout">
         <Panel title="Sales and gross profit" subtitle={`${scopeLabel} over the last ${days} days`} className="profit-trend-panel">
           {report?.trend.length ? <div className="profit-chart"><div className="profit-chart-legend"><span><i className="sales" />Net sales</span><span><i className="profit" />Gross profit</span></div><div className="profit-chart-bars">{report.trend.map((point) => {
@@ -95,7 +97,7 @@ export function ProfitabilityPage() {
         <Panel title="Inventory losses" subtitle="Damage and negative count adjustments at recorded cost"><div className="profit-loss"><span><PackageX size={22} /></span><strong>{money(summary.inventoryLossCents)}</strong><small>Tracked separately from gross profit</small></div></Panel>
       </section>
       <Panel title="Profit by item and place" className="spaced">
-        {report?.lines.length ? <div className="table-wrap"><table><thead><tr><th>Item</th><th>Place</th><th className="num">Sold</th><th className="num">Returned</th><th className="num">Net sales</th><th className="num">COGS</th><th className="num">Gross profit</th><th className="num">Margin</th></tr></thead><tbody>{report.lines.map((line) => <tr key={`${line.locationId}:${line.itemId}`}><td><b>{line.itemName}</b>{line.uncostedSaleUnits > 0 && <small>{line.uncostedSaleUnits} units without cost</small>}</td><td>{line.locationName}</td><td className="num">{line.unitsSold}</td><td className="num">{line.unitsReturned}</td><td className="num">{money(line.netSalesCents)}</td><td className="num">{money(line.cogsCents)}</td><td className={`num ${line.grossProfitCents < 0 ? 'negative' : 'positive'}`}>{money(line.grossProfitCents)}</td><td className="num">{line.marginPercent === null ? '—' : `${line.marginPercent.toFixed(1)}%`}</td></tr>)}</tbody></table></div> : <EmptyState text={isWarehouseView ? 'Warehouses hold and transfer stock. They do not have direct sales profit.' : 'No sales match these filters.'} />}
+        {report?.lines.length ? <div className="table-wrap"><table><thead><tr><th>Item</th><th>Place</th><th className="num">Sold</th><th className="num">Returned</th><th className="num">Net sales</th>{hasDiscounts && <th className="num">Discounts</th>}<th className="num">COGS</th><th className="num">Gross profit</th><th className="num">Margin</th></tr></thead><tbody>{report.lines.map((line) => <tr key={`${line.locationId}:${line.itemId}`}><td><b>{line.itemName}</b>{line.uncostedSaleUnits > 0 && <small>{line.uncostedSaleUnits} units without cost</small>}</td><td>{line.locationName}</td><td className="num">{line.unitsSold}</td><td className="num">{line.unitsReturned}</td><td className="num">{money(line.netSalesCents)}</td>{hasDiscounts && <td className="num">{line.discountCents ? money(line.discountCents) : '—'}</td>}<td className="num">{money(line.cogsCents)}</td><td className={`num ${line.grossProfitCents < 0 ? 'negative' : 'positive'}`}>{money(line.grossProfitCents)}</td><td className="num">{line.marginPercent === null ? '—' : `${line.marginPercent.toFixed(1)}%`}</td></tr>)}</tbody></table></div> : <EmptyState text={isWarehouseView ? 'Warehouses hold and transfer stock. They do not have direct sales profit.' : 'No sales match these filters.'} />}
       </Panel>
     </>}
   </>;

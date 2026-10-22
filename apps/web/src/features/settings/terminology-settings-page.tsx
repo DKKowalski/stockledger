@@ -10,7 +10,7 @@ import { SettingsNavigation } from './settings-navigation';
 export function TerminologySettingsPage() {
   const { settings, loading, error, saveTerminology } = useCompanySettings();
   if (loading && !settings) return <div className="empty page-state"><StockLedgerMark animated size={40} /><p>Loading terminology</p></div>;
-  if (!settings) return <><PageHeader title="Workspace words" subtitle="Use the language your team already knows." /><div className="form-error settings-page-error">{error ?? 'Terminology settings are not available'}</div></>;
+  if (!settings) return <><PageHeader title="Workspace words" /><div className="form-error settings-page-error">{error ?? 'Terminology settings are not available'}</div></>;
   return <TerminologyForm key={`${settings.shopTerm}:${settings.warehouseTerm}:${settings.itemTerm}`} settings={settings} save={saveTerminology} />;
 }
 

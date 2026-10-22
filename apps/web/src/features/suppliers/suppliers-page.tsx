@@ -67,7 +67,7 @@ export function SuppliersPage() {
   };
 
   return <>
-    <PageHeader title="Suppliers" subtitle="Keep purchase sources and contact details together." />
+    <PageHeader title="Suppliers" />
     <Panel title="Add supplier" subtitle="Contact details are optional.">
       <form className="form-grid supplier-form" onSubmit={(event) => void submit(event)}>
         <label><span>Name</span><InputControl required maxLength={120} value={form.name} onValueChange={(name) => setForm({ ...form, name })} /></label>

@@ -12,8 +12,8 @@ import { OwnerSetupChecklist } from '../onboarding/owner-setup-checklist';
 export function OperationsDashboardPage() {
   const { snapshot, refresh, loading } = useInventoryStore();
   return <PageState>{snapshot && <DashboardBody
-    title="Inventory overview"
-    subtitle={snapshot.locationId ? `Stock held at ${snapshot.locations.find((place) => place.id === snapshot.locationId)?.name}.` : 'Stock held across every place in the company.'}
+    title="Inventory"
+    accent="overview"
     actions={<><LocationFilter /><InventorySyncButton loading={loading} refresh={refresh} /><NavLink className="button" to="/movements">Record movement<ArrowUpRight size={16} /></NavLink></>}
     positions={snapshot.positions}
     movements={snapshot.movements}
@@ -32,15 +32,15 @@ export function ShopDashboardPage() {
   const revenue = sales.reduce((total, sale) => total + (sale.saleTotalCents ?? 0), 0);
   const unitsSold = sales.reduce((total, sale) => total + sale.quantity, 0);
   return <PageState>
-    <PageHeader title={shop?.name ?? `Your ${terms.shop}`} subtitle={`Stock and sales for your assigned ${terms.shop}.`} actions={<><InventorySyncButton loading={loading} refresh={refresh} /><NavLink className="button" to="/sell">Sell<ArrowUpRight size={16} /></NavLink></>} />
+    <PageHeader title={shop?.name ?? `Your ${terms.shop}`} actions={<><InventorySyncButton loading={loading} refresh={refresh} /><NavLink className="button" to="/sell">Sell<ArrowUpRight size={16} /></NavLink></>} />
     <section className="kpi-grid">
       <Kpi icon={Warehouse} label="Stock on hand" value={snapshot.summary.closingUnits.toLocaleString()} note={`${snapshot.positions.length} stocked ${terms.item} lines`} />
       <Kpi icon={ShoppingBag} label="Units sold" value={unitsSold.toLocaleString()} note={`During the last ${snapshot.periodDays} days`} tone="success" />
-      <Kpi icon={TrendingUp} label="Recorded revenue" value={money(revenue)} note="Sales with recorded prices" />
+      <Kpi icon={TrendingUp} label="Recorded revenue" value={money(revenue)} note="Sales with recorded prices" amount />
       <Kpi icon={TriangleAlert} label={`Low stock ${terms.items}`} value={String(snapshot.summary.lowStockItems)} note="At or below reorder level" tone="warning" />
     </section>
     <section className="dashboard-grid">
-      <Panel title="Recent sales" subtitle="Latest sales at this shop" className="movement-panel">
+      <Panel title="Recent sales" className="movement-panel">
         {sales.length ? <div className="movement-list">{sales.slice(0, 6).map((sale) => <div className="movement-row" key={sale.id}>
           <span className="movement-icon out"><ShoppingBag size={15} /></span>
           <div><b>{sale.item?.name ?? `Deleted ${terms.item}`}</b><small>{calendarDate(sale.movementDate)} · {sale.saleTotalCents == null ? 'Price not recorded' : money(sale.saleTotalCents)}</small></div>
@@ -66,9 +66,9 @@ function InventorySyncButton({ loading, refresh }: { loading: boolean; refresh: 
   </button>;
 }
 
-function DashboardBody({ title, subtitle, actions, positions, movements, periodDays, summary, setup }: {
+function DashboardBody({ title, accent, actions, positions, movements, periodDays, summary, setup }: {
   title: string;
-  subtitle: string;
+  accent?: string;
   actions: ReactNode;
   positions: Position[];
   movements: Movement[];
@@ -78,7 +78,7 @@ function DashboardBody({ title, subtitle, actions, positions, movements, periodD
 }) {
   const { money, calendarDate, terms } = useCompanySettings();
   return <>
-    <PageHeader title={title} subtitle={subtitle} actions={actions} />
+    <PageHeader title={title} accent={accent} actions={actions} />
     {setup}
     <section className="kpi-grid">
       <Kpi icon={Warehouse} label="Closing stock" value={summary.closingUnits.toLocaleString()} note={`${money(summary.stockValueCents)} at cost`} />
@@ -88,7 +88,7 @@ function DashboardBody({ title, subtitle, actions, positions, movements, periodD
     </section>
     <section className="insights-grid"><StockLevels positions={positions} /><StockHealth positions={positions} /></section>
     <section className="dashboard-grid">
-      <Panel title="Recent movements" subtitle="Latest stock activity" className="movement-panel">
+      <Panel title="Recent movements" className="movement-panel">
         {movements.length ? <div className="movement-list">{movements.slice(0, 6).map((movement) => <div className="movement-row" key={movement.id}>
           <span className={`movement-icon ${movement.sign === 1 ? 'in' : 'out'}`}><ArrowLeftRight size={15} /></span>
           <div><b>{movement.item?.name ?? `Deleted ${terms.item}`}</b><small>{movementMeta[movement.type].label} · {calendarDate(movement.movementDate)}</small></div>
@@ -110,7 +110,7 @@ function StockLevels({ positions }: { positions: Position[] }) {
     { key: 'closing', label: 'Closing', value: position.closing },
   ] }));
   const max = Math.max(...series.flatMap(({ values }) => values.map(({ value }) => value)), 1);
-  return <Panel title="Stock movement" subtitle="Opening, inbound, outbound, and closing units" className="stock-chart-panel">
+  return <Panel title="Stock movement" className="stock-chart-panel">
     {rows.length ? <div className="stock-chart"><div className="chart-toolbar"><div className="chart-legend" aria-label="Chart legend"><span><i className="opening" />Opening</span><span><i className="in" />In</span><span><i className="out" />Out</span><span><i className="closing" />Closing</span></div><span className="chart-period"><CalendarDays size={14} />Top 5 {terms.items}</span></div><div className="chart-grid-lines"><i /><i /><i /><i /></div><div className="chart-bars">{series.map(({ position, values }) => <div className="chart-group" key={`${position.location.id}-${position.item.id}`} title={`${position.item.name} · ${position.location.name}`}><div className="chart-group-bars">{values.map(({ key, label, value }) => <span className={`chart-bar ${key}`} key={key} title={`${label}: ${value}`} style={{ height: `${Math.max((value / max) * 100, 4)}%` }}>{key === 'closing' && <b>{value}</b>}</span>)}</div><small>{position.item.sku.replace('SKU-', '')}</small></div>)}</div></div> : <EmptyState text={`Add ${terms.items} to see stock levels.`} />}
   </Panel>;
 }
@@ -122,7 +122,7 @@ function StockHealth({ positions }: { positions: Position[] }) {
   const healthy = Math.max(total - low, 0);
   const healthPercent = total ? Math.round((healthy / total) * 100) : 0;
   const lowPercent = total ? 100 - healthPercent : 0;
-  return <Panel title="Inventory health" subtitle={`Availability across all ${terms.item} lines`} className="health-panel"><div className="health-body"><div className="health-metric"><strong>{healthPercent}%</strong><span>availability</span><small><ArrowUpDown size={12} />{total} tracked lines</small></div><div className="health-chart-row"><div className="health-gauge" role="img" aria-label={`${healthPercent}% of inventory lines are healthy`}><svg key={`${healthPercent}-${lowPercent}`} viewBox="0 0 240 126" aria-hidden="true"><path className="gauge-track" d="M 16 116 A 104 104 0 0 1 224 116" pathLength="100" /><path className="gauge-healthy" d="M 16 116 A 104 104 0 0 1 224 116" pathLength="100" strokeDasharray={`${healthPercent} ${100 - healthPercent}`} />{lowPercent > 0 && <path className="gauge-low" d="M 16 116 A 104 104 0 0 1 224 116" pathLength="100" strokeDasharray={`${lowPercent} ${100 - lowPercent}`} strokeDashoffset={-healthPercent} />}</svg><span>Stock health</span></div><div className="health-legend"><div><span className="legend-dot healthy" /><p><b>In good standing</b><small>{healthy} {terms.item} lines</small></p></div><div><span className="legend-dot low" /><p><b>Low stock</b><small>{low} {terms.item} lines</small></p></div></div></div></div><NavLink className="panel-link" to="/reports">View stock report <ChevronRight size={15} /></NavLink></Panel>;
+  return <Panel title="Inventory health" className="health-panel"><div className="health-body"><div className="health-metric"><strong>{healthPercent}%</strong><span>availability</span><small><ArrowUpDown size={12} />{total} tracked lines</small></div><div className="health-chart-row"><div className="health-gauge" role="img" aria-label={`${healthPercent}% of inventory lines are healthy`}><svg key={`${healthPercent}-${lowPercent}`} viewBox="0 0 240 126" aria-hidden="true"><path className="gauge-track" d="M 16 116 A 104 104 0 0 1 224 116" pathLength="100" /><path className="gauge-healthy" d="M 16 116 A 104 104 0 0 1 224 116" pathLength="100" strokeDasharray={`${healthPercent} ${100 - healthPercent}`} />{lowPercent > 0 && <path className="gauge-low" d="M 16 116 A 104 104 0 0 1 224 116" pathLength="100" strokeDasharray={`${lowPercent} ${100 - lowPercent}`} strokeDashoffset={-healthPercent} />}</svg><span>Stock health</span></div><div className="health-legend"><div><span className="legend-dot healthy" /><p><b>In good standing</b><small>{healthy} {terms.item} lines</small></p></div><div><span className="legend-dot low" /><p><b>Low stock</b><small>{low} {terms.item} lines</small></p></div></div></div></div><NavLink className="panel-link" to="/reports">View stock report <ChevronRight size={15} /></NavLink></Panel>;
 }
 
 function LowStock({ positions }: { positions: Position[] }) {

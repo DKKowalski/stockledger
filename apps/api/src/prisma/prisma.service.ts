@@ -7,8 +7,14 @@ export type PrismaTransaction = Parameters<Parameters<typeof db.transaction>[0]>
 export class PrismaService implements OnApplicationShutdown {
   readonly client = db;
 
-  async withCompany<T>(companyId: string, work: (tx: PrismaTransaction) => Promise<T>) {
+  async withCompany<T>(companyId: string, work: (tx: PrismaTransaction) => PromiseLike<T>, options?: { consistentSnapshot?: boolean }) {
     return this.client.transaction(async (tx) => {
+      // A complete archive must observe every table at one point in time.
+      if (options?.consistentSnapshot) {
+        await tx.execute(this.client.raw.sql`SET TRANSACTION ISOLATION LEVEL REPEATABLE READ`.affectedCount().build());
+      } else {
+        await tx.execute(this.client.raw.sql`SET TRANSACTION ISOLATION LEVEL READ COMMITTED`.affectedCount().build());
+      }
       await tx.query(this.client.raw.sql`
         SELECT set_config('app.current_company_id', ${companyId}, true) AS company_id
       `.returnsRow({ company_id: 'pg/text@1' }).build());

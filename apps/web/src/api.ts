@@ -1,6 +1,13 @@
+import type { ReturnSource,StockState } from './features/movements/hybrid-operations-panels';
+import type { OperationRecord } from './features/movements/durable-operation';
+import type { ExactCostState, ExactCostInput, ExactCostRequest } from './types';
+import type { MovementLedger, ReturnableSale } from './types';
 import type { AccountAccessLink, ActivityEvent, BusinessType, CompanyProfileSettings, CompanySettings, CreateUserResponse, DataSummary, InventorySettings, InventorySource, Item, LocationType, LoginResponse, MovementType, OnboardingStatus, Place, Profitability, ProfitabilityFilters, RegistrationResponse, SecurityOverview, Snapshot, StockCount, Supplier, TerminologySettings, User, UserRole } from './types';
+import type { SaleQuoteInput, SaleQuote, CompletedSale } from './types';
+import type { PricingPreviewConfiguration, PricingPreviewInput, PricingQuote } from './types';
+import type { CostReview, CostReviewInput } from './types';
 
-export type DataExportType = 'workspace' | 'inventory' | 'movements' | 'activity';
+export type DataExportType = 'workspace' | 'workspace-v2' | 'workspace-v3' | 'workspace-v4' | 'workspace-v5' | 'inventory' | 'movements' | 'activity';
 
 const base = (import.meta.env.VITE_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 
@@ -45,6 +52,33 @@ async function download(path: string, accessToken: string) {
 }
 
 export const api = {
+  returnSources:(token:string)=>request<{available:boolean;sources:Array<{id:string;type:'grouped'|'legacy';date:string;reference:string}>}>('/inventory/sale-returns',undefined,token),
+  returnSource:(token:string,type:string,id:string)=>request<ReturnSource>(`/inventory/sale-returns/sources/${type}/${id}`,undefined,token),
+  prepareReturn:(token:string,key:string,input:Record<string,unknown>)=>request<OperationRecord>('/inventory/sale-returns/requests',{method:'POST',body:JSON.stringify({requestKey:key,input})},token),
+  returnRequest:(token:string,key:string)=>request<OperationRecord>(`/inventory/sale-returns/requests/${key}`,undefined,token),
+  applyReturn:(token:string,key:string)=>request<OperationRecord>(`/inventory/sale-returns/requests/${key}/apply`,{method:'POST'},token),
+  cancelReturn:(token:string,key:string)=>request<OperationRecord>(`/inventory/sale-returns/requests/${key}/cancel`,{method:'POST'},token),
+  stockOperationStatus:(token:string)=>request<{available:boolean;hasEnrolledItems:boolean}>('/inventory/stock-operations',undefined,token),
+  stockOperationItem:(token:string,id:string)=>request<StockState>(`/inventory/items/${id}/stock-operations`,undefined,token),
+  exactCostStatus: (token: string) => request<{available: boolean; hasEnrolledItems: boolean}>('/inventory/exact-costing', undefined, token),
+  exactCost: (token: string, itemId: string) => request<ExactCostState>(`/inventory/items/${itemId}/exact-costing`, undefined, token),
+  prepareExactCost: (token: string, key: string, input: ExactCostInput) => request<ExactCostRequest>('/inventory/exact-costing/requests', {method:'POST',body:JSON.stringify({requestKey:key,input})}, token),
+  exactCostRequest: (token: string, key: string) => request<ExactCostRequest>(`/inventory/exact-costing/requests/${key}`, undefined, token),
+  applyExactCost: (token: string, key: string) => request<ExactCostRequest>(`/inventory/exact-costing/requests/${key}/apply`, {method:'POST'}, token),
+  cancelExactCost: (token: string, key: string) => request<ExactCostRequest>(`/inventory/exact-costing/requests/${key}/cancel`, {method:'POST'}, token),
+  costReviewStatus: (accessToken: string) => request<{ available: boolean; developmentOnly: true }>('/inventory/cost-review', undefined, accessToken),
+  costReview: (accessToken: string, itemId: string) => request<CostReview>(`/inventory/items/${itemId}/cost-review`, undefined, accessToken),
+  confirmCost: (accessToken: string, itemId: string, body: CostReviewInput) => request<CostReview>(`/inventory/items/${itemId}/cost-review`, { method: 'POST', body: JSON.stringify(body) }, accessToken),
+  saleCompletionStatus: (accessToken: string) => request<{ available: boolean; developmentOnly: true }>('/inventory/sale-completion', undefined, accessToken),
+  saleQuote: (accessToken: string, body: SaleQuoteInput) => request<SaleQuote>('/inventory/sales/quote', { method: 'POST', body: JSON.stringify(body) }, accessToken),
+  completeSale: (accessToken: string, body: { idempotencyKey: string; quoteToken: string }) => request<CompletedSale>('/inventory/sales/complete', { method: 'POST', body: JSON.stringify(body) }, accessToken),
+  saleByKey: (accessToken: string, key: string) => request<{ sale: CompletedSale | null }>(`/inventory/sales/requests/${key}`, undefined, accessToken),
+  pricingPreviewStatus: (accessToken: string) => request<{ available: boolean; previewOnly: true }>('/inventory/pricing-preview', undefined, accessToken),
+  pricingPreview: (accessToken: string, itemId: string) => request<PricingPreviewConfiguration>(`/inventory/items/${itemId}/pricing-preview`, undefined, accessToken),
+  savePricingPreview: (accessToken: string, itemId: string, body: PricingPreviewInput) =>
+    request<PricingPreviewConfiguration>(`/inventory/items/${itemId}/pricing-preview`, { method: 'PATCH', body: JSON.stringify(body) }, accessToken),
+  quotePricingPreview: (accessToken: string, lines: Array<{ itemId: string; quantity: number; quantityUnit?: 'base' | 'package'; expectedVersion?: number }>) =>
+    request<PricingQuote>('/inventory/pricing-preview/quote', { method: 'POST', body: JSON.stringify({ lines }) }, accessToken),
   registerOwner: (body: { fullName: string; businessName: string; email: string; password: string }) =>
     request<RegistrationResponse>('/auth/register', { method: 'POST', body: JSON.stringify(body) }),
   login: (body: { email: string; password: string }) =>
@@ -114,6 +148,9 @@ export const api = {
     request(`/inventory/items/${itemId}/selling-price`, { method: 'PATCH', body: JSON.stringify({ sellingPriceCents }) }, accessToken),
   addMovement: (accessToken: string, body: { itemId: string; locationId: string; destinationLocationId?: string; type: MovementType; quantity: number; movementDate: string; reference?: string; note?: string; expectedUnitPriceCents?: number; unitCostCents?: number; supplierId?: string; relatedMovementId?: string }) =>
     request('/inventory/movements', { method: 'POST', body: JSON.stringify(body) }, accessToken),
+  movementLedger: (accessToken: string, query: { type?: MovementType; itemId?: string; offset: number; limit: number }) =>
+    request<MovementLedger>(`/inventory/movements?${new URLSearchParams({ ...(query.type ? { type: query.type } : {}), ...(query.itemId ? { itemId: query.itemId } : {}), offset: String(query.offset), limit: String(query.limit) })}`, undefined, accessToken),
+  returnableSales: (accessToken: string) => request<ReturnableSale[]>('/inventory/movements/returnable-sales', undefined, accessToken),
   deleteMovement: (accessToken: string, id: string) =>
     request(`/inventory/movements/${id}`, { method: 'DELETE' }, accessToken),
   suppliers: (accessToken: string) => request<Supplier[]>('/inventory/suppliers', undefined, accessToken),

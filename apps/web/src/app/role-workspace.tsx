@@ -11,7 +11,8 @@ import { TerminologySettingsPage } from '../features/settings/terminology-settin
 import { PlacesPage } from '../features/admin/places-page';
 import { TeamPage } from '../features/admin/team-page';
 import { OperationsDashboardPage, ShopDashboardPage } from '../features/dashboard/dashboard-pages';
-import { AdminItemsPage, ManagerItemsPage, ShopCatalogPage } from '../features/items/item-pages';
+import { ManagerItemsPage, ShopCatalogPage } from '../features/items/item-pages';
+import { AdminItemsPage } from '../features/items/admin-items-page';
 import { MovementsPage } from '../features/movements/movements-page';
 import { OperationsReportsPage, ShopReportsPage } from '../features/reports/report-pages';
 import { ShopSalesPage } from '../features/sales/shop-sales-page';

@@ -64,7 +64,7 @@ export function AccountSettingsPage() {
   };
 
   return <>
-    <PageHeader title="Account settings" subtitle="Your profile, access, and sign-in security." />
+    <PageHeader title="Account settings" />
     <div className="account-settings-layout">
       <aside className="panel account-summary">
         <div className="account-identity">

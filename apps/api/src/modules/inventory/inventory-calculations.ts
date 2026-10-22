@@ -1,6 +1,8 @@
+import { locationValues, type ValuePool } from './exact-costing.js';
 import { MOVEMENT_SIGN, type MovementVelocity, StockMovementType } from './inventory.types.js';
 
 export type ItemRecord = {
+  preciseCosting?: boolean;
   id: string;
   sku: string;
   name: string;
@@ -27,6 +29,9 @@ export type StockRecord = {
 };
 
 export type MovementRecord = {
+  saleId?: string;
+  saleLineId?: string;
+  pricingCategory?: string;
   id: string;
   itemId: string;
   locationId: string;
@@ -62,6 +67,7 @@ export function buildSnapshot(
   days = 30,
   locationId: string | null = null,
   now = new Date(),
+  pools: ReadonlyMap<string, ValuePool> = new Map(),
 ) {
   const periodStart = new Date(now);
   periodStart.setUTCDate(periodStart.getUTCDate() - days);
@@ -70,14 +76,32 @@ export function buildSnapshot(
     ? locations.filter((location) => location.id === locationId)
     : locations;
 
-  const lines = visibleLocations.flatMap((location) => items.map((item) => {
-    const opening = stocks.find((stock) => stock.itemId === item.id && stock.locationId === location.id)?.openingStock ?? 0;
-    const sourced = movements.filter((movement) => movement.itemId === item.id && movement.locationId === location.id);
-    const received = movements.filter((movement) => (
-      movement.itemId === item.id
-      && movement.type === StockMovementType.TRANSFER
-      && movement.destinationLocationId === location.id
-    ));
+  // Index once so each item-and-place line does not rescan the whole ledger.
+  const lineKey = (itemId: string, placeId: string) => `${itemId}:${placeId}`;
+  const openingByLine = new Map(stocks.map((stock) => [lineKey(stock.itemId, stock.locationId), stock.openingStock]));
+  const sourcedByLine = new Map<string, MovementRecord[]>();
+  const receivedByLine = new Map<string, MovementRecord[]>();
+  const touchedLines = new Set<string>();
+  for (const movement of movements) {
+    const source = lineKey(movement.itemId, movement.locationId);
+    if (!sourcedByLine.has(source)) sourcedByLine.set(source, []);
+    sourcedByLine.get(source)!.push(movement);
+    touchedLines.add(source);
+    if (movement.destinationLocationId) {
+      const destination = lineKey(movement.itemId, movement.destinationLocationId);
+      touchedLines.add(destination);
+      if (movement.type === StockMovementType.TRANSFER) {
+        if (!receivedByLine.has(destination)) receivedByLine.set(destination, []);
+        receivedByLine.get(destination)!.push(movement);
+      }
+    }
+  }
+
+  const lines = locations.flatMap((location) => items.map((item) => {
+    const key = lineKey(item.id, location.id);
+    const opening = openingByLine.get(key) ?? 0;
+    const sourced = sourcedByLine.get(key) ?? [];
+    const received = receivedByLine.get(key) ?? [];
     const purchases = sum(sourced, StockMovementType.PURCHASE);
     const returnsIn = sum(sourced, StockMovementType.RETURN_IN);
     const transferredOut = sum(sourced, StockMovementType.TRANSFER);
@@ -91,7 +115,7 @@ export function buildSnapshot(
     const outbound = sourced.filter((movement) => (
       movement.type === StockMovementType.TRANSFER || movement.type === StockMovementType.SALE
     ));
-    const active = opening > 0 || movements.some((movement) => movement.itemId === item.id && touches(movement, location.id));
+    const active = opening > 0 || touchedLines.has(key);
     return {
       item,
       location,
@@ -116,7 +140,13 @@ export function buildSnapshot(
     };
   }));
 
-  const shown = lines.filter((line) => line.item.isActive && (locationId !== null || line.active));
+  for (const [itemId, pool] of pools) {
+    const matching = lines.filter(line => line.item.id === itemId);
+    const values = locationValues(pool,matching.map(line => ({locationId:line.location.id,quantity:line.closing})));
+    for (const line of matching) line.valueCents = values.get(line.location.id)!;
+  }
+  const visibleIds = new Set(visibleLocations.map(location => location.id));
+  const shown = lines.filter((line) => visibleIds.has(line.location.id) && line.item.isActive && (locationId !== null || line.active));
   const moving = [...shown]
     .filter((position) => position.outLastPeriod > 0)
     .sort((left, right) => right.outLastPeriod - left.outLastPeriod);
@@ -137,6 +167,7 @@ export function buildSnapshot(
     .sort((left, right) => left.item.name.localeCompare(right.item.name) || left.location.name.localeCompare(right.location.name));
 
   const locationById = new Map(locations.map((location) => [location.id, location]));
+  const itemById = new Map(items.map((item) => [item.id, item]));
   const visibleMovements = movements.filter((movement) => (
     locationId === null || touches(movement, locationId)
   ));
@@ -146,7 +177,7 @@ export function buildSnapshot(
     saleTotalCents: (movement.type === StockMovementType.SALE || movement.type === StockMovementType.RETURN_IN) && movement.unitPriceCents !== null
       ? movement.unitPriceCents * movement.quantity : null,
     costTotalCents: movement.unitCostCents === null ? null : movement.unitCostCents * movement.quantity,
-    item: items.find((item) => item.id === movement.itemId) ?? null,
+    item: itemById.get(movement.itemId) ?? null,
     location: locationById.get(movement.locationId) ?? null,
     destination: movement.destinationLocationId ? locationById.get(movement.destinationLocationId) ?? null : null,
     sign: MOVEMENT_SIGN[movement.type],
@@ -171,5 +202,57 @@ export function buildSnapshot(
     positions,
     movements: presentedMovements,
     periodMovements: presentedMovements.filter((movement) => movement.movementDate >= startDate),
+  };
+}
+
+/**
+ * Lowest end-of-day balance of one item at one place on or after `fromDate`.
+ * An outbound movement dated `fromDate` reduces every one of those balances,
+ * so it fits only when its quantity does not exceed this value.
+ */
+export function lowestBalanceFrom(
+  stocks: readonly StockRecord[],
+  movements: readonly MovementRecord[],
+  itemId: string,
+  locationId: string,
+  fromDate: string,
+) {
+  const deltaByDate = new Map<string, number>();
+  const add = (date: string, delta: number) => deltaByDate.set(date, (deltaByDate.get(date) ?? 0) + delta);
+  for (const movement of movements) {
+    if (movement.itemId !== itemId) continue;
+    if (movement.locationId === locationId) add(movement.movementDate, MOVEMENT_SIGN[movement.type] * movement.quantity);
+    if (movement.type === StockMovementType.TRANSFER && movement.destinationLocationId === locationId) {
+      add(movement.movementDate, movement.quantity);
+    }
+  }
+  let balance = stocks.find((stock) => stock.itemId === itemId && stock.locationId === locationId)?.openingStock ?? 0;
+  const dates = [...deltaByDate.keys()].sort();
+  for (const date of dates) if (date <= fromDate) balance += deltaByDate.get(date)!;
+  let lowest = balance;
+  for (const date of dates) {
+    if (date <= fromDate) continue;
+    balance += deltaByDate.get(date)!;
+    lowest = Math.min(lowest, balance);
+  }
+  return lowest;
+}
+
+/** Shop attendants sell at a set price; unit costs and stock value stay with managers and owners. */
+export function withoutCosts(snapshot: ReturnType<typeof buildSnapshot>) {
+  const hideItemCost = <T extends ItemRecord>(item: T): T => ({ ...item, unitCostCents: 0 });
+  const hideMovementCost = <T extends { unitCostCents: number | null; costTotalCents: number | null; item: ItemRecord | null }>(movement: T): T => ({
+    ...movement,
+    unitCostCents: null,
+    costTotalCents: null,
+    item: movement.item ? hideItemCost(movement.item) : null,
+  });
+  return {
+    ...snapshot,
+    items: snapshot.items.map(hideItemCost),
+    summary: { ...snapshot.summary, stockValueCents: 0 },
+    positions: snapshot.positions.map((position) => ({ ...position, item: hideItemCost(position.item), valueCents: 0 })),
+    movements: snapshot.movements.map(hideMovementCost),
+    periodMovements: snapshot.periodMovements.map(hideMovementCost),
   };
 }

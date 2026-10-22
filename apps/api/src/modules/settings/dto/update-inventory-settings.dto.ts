@@ -35,4 +35,8 @@ export class UpdateInventorySettingsDto {
 
   @IsBoolean()
   requireAdjustmentReason!: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  hybridPricingEnabled?: boolean;
 }

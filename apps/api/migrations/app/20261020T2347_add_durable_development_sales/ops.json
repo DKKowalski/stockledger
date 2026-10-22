@@ -1,0 +1,1429 @@
+[
+  {
+    "id": "table.sale_components",
+    "label": "Create table \"sale_components\"",
+    "summary": "Creates table \"sale_components\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "sale_components"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"sale_components\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"sale_components\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"sale_components\"",
+        "sql": "CREATE TABLE \"public\".\"sale_components\" (\n  \"category\" character varying(10) NOT NULL,\n  \"company_id\" uuid NOT NULL,\n  \"id\" uuid NOT NULL,\n  \"movement_id\" uuid NOT NULL,\n  \"position\" int4 NOT NULL,\n  \"quantity\" int4 NOT NULL,\n  \"sale_line_id\" uuid NOT NULL,\n  \"total_cents\" int4 NOT NULL,\n  \"unit_price_cents\" int4 NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"sale_component_valid_124d5f7d\" CHECK (position >= 0 AND quantity > 0 AND unit_price_cents >= 0 AND total_cents::bigint = quantity::bigint * unit_price_cents AND category IN ('retail', 'bulk', 'box'))\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"sale_components\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"sale_components\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.sale_lines",
+    "label": "Create table \"sale_lines\"",
+    "summary": "Creates table \"sale_lines\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "sale_lines"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"sale_lines\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"sale_lines\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"sale_lines\"",
+        "sql": "CREATE TABLE \"public\".\"sale_lines\" (\n  \"automatic_discount_cents\" int4 NOT NULL,\n  \"base_unit\" character varying(20) NOT NULL,\n  \"category\" character varying(80) NOT NULL,\n  \"cogs_cents\" int4 NOT NULL,\n  \"company_id\" uuid NOT NULL,\n  \"gross_sales_cents\" int4 NOT NULL,\n  \"id\" uuid NOT NULL,\n  \"item_id\" uuid NOT NULL,\n  \"item_name\" character varying(120) NOT NULL,\n  \"position\" int4 NOT NULL,\n  \"pricing_snapshot\" jsonb NOT NULL,\n  \"quantity\" int4 NOT NULL,\n  \"retail_price_cents\" int4 NOT NULL,\n  \"sale_id\" uuid NOT NULL,\n  \"sku\" character varying(40) NOT NULL,\n  \"total_cents\" int4 NOT NULL,\n  \"unit_cost_cents\" int4 NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"sale_line_amounts_valid_34a14717\" CHECK (position >= 0 AND quantity > 0 AND retail_price_cents >= 0 AND unit_cost_cents >= 0 AND gross_sales_cents::bigint = quantity::bigint * retail_price_cents AND cogs_cents::bigint = quantity::bigint * unit_cost_cents AND total_cents >= 0 AND automatic_discount_cents >= 0 AND gross_sales_cents::bigint - automatic_discount_cents = total_cents)\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"sale_lines\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"sale_lines\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.sales",
+    "label": "Create table \"sales\"",
+    "summary": "Creates table \"sales\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "sales"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"sales\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"sales\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"sales\"",
+        "sql": "CREATE TABLE \"public\".\"sales\" (\n  \"automatic_discount_cents\" int4 NOT NULL,\n  \"cogs_cents\" int4 NOT NULL,\n  \"company_id\" uuid NOT NULL,\n  \"created_at\" timestamptz DEFAULT (now()) NOT NULL,\n  \"created_by_user_id\" uuid NOT NULL,\n  \"currency\" character varying(3) NOT NULL,\n  \"gross_sales_cents\" int4 NOT NULL,\n  \"id\" uuid NOT NULL,\n  \"idempotency_key\" uuid NOT NULL,\n  \"location_id\" uuid NOT NULL,\n  \"movement_date\" date NOT NULL,\n  \"request_hash\" character varying(64) NOT NULL,\n  \"total_cents\" int4 NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"sale_amounts_valid_10975e07\" CHECK (gross_sales_cents >= 0 AND automatic_discount_cents >= 0 AND total_cents >= 0 AND cogs_cents >= 0 AND gross_sales_cents::bigint - automatic_discount_cents = total_cents)\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"sales\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"sales\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.sale_components.sale_components_company_id_movement_id_key",
+    "label": "Add unique constraint on \"sale_components\" (company_id, movement_id)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "sale_components_company_id_movement_id_key",
+        "table": "sale_components"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"sale_components_company_id_movement_id_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_components_company_id_movement_id_key",
+          "public",
+          "\"public\".\"sale_components\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"sale_components_company_id_movement_id_key\"",
+        "sql": "ALTER TABLE \"public\".\"sale_components\" ADD CONSTRAINT \"sale_components_company_id_movement_id_key\" UNIQUE (\"company_id\", \"movement_id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"sale_components_company_id_movement_id_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_components_company_id_movement_id_key",
+          "public",
+          "\"public\".\"sale_components\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.sale_components.sale_components_company_id_sale_line_id_position_key",
+    "label": "Add unique constraint on \"sale_components\" (company_id, sale_line_id, position)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "sale_components_company_id_sale_line_id_position_key",
+        "table": "sale_components"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"sale_components_company_id_sale_line_id_position_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_components_company_id_sale_line_id_position_key",
+          "public",
+          "\"public\".\"sale_components\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"sale_components_company_id_sale_line_id_position_key\"",
+        "sql": "ALTER TABLE \"public\".\"sale_components\" ADD CONSTRAINT \"sale_components_company_id_sale_line_id_position_key\" UNIQUE (\"company_id\", \"sale_line_id\", \"position\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"sale_components_company_id_sale_line_id_position_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_components_company_id_sale_line_id_position_key",
+          "public",
+          "\"public\".\"sale_components\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.sale_lines.sale_lines_company_id_id_key",
+    "label": "Add unique constraint on \"sale_lines\" (company_id, id)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "sale_lines_company_id_id_key",
+        "table": "sale_lines"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"sale_lines_company_id_id_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_lines_company_id_id_key",
+          "public",
+          "\"public\".\"sale_lines\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"sale_lines_company_id_id_key\"",
+        "sql": "ALTER TABLE \"public\".\"sale_lines\" ADD CONSTRAINT \"sale_lines_company_id_id_key\" UNIQUE (\"company_id\", \"id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"sale_lines_company_id_id_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_lines_company_id_id_key",
+          "public",
+          "\"public\".\"sale_lines\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.sale_lines.sale_lines_company_id_sale_id_item_id_key",
+    "label": "Add unique constraint on \"sale_lines\" (company_id, sale_id, item_id)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "sale_lines_company_id_sale_id_item_id_key",
+        "table": "sale_lines"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"sale_lines_company_id_sale_id_item_id_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_lines_company_id_sale_id_item_id_key",
+          "public",
+          "\"public\".\"sale_lines\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"sale_lines_company_id_sale_id_item_id_key\"",
+        "sql": "ALTER TABLE \"public\".\"sale_lines\" ADD CONSTRAINT \"sale_lines_company_id_sale_id_item_id_key\" UNIQUE (\"company_id\", \"sale_id\", \"item_id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"sale_lines_company_id_sale_id_item_id_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_lines_company_id_sale_id_item_id_key",
+          "public",
+          "\"public\".\"sale_lines\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.sale_lines.sale_lines_company_id_sale_id_position_key",
+    "label": "Add unique constraint on \"sale_lines\" (company_id, sale_id, position)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "sale_lines_company_id_sale_id_position_key",
+        "table": "sale_lines"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"sale_lines_company_id_sale_id_position_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_lines_company_id_sale_id_position_key",
+          "public",
+          "\"public\".\"sale_lines\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"sale_lines_company_id_sale_id_position_key\"",
+        "sql": "ALTER TABLE \"public\".\"sale_lines\" ADD CONSTRAINT \"sale_lines_company_id_sale_id_position_key\" UNIQUE (\"company_id\", \"sale_id\", \"position\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"sale_lines_company_id_sale_id_position_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_lines_company_id_sale_id_position_key",
+          "public",
+          "\"public\".\"sale_lines\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.sales.sales_company_id_id_key",
+    "label": "Add unique constraint on \"sales\" (company_id, id)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "sales_company_id_id_key",
+        "table": "sales"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"sales_company_id_id_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sales_company_id_id_key",
+          "public",
+          "\"public\".\"sales\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"sales_company_id_id_key\"",
+        "sql": "ALTER TABLE \"public\".\"sales\" ADD CONSTRAINT \"sales_company_id_id_key\" UNIQUE (\"company_id\", \"id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"sales_company_id_id_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sales_company_id_id_key",
+          "public",
+          "\"public\".\"sales\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.sales.sales_company_id_idempotency_key_key",
+    "label": "Add unique constraint on \"sales\" (company_id, idempotency_key)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "sales_company_id_idempotency_key_key",
+        "table": "sales"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"sales_company_id_idempotency_key_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sales_company_id_idempotency_key_key",
+          "public",
+          "\"public\".\"sales\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"sales_company_id_idempotency_key_key\"",
+        "sql": "ALTER TABLE \"public\".\"sales\" ADD CONSTRAINT \"sales_company_id_idempotency_key_key\" UNIQUE (\"company_id\", \"idempotency_key\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"sales_company_id_idempotency_key_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sales_company_id_idempotency_key_key",
+          "public",
+          "\"public\".\"sales\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.sale_components.sale_components_company_id_sale_line_id_idx_5575d9da",
+    "label": "Create index \"sale_components_company_id_sale_line_id_idx_5575d9da\" on \"sale_components\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "sale_components_company_id_sale_line_id_idx_5575d9da",
+        "table": "sale_components"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"sale_components_company_id_sale_line_id_idx_5575d9da\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"sale_components_company_id_sale_line_id_idx_5575d9da\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"sale_components_company_id_sale_line_id_idx_5575d9da\"",
+        "sql": "CREATE INDEX \"sale_components_company_id_sale_line_id_idx_5575d9da\" ON \"public\".\"sale_components\" (\"company_id\", \"sale_line_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"sale_components_company_id_sale_line_id_idx_5575d9da\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"sale_components_company_id_sale_line_id_idx_5575d9da\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.sale_lines.sale_lines_company_id_item_id_idx_a27622c0",
+    "label": "Create index \"sale_lines_company_id_item_id_idx_a27622c0\" on \"sale_lines\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "sale_lines_company_id_item_id_idx_a27622c0",
+        "table": "sale_lines"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"sale_lines_company_id_item_id_idx_a27622c0\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"sale_lines_company_id_item_id_idx_a27622c0\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"sale_lines_company_id_item_id_idx_a27622c0\"",
+        "sql": "CREATE INDEX \"sale_lines_company_id_item_id_idx_a27622c0\" ON \"public\".\"sale_lines\" (\"company_id\", \"item_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"sale_lines_company_id_item_id_idx_a27622c0\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"sale_lines_company_id_item_id_idx_a27622c0\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.sale_lines.sale_lines_company_id_sale_id_idx_792a8b41",
+    "label": "Create index \"sale_lines_company_id_sale_id_idx_792a8b41\" on \"sale_lines\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "sale_lines_company_id_sale_id_idx_792a8b41",
+        "table": "sale_lines"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"sale_lines_company_id_sale_id_idx_792a8b41\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"sale_lines_company_id_sale_id_idx_792a8b41\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"sale_lines_company_id_sale_id_idx_792a8b41\"",
+        "sql": "CREATE INDEX \"sale_lines_company_id_sale_id_idx_792a8b41\" ON \"public\".\"sale_lines\" (\"company_id\", \"sale_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"sale_lines_company_id_sale_id_idx_792a8b41\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"sale_lines_company_id_sale_id_idx_792a8b41\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.sales.sales_company_id_created_by_user_id_idx_fd5eba49",
+    "label": "Create index \"sales_company_id_created_by_user_id_idx_fd5eba49\" on \"sales\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "sales_company_id_created_by_user_id_idx_fd5eba49",
+        "table": "sales"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"sales_company_id_created_by_user_id_idx_fd5eba49\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"sales_company_id_created_by_user_id_idx_fd5eba49\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"sales_company_id_created_by_user_id_idx_fd5eba49\"",
+        "sql": "CREATE INDEX \"sales_company_id_created_by_user_id_idx_fd5eba49\" ON \"public\".\"sales\" (\"company_id\", \"created_by_user_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"sales_company_id_created_by_user_id_idx_fd5eba49\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"sales_company_id_created_by_user_id_idx_fd5eba49\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.sales.sales_company_id_location_id_created_at_idx_b7eac4a2",
+    "label": "Create index \"sales_company_id_location_id_created_at_idx_b7eac4a2\" on \"sales\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "sales_company_id_location_id_created_at_idx_b7eac4a2",
+        "table": "sales"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"sales_company_id_location_id_created_at_idx_b7eac4a2\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"sales_company_id_location_id_created_at_idx_b7eac4a2\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"sales_company_id_location_id_created_at_idx_b7eac4a2\"",
+        "sql": "CREATE INDEX \"sales_company_id_location_id_created_at_idx_b7eac4a2\" ON \"public\".\"sales\" (\"company_id\", \"location_id\", \"created_at\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"sales_company_id_location_id_created_at_idx_b7eac4a2\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"sales_company_id_location_id_created_at_idx_b7eac4a2\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.sales.sales_company_id_location_id_idx_a140a7ef",
+    "label": "Create index \"sales_company_id_location_id_idx_a140a7ef\" on \"sales\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "sales_company_id_location_id_idx_a140a7ef",
+        "table": "sales"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"sales_company_id_location_id_idx_a140a7ef\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"sales_company_id_location_id_idx_a140a7ef\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"sales_company_id_location_id_idx_a140a7ef\"",
+        "sql": "CREATE INDEX \"sales_company_id_location_id_idx_a140a7ef\" ON \"public\".\"sales\" (\"company_id\", \"location_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"sales_company_id_location_id_idx_a140a7ef\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"sales_company_id_location_id_idx_a140a7ef\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.sale_components.sale_components_company_id_sale_line_id_fkey",
+    "label": "Add foreign key \"sale_components_company_id_sale_line_id_fkey\" on \"sale_components\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "sale_components_company_id_sale_line_id_fkey",
+        "table": "sale_components"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"sale_components_company_id_sale_line_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_components_company_id_sale_line_id_fkey",
+          "public",
+          "\"public\".\"sale_components\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"sale_components_company_id_sale_line_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"sale_components\"\nADD CONSTRAINT \"sale_components_company_id_sale_line_id_fkey\"\nFOREIGN KEY (\"company_id\", \"sale_line_id\")\nREFERENCES \"public\".\"sale_lines\" (\"company_id\", \"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"sale_components_company_id_sale_line_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_components_company_id_sale_line_id_fkey",
+          "public",
+          "\"public\".\"sale_components\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.sale_components.sale_components_company_id_movement_id_fkey",
+    "label": "Add foreign key \"sale_components_company_id_movement_id_fkey\" on \"sale_components\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "sale_components_company_id_movement_id_fkey",
+        "table": "sale_components"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"sale_components_company_id_movement_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_components_company_id_movement_id_fkey",
+          "public",
+          "\"public\".\"sale_components\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"sale_components_company_id_movement_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"sale_components\"\nADD CONSTRAINT \"sale_components_company_id_movement_id_fkey\"\nFOREIGN KEY (\"company_id\", \"movement_id\")\nREFERENCES \"public\".\"stock_movements\" (\"company_id\", \"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"sale_components_company_id_movement_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_components_company_id_movement_id_fkey",
+          "public",
+          "\"public\".\"sale_components\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.sale_lines.sale_lines_company_id_sale_id_fkey",
+    "label": "Add foreign key \"sale_lines_company_id_sale_id_fkey\" on \"sale_lines\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "sale_lines_company_id_sale_id_fkey",
+        "table": "sale_lines"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"sale_lines_company_id_sale_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_lines_company_id_sale_id_fkey",
+          "public",
+          "\"public\".\"sale_lines\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"sale_lines_company_id_sale_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"sale_lines\"\nADD CONSTRAINT \"sale_lines_company_id_sale_id_fkey\"\nFOREIGN KEY (\"company_id\", \"sale_id\")\nREFERENCES \"public\".\"sales\" (\"company_id\", \"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"sale_lines_company_id_sale_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_lines_company_id_sale_id_fkey",
+          "public",
+          "\"public\".\"sale_lines\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.sale_lines.sale_lines_company_id_item_id_fkey",
+    "label": "Add foreign key \"sale_lines_company_id_item_id_fkey\" on \"sale_lines\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "sale_lines_company_id_item_id_fkey",
+        "table": "sale_lines"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"sale_lines_company_id_item_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_lines_company_id_item_id_fkey",
+          "public",
+          "\"public\".\"sale_lines\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"sale_lines_company_id_item_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"sale_lines\"\nADD CONSTRAINT \"sale_lines_company_id_item_id_fkey\"\nFOREIGN KEY (\"company_id\", \"item_id\")\nREFERENCES \"public\".\"inventory_items\" (\"company_id\", \"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"sale_lines_company_id_item_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_lines_company_id_item_id_fkey",
+          "public",
+          "\"public\".\"sale_lines\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.sales.sales_company_id_location_id_fkey",
+    "label": "Add foreign key \"sales_company_id_location_id_fkey\" on \"sales\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "sales_company_id_location_id_fkey",
+        "table": "sales"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"sales_company_id_location_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sales_company_id_location_id_fkey",
+          "public",
+          "\"public\".\"sales\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"sales_company_id_location_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"sales\"\nADD CONSTRAINT \"sales_company_id_location_id_fkey\"\nFOREIGN KEY (\"company_id\", \"location_id\")\nREFERENCES \"public\".\"locations\" (\"company_id\", \"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"sales_company_id_location_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sales_company_id_location_id_fkey",
+          "public",
+          "\"public\".\"sales\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.sales.sales_company_id_created_by_user_id_fkey",
+    "label": "Add foreign key \"sales_company_id_created_by_user_id_fkey\" on \"sales\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "sales_company_id_created_by_user_id_fkey",
+        "table": "sales"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"sales_company_id_created_by_user_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sales_company_id_created_by_user_id_fkey",
+          "public",
+          "\"public\".\"sales\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"sales_company_id_created_by_user_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"sales\"\nADD CONSTRAINT \"sales_company_id_created_by_user_id_fkey\"\nFOREIGN KEY (\"company_id\", \"created_by_user_id\")\nREFERENCES \"public\".\"users\" (\"company_id\", \"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"sales_company_id_created_by_user_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sales_company_id_created_by_user_id_fkey",
+          "public",
+          "\"public\".\"sales\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "durable_sales.grant_runtime_access",
+    "label": "Grant append-only sale records and guarded workspace deletion",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres"
+    },
+    "precheck": [
+      {
+        "description": "New sale permissions are not yet present",
+        "sql": "SELECT NOT has_table_privilege('stockledger_app', 'public.sales', 'SELECT, INSERT, DELETE') AS result"
+      }
+    ],
+    "execute": [
+      {
+        "description": "Grant only read, insert and RLS-guarded delete",
+        "sql": "GRANT SELECT, INSERT, DELETE ON TABLE public.sales, public.sale_lines, public.sale_components TO stockledger_app"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "All new sale tables have append-only permissions",
+        "sql": "SELECT bool_and(has_table_privilege('stockledger_app', name, 'SELECT, INSERT, DELETE') AND NOT has_table_privilege('stockledger_app', name, 'UPDATE')) AS result FROM unnest(ARRAY['public.sales','public.sale_lines','public.sale_components']) AS names(name)"
+      }
+    ]
+  },
+  {
+    "id": "rowLevelSecurity.public.sale_components",
+    "label": "Enable row-level security on \"sale_components\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rowLevelSecurity",
+        "name": "sale_components"
+      }
+    },
+    "precheck": [
+      {
+        "description": "check RLS is not already enabled on \"sale_components\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND NOT (\"c\".\"relrowsecurity\"))) AS \"result\"",
+        "params": [
+          "public",
+          "sale_components"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "enable row-level security on \"sale_components\"",
+        "sql": "ALTER TABLE \"public\".\"sale_components\" ENABLE ROW LEVEL SECURITY"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify row-level security is enabled on \"sale_components\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"c\".\"relrowsecurity\")) AS \"result\"",
+        "params": [
+          "public",
+          "sale_components"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rowLevelSecurity.public.sale_lines",
+    "label": "Enable row-level security on \"sale_lines\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rowLevelSecurity",
+        "name": "sale_lines"
+      }
+    },
+    "precheck": [
+      {
+        "description": "check RLS is not already enabled on \"sale_lines\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND NOT (\"c\".\"relrowsecurity\"))) AS \"result\"",
+        "params": [
+          "public",
+          "sale_lines"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "enable row-level security on \"sale_lines\"",
+        "sql": "ALTER TABLE \"public\".\"sale_lines\" ENABLE ROW LEVEL SECURITY"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify row-level security is enabled on \"sale_lines\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"c\".\"relrowsecurity\")) AS \"result\"",
+        "params": [
+          "public",
+          "sale_lines"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rowLevelSecurity.public.sales",
+    "label": "Enable row-level security on \"sales\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rowLevelSecurity",
+        "name": "sales"
+      }
+    },
+    "precheck": [
+      {
+        "description": "check RLS is not already enabled on \"sales\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND NOT (\"c\".\"relrowsecurity\"))) AS \"result\"",
+        "params": [
+          "public",
+          "sales"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "enable row-level security on \"sales\"",
+        "sql": "ALTER TABLE \"public\".\"sales\" ENABLE ROW LEVEL SECURITY"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify row-level security is enabled on \"sales\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"c\".\"relrowsecurity\")) AS \"result\"",
+        "params": [
+          "public",
+          "sales"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.sale_components.sale_component_read_10e0fa81",
+    "label": "Create RLS policy \"sale_component_read_10e0fa81\" on \"sale_components\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "sale_component_read_10e0fa81",
+        "table": "sale_components"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"sale_component_read_10e0fa81\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "sale_components",
+          "sale_component_read_10e0fa81"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"sale_component_read_10e0fa81\"",
+        "sql": "CREATE POLICY \"sale_component_read_10e0fa81\" ON \"public\".\"sale_components\" AS PERMISSIVE FOR SELECT TO stockledger_app USING (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"sale_component_read_10e0fa81\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "sale_components",
+          "sale_component_read_10e0fa81"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.sale_components.sale_component_workspace_delete_336681c2",
+    "label": "Create RLS policy \"sale_component_workspace_delete_336681c2\" on \"sale_components\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "sale_component_workspace_delete_336681c2",
+        "table": "sale_components"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"sale_component_workspace_delete_336681c2\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "sale_components",
+          "sale_component_workspace_delete_336681c2"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"sale_component_workspace_delete_336681c2\"",
+        "sql": "CREATE POLICY \"sale_component_workspace_delete_336681c2\" ON \"public\".\"sale_components\" AS PERMISSIVE FOR DELETE TO stockledger_app USING (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid AND current_setting('app.workspace_deletion_company_id', true) = company_id::text)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"sale_component_workspace_delete_336681c2\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "sale_components",
+          "sale_component_workspace_delete_336681c2"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.sale_components.sale_component_write_1c87de9a",
+    "label": "Create RLS policy \"sale_component_write_1c87de9a\" on \"sale_components\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "sale_component_write_1c87de9a",
+        "table": "sale_components"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"sale_component_write_1c87de9a\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "sale_components",
+          "sale_component_write_1c87de9a"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"sale_component_write_1c87de9a\"",
+        "sql": "CREATE POLICY \"sale_component_write_1c87de9a\" ON \"public\".\"sale_components\" AS PERMISSIVE FOR INSERT TO stockledger_app WITH CHECK (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"sale_component_write_1c87de9a\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "sale_components",
+          "sale_component_write_1c87de9a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.sale_lines.sale_line_read_10e0fa81",
+    "label": "Create RLS policy \"sale_line_read_10e0fa81\" on \"sale_lines\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "sale_line_read_10e0fa81",
+        "table": "sale_lines"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"sale_line_read_10e0fa81\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "sale_lines",
+          "sale_line_read_10e0fa81"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"sale_line_read_10e0fa81\"",
+        "sql": "CREATE POLICY \"sale_line_read_10e0fa81\" ON \"public\".\"sale_lines\" AS PERMISSIVE FOR SELECT TO stockledger_app USING (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"sale_line_read_10e0fa81\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "sale_lines",
+          "sale_line_read_10e0fa81"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.sale_lines.sale_line_workspace_delete_336681c2",
+    "label": "Create RLS policy \"sale_line_workspace_delete_336681c2\" on \"sale_lines\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "sale_line_workspace_delete_336681c2",
+        "table": "sale_lines"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"sale_line_workspace_delete_336681c2\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "sale_lines",
+          "sale_line_workspace_delete_336681c2"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"sale_line_workspace_delete_336681c2\"",
+        "sql": "CREATE POLICY \"sale_line_workspace_delete_336681c2\" ON \"public\".\"sale_lines\" AS PERMISSIVE FOR DELETE TO stockledger_app USING (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid AND current_setting('app.workspace_deletion_company_id', true) = company_id::text)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"sale_line_workspace_delete_336681c2\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "sale_lines",
+          "sale_line_workspace_delete_336681c2"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.sale_lines.sale_line_write_1c87de9a",
+    "label": "Create RLS policy \"sale_line_write_1c87de9a\" on \"sale_lines\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "sale_line_write_1c87de9a",
+        "table": "sale_lines"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"sale_line_write_1c87de9a\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "sale_lines",
+          "sale_line_write_1c87de9a"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"sale_line_write_1c87de9a\"",
+        "sql": "CREATE POLICY \"sale_line_write_1c87de9a\" ON \"public\".\"sale_lines\" AS PERMISSIVE FOR INSERT TO stockledger_app WITH CHECK (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"sale_line_write_1c87de9a\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "sale_lines",
+          "sale_line_write_1c87de9a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.sales.sale_read_10e0fa81",
+    "label": "Create RLS policy \"sale_read_10e0fa81\" on \"sales\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "sale_read_10e0fa81",
+        "table": "sales"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"sale_read_10e0fa81\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "sales",
+          "sale_read_10e0fa81"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"sale_read_10e0fa81\"",
+        "sql": "CREATE POLICY \"sale_read_10e0fa81\" ON \"public\".\"sales\" AS PERMISSIVE FOR SELECT TO stockledger_app USING (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"sale_read_10e0fa81\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "sales",
+          "sale_read_10e0fa81"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.sales.sale_workspace_delete_336681c2",
+    "label": "Create RLS policy \"sale_workspace_delete_336681c2\" on \"sales\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "sale_workspace_delete_336681c2",
+        "table": "sales"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"sale_workspace_delete_336681c2\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "sales",
+          "sale_workspace_delete_336681c2"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"sale_workspace_delete_336681c2\"",
+        "sql": "CREATE POLICY \"sale_workspace_delete_336681c2\" ON \"public\".\"sales\" AS PERMISSIVE FOR DELETE TO stockledger_app USING (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid AND current_setting('app.workspace_deletion_company_id', true) = company_id::text)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"sale_workspace_delete_336681c2\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "sales",
+          "sale_workspace_delete_336681c2"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.sales.sale_write_1c87de9a",
+    "label": "Create RLS policy \"sale_write_1c87de9a\" on \"sales\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "sale_write_1c87de9a",
+        "table": "sales"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"sale_write_1c87de9a\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "sales",
+          "sale_write_1c87de9a"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"sale_write_1c87de9a\"",
+        "sql": "CREATE POLICY \"sale_write_1c87de9a\" ON \"public\".\"sales\" AS PERMISSIVE FOR INSERT TO stockledger_app WITH CHECK (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"sale_write_1c87de9a\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "sales",
+          "sale_write_1c87de9a"
+        ]
+      }
+    ]
+  }
+]

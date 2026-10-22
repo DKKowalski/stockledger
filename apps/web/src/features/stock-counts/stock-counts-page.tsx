@@ -47,7 +47,7 @@ export function StockCountsPage() {
   };
 
   return <PageState>
-    <PageHeader title="Stock counts" subtitle="Compare what is on the shelf with the ledger and record the variance." />
+    <PageHeader title="Stock counts" />
     <Panel title="Record a physical count" subtitle="A variance creates a traceable adjustment. Matching counts are recorded without changing stock.">
       <form className="form-grid stock-count-form" onSubmit={(event) => void submit(event).catch(() => {})}>
         <label><span>Place</span><SelectControl aria-label="Place" required value={form.locationId} onValueChange={(locationId) => setForm({ ...form, locationId })} options={[{ value: '', label: 'Select place' }, ...places.map((place) => ({ value: place.id, label: place.name }))]} /></label>
@@ -61,7 +61,7 @@ export function StockCountsPage() {
       </form>
     </Panel>
     <Panel title={`Count history (${counts?.length ?? 0})`} className="spaced">
-      {counts?.length ? <div className="table-wrap"><table><thead><tr><th>Date</th><th>{terms.Item}</th><th>Place</th><th className="num">Expected</th><th className="num">Counted</th><th className="num">Variance</th><th className="num">Value impact</th></tr></thead><tbody>{counts.map((count) => <tr key={count.id}><td>{calendarDate(count.countedAt)}</td><td><b>{count.item?.name ?? `Deleted ${terms.item}`}</b><small>{count.note}</small></td><td>{count.location?.name ?? 'Unknown'}</td><td className="num">{count.expectedQuantity}</td><td className="num">{count.countedQuantity}</td><td className={`num ${count.varianceQuantity > 0 ? 'positive' : count.varianceQuantity < 0 ? 'negative' : ''}`}>{count.varianceQuantity > 0 ? '+' : ''}{count.varianceQuantity}</td><td className="num">{money(count.varianceQuantity * count.unitCostCents)}</td></tr>)}</tbody></table></div> : counts ? <EmptyState icon={<ClipboardCheck size={21} />} text="No stock counts yet." /> : <div className="empty"><p>Loading count history</p></div>}
+      {counts?.length ? <div className="table-wrap"><table><thead><tr><th>Date</th><th>{terms.Item}</th><th>Place</th><th className="num">Expected</th><th className="num">Counted</th><th className="num">Variance</th><th className="num">Value impact</th></tr></thead><tbody>{counts.map((count) => <tr key={count.id}><td>{calendarDate(count.countedAt)}</td><td><b>{count.item?.name ?? `Deleted ${terms.item}`}</b><small>{count.note}</small></td><td>{count.location?.name ?? 'Unknown'}</td><td className="num">{count.expectedQuantity}</td><td className="num">{count.countedQuantity}</td><td className={`num ${count.varianceQuantity > 0 ? 'positive' : count.varianceQuantity < 0 ? 'negative' : ''}`}>{count.varianceQuantity > 0 ? '+' : ''}{count.varianceQuantity}</td><td className="num">{money(count.valueImpactCents ?? count.varianceQuantity * count.unitCostCents)}</td></tr>)}</tbody></table></div> : counts ? <EmptyState icon={<ClipboardCheck size={21} />} text="No stock counts yet." /> : <div className="empty"><p>Loading count history</p></div>}
     </Panel>
   </PageState>;
 }

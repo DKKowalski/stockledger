@@ -19,10 +19,10 @@ const exports: Array<{
   icon: LucideIcon;
 }> = [
   {
-    type: 'workspace',
+    type: 'workspace-v5',
     title: 'Complete workspace',
     description: 'A portable archive of the business and all of its records.',
-    detail: 'Includes settings, places, team accounts, inventory, movements, suppliers, counts, and activity history. Passwords and session tokens are excluded.',
+    detail: 'Includes settings, places, team accounts, inventory, movements, suppliers, counts, pricing previews, grouped sales, exact-cost records, returns, and activity history. Passwords and session tokens are excluded.',
     format: 'JSON',
     icon: Database,
   },
@@ -110,7 +110,7 @@ export function DataExportsPage() {
   };
 
   return <>
-    <PageHeader title="Data controls" subtitle="Export portable records, review import history, or remove this workspace." />
+    <PageHeader title="Data controls" />
     <SettingsNavigation />
     {summaryError && <div className="form-error settings-page-error" role="alert">{summaryError}</div>}
     <div className="data-export-grid">
@@ -132,14 +132,14 @@ export function DataExportsPage() {
       <div><h2>Administrator access only</h2><p>Each file contains records from this business only. StockLedger records the export in your activity history.</p></div>
     </div>
     <div className="data-history-grid">
-      <Panel title="Latest export" subtitle="The most recent data file prepared for this workspace.">
+      <Panel title="Latest export">
         {summary?.lastExport ? <article className="data-history-row">
           <span><Download size={17} /></span>
           <div><h3>{exportLabel(summary.lastExport.type)}</h3><p>{summary.lastExport.rowCount.toLocaleString()} records · {summary.lastExport.actorName}</p></div>
           <time>{dateTime(summary.lastExport.createdAt)}</time>
         </article> : summary ? <EmptyState text="No workspace data has been exported yet." /> : <div className="empty"><StockLedgerMark animated size={28} /><p>Loading export history</p></div>}
       </Panel>
-      <Panel title="Spreadsheet imports" subtitle="The latest catalog files added to inventory.">
+      <Panel title="Spreadsheet imports">
         {summary?.imports.length ? <div className="data-import-list">{summary.imports.map((entry) => <article className="data-history-row" key={entry.id}>
           <span><Upload size={17} /></span>
           <div><h3>{entry.fileName || 'Spreadsheet import'}</h3><p>{entry.imported.toLocaleString()} {entry.imported === 1 ? 'item' : 'items'} · {entry.actorName}</p></div>

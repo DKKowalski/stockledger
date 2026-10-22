@@ -1,0 +1,34 @@
+import { randomUUID } from 'node:crypto';
+import { test } from '@e2e-dev/web';
+import { credentials, expect } from 'e2e';
+import { fixture, token, get } from '../fixture';
+
+test('administrator agent confirms current-cost evidence without changing stock or financial values', async ({ app, screen, agent, browser }) => {
+  if (process.env.STOCKLEDGER_TEST_COST_REVIEW !== '1') test.skip('Requires the explicitly enabled disposable cost-review fixture');
+  const auth = await token();
+  expect((await get('/inventory/cost-review', auth)).available).toBe(true);
+  const before = await get('/inventory/snapshot?days=30', auth);
+  const previous = await get(`/inventory/items/${fixture.item}/cost-review`, auth);
+  const pricing = await get(`/inventory/items/${fixture.item}/pricing-preview`, auth);
+  const reference = `Synthetic purchase records QA-${randomUUID()}`;
+  const user = credentials.user('admin');
+  await app.open('/login');
+  await screen.getByLabel('Email address').fill(user.username);
+  await screen.getByPlaceholder('Enter your password').fill(user.password);
+  await screen.getByRole('button', 'Sign in').tap();
+  await expect(screen.getByRole('link', 'Overview').first()).toBeVisible();
+  await app.open('/items');
+  await agent.act('In Review purchase costs, select {product} using the Cost review item dropdown. If the cost is already confirmed, choose Review another record. Choose Purchase records under Records checked and enter {reference} as the Record reference. Leave it ready without confirming yet.', { params: { product: 'Live preview product', reference } });
+  await expect(screen.getByLabel('Record reference')).toHaveValue(reference);
+  await agent.act('Confirm the current cost exactly once using Confirm current cost, then inspect the saved confirmation.');
+  await expect(browser.locator('.cost-review-panel')).toContainText('Current cost confirmed by an administrator.');
+  const saved = await get(`/inventory/items/${fixture.item}/cost-review`, auth);
+  expect(saved).toMatchObject({ state: 'confirmed', currency: 'GHS', review: { source: 'purchase_records', reference, currency: 'GHS', costCents: previous.item.unitCostCents } });
+  expect(saved.review.id).not.toBe(previous.review?.id);
+  const after = await get('/inventory/snapshot?days=30', auth);
+  expect(after.positions).toEqual(before.positions);
+  expect(after.movements).toEqual(before.movements);
+  expect((await get(`/inventory/items/${fixture.item}/pricing-preview`, auth)).configuration).toEqual(pricing.configuration);
+  expect(saved.item).toEqual(previous.item);
+  expect(await browser.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});

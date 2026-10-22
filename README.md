@@ -2,8 +2,6 @@
 
 StockLedger is a warehouse inventory dashboard built as a separate project from FieldFlow. It uses the same module, controller, provider, DTO and Prisma contract patterns from the FieldFlow API, with a React web client modeled on the supplied reference application.
 
-The product's visual direction, component rules, and logo brief live in the [UI and brand style guide](docs/ui-style-guide.md).
-
 ## What is included
 
 - Inventory dashboard with closing stock, stock value, low-stock, damage and dead-stock summaries
@@ -55,6 +53,8 @@ npm run web:dev
 
 Open `http://localhost:5173`. The API runs on `http://localhost:3000`.
 
+If another project uses port 5173, set `VITE_DEV_PORT=5174` in `apps/web/.env` and `WEB_ORIGIN=http://localhost:5174` in `apps/api/.env`, then restart both dev servers. Vite fails clearly when the selected port is occupied instead of silently changing the browser origin.
+
 Use the seeded administrator account:
 
 ```text
@@ -78,9 +78,11 @@ The transaction explicitly uses Read Committed isolation so a request that waite
 
 ## Selling prices
 
+Box and quantity deals are off by default. An owner turns them on under **Settings → Inventory → Selling → Box and quantity deals**. When on, each item's **Pricing** tab sets a box price and quantity discounts, the normal **Sell** screen charges them, customer returns refund the price actually paid, and **Profit** shows the discounts given. Items without deals keep their single price. The switch requires negative stock to be off. `PRICING_PREVIEW_COMPANY_IDS` and the development checkout allowlists remain as overrides for development/test. See the [pricing rollout notes](docs/pricing-preview-rollout.md).
+
 Administrators can set a selling price when adding an item or under **Items → Selling prices**. The price applies across the company's shops. Items without a price cannot be sold; an explicit zero price is supported. Attendants see the unit price and total before submitting. The API records the current catalog price and rejects stale displayed prices with `409 Conflict` so the attendant can refresh and review it.
 
-Historical sales retain their recorded unit price even after the catalog changes. Sales recorded before pricing was introduced show **Not recorded** for price and total. The migration leaves existing item prices unset instead of treating purchase cost as a selling price. Amounts use integer cents and display two decimal places. The application still uses its existing USD currency setting.
+Historical sales retain their recorded unit price even after the catalog changes. Sales recorded before pricing was introduced show **Not recorded** for price and total. The migration leaves existing item prices unset instead of treating purchase cost as a selling price. Amounts use integer cents and display two decimal places. Currency is configurable per company and defaults to GHS.
 
 ## Tests
 
@@ -140,3 +142,11 @@ This reduces idle cold starts on the current Render Free API service, but GitHub
 StockLedger owns the transactional sending domain. Individual businesses do not need to connect their own domains. Until a StockLedger domain is verified, an administrator can create a staff account with a copyable invitation link, or create a copyable password-reset link from the Team page. Each new link invalidates the previous link of the same type and should be shared through a private channel.
 
 Browser access tokens live only in React memory and expire after 15 minutes. A rotating 30-day token stays in a secure HTTP-only cookie. Render and the API must use HTTPS for the cross-origin cookie.
+
+Phase 3 adds optional development-only [durable sale completion](docs/sale-completion-development.md), with idempotent recovery and grouped ledger records. In production it is enabled per business by the owner switch described under Selling prices.
+
+Phase 4A adds optional administrator [current-cost review](docs/cost-readiness-development.md). `COST_READINESS_COMPANY_IDS` enables **Items → Review purchase costs** only in development/test. Reviews append supporting-record references to the existing audit log; they never change costs, stock or historical profit. See Phase 4B below for the prospective exact-value workflow.
+
+Phase 4B adds optional [exact future stock costs](docs/exact-costing-development.md), approved for development/test only. `EXACT_COSTING_COMPANY_IDS` enables **Items → Exact stock costs**; individual items still require explicit verified opening balances. Exact receipts, future development sales and documented current-value corrections preserve all cents. Unsupported enrolled-item stock operations are blocked until their compatible workflows exist. Existing items and historical sales are unchanged. Production rollout remains unapproved.
+
+Phase 4 stock operations and Phase 5 now add [original-allocation returns, reversals and exact stock operations](docs/returns-stock-development.md). In development/test, `SALE_RETURNS_COMPANY_IDS` enables **Movements → Customer returns** for administrators, and `STOCK_OPERATIONS_COMPANY_IDS` plus exact-cost activation enables **Exact stock changes** for administrators/managers. Actual refund/credit payments are not processed. Workspace v5 includes the new immutable records. Local staging uses synthetic businesses; real-business deployment and activation remain separately approved actions.

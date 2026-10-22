@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import type { Varchar } from '@prisma/orm-postgres/target/codec-types';
 import * as argon2 from 'argon2';
 import { PrismaService, type PrismaTransaction } from '../../prisma/prisma.service.js';
@@ -25,7 +25,9 @@ export class SettingsService {
 
       const name = body.name.trim();
       if (!name) throw new BadRequestException('Enter your business name');
+      await tx.query(this.prisma.client.raw.sql`SELECT id FROM public.companies WHERE id=${companyId}::uuid FOR UPDATE`.returnsRow({id:'pg/uuid@1'}).build());
       const before = await this.companySettings(tx, companyId);
+      if (body.currency !== before.currency && await tx.orm.public.InventoryValuationCheckpoint.first({companyId})) throw new ConflictException('Exact-cost items require their verified currency. Close and review valuation before changing it');
       const contactEmail = body.contactEmail.trim().toLowerCase();
 
       await tx.orm.public.Company.where({ id: companyId }).update({
@@ -125,6 +127,11 @@ export class SettingsService {
         const location = await tx.orm.public.Location.first({ id: body.defaultLocationId, companyId });
         if (!location) throw new BadRequestException('Choose a location in this workspace');
       }
+      await tx.query(this.prisma.client.raw.sql`SELECT id FROM public.companies WHERE id=${companyId}::uuid FOR UPDATE`.returnsRow({id:'pg/uuid@1'}).build());
+      if (body.allowNegativeStock && await tx.orm.public.InventoryValuationCheckpoint.first({companyId})) throw new ConflictException('Negative stock is unavailable while items use exact costing');
+      const current = await tx.orm.public.Company.first({ id: companyId });
+      const hybridPricingEnabled = body.hybridPricingEnabled ?? current?.hybridPricingEnabled ?? false;
+      if (hybridPricingEnabled && body.allowNegativeStock) throw new ConflictException('Box and quantity deals need negative stock switched off, because checkout never sells stock a shop does not have');
       const defaultUnit = body.defaultUnit.trim();
       if (!defaultUnit) throw new BadRequestException('Enter a default unit');
       const skuPrefix = body.skuPrefix.trim().toUpperCase();
@@ -138,8 +145,12 @@ export class SettingsService {
         allowNegativeStock: body.allowNegativeStock,
         requirePurchaseSource: body.requirePurchaseSource,
         requireAdjustmentReason: body.requireAdjustmentReason,
+        hybridPricingEnabled,
       });
       await this.auditSettings(tx, actor.id, companyId, 'company.inventory_settings_updated');
+      if (hybridPricingEnabled !== current?.hybridPricingEnabled) {
+        await this.auditSettings(tx, actor.id, companyId, hybridPricingEnabled ? 'company.hybrid_pricing_switched_on' : 'company.hybrid_pricing_switched_off');
+      }
       return this.companySettings(tx, companyId);
     });
   }
@@ -172,9 +183,41 @@ export class SettingsService {
         throw new BadRequestException('Current password is incorrect');
       }
 
+      // Wait for exact-cost transactions before removing their immutable dependencies.
+      await tx.query(this.prisma.client.raw.sql`SELECT id FROM public.companies WHERE id=${companyId}::uuid FOR UPDATE`.returnsRow({id:'pg/uuid@1'}).build());
       await tx.query(this.prisma.client.raw.sql`
         SELECT set_config('app.workspace_deletion_company_id', ${companyId}, true) AS company_id
       `.returnsRow({ company_id: 'pg/text@1' }).build());
+      await tx.execute(this.prisma.client.raw.sql`
+        DELETE FROM public.inventory_valuation_entries WHERE company_id = ${companyId}::uuid
+      `.affectedCount().build());
+      await tx.execute(this.prisma.client.raw.sql`
+        DELETE FROM public.sale_return_allocations WHERE company_id = ${companyId}::uuid
+      `.affectedCount().build());
+      await tx.execute(this.prisma.client.raw.sql`
+        DELETE FROM public.sale_returns WHERE company_id = ${companyId}::uuid
+      `.affectedCount().build());
+      await tx.execute(this.prisma.client.raw.sql`
+        DELETE FROM public.sale_return_requests WHERE company_id = ${companyId}::uuid
+      `.affectedCount().build());
+      await tx.execute(this.prisma.client.raw.sql`
+        DELETE FROM public.sale_components WHERE company_id = ${companyId}::uuid
+      `.affectedCount().build());
+      await tx.execute(this.prisma.client.raw.sql`
+        DELETE FROM public.sale_lines WHERE company_id = ${companyId}::uuid
+      `.affectedCount().build());
+      await tx.execute(this.prisma.client.raw.sql`
+        DELETE FROM public.sales WHERE company_id = ${companyId}::uuid
+      `.affectedCount().build());
+      await tx.execute(this.prisma.client.raw.sql`
+        DELETE FROM public.inventory_valuation_checkpoints WHERE company_id = ${companyId}::uuid
+      `.affectedCount().build());
+      await tx.execute(this.prisma.client.raw.sql`
+        DELETE FROM public.inventory_valuation_requests WHERE company_id = ${companyId}::uuid
+      `.affectedCount().build());
+      await tx.execute(this.prisma.client.raw.sql`
+        DELETE FROM public.item_pricing_versions WHERE company_id = ${companyId}::uuid
+      `.affectedCount().build());
       await tx.execute(this.prisma.client.raw.sql`
         UPDATE public.stock_movements
         SET related_movement_id = NULL, stock_count_id = NULL
@@ -236,6 +279,7 @@ export class SettingsService {
       allowNegativeStock: company.allowNegativeStock,
       requirePurchaseSource: company.requirePurchaseSource,
       requireAdjustmentReason: company.requireAdjustmentReason,
+      hybridPricingEnabled: company.hybridPricingEnabled,
       shopTerm: company.shopTerm,
       warehouseTerm: company.warehouseTerm,
       itemTerm: company.itemTerm,

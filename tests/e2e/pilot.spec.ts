@@ -2,8 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 async function signIntoDemo(page: Page) {
   await page.goto('/login');
-  await page.getByRole('button', { name: 'Preview the demo workspace' }).click();
-  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  await page.getByRole('button', { name: 'Preview as owner' }).click();
   await expect(page).toHaveURL('/');
   await expect(page.getByText('You are viewing a read-only demo.')).toBeVisible();
 }
@@ -131,7 +130,7 @@ test('contains wide data tables within the mobile viewport', async ({ page }) =>
   await page.setViewportSize({ width: 390, height: 844 });
   await signIntoDemo(page);
 
-  for (const path of ['/items', '/movements', '/team']) {
+  for (const path of ['/movements', '/team']) {
     await page.evaluate((nextPath) => {
       window.history.pushState({}, '', nextPath);
       window.dispatchEvent(new PopStateEvent('popstate'));
@@ -148,4 +147,25 @@ test('contains wide data tables within the mobile viewport', async ({ page }) =>
     expect(dimensions.documentWidth).toBeLessThanOrEqual(dimensions.viewportWidth);
     expect(dimensions.hasScrollableTable).toBe(true);
   }
+});
+
+test('fits the item catalog and item panel within the mobile viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await signIntoDemo(page);
+  await page.evaluate(() => {
+    window.history.pushState({}, '', '/items');
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  });
+  await expect(page.locator('.catalog-row').first()).toBeVisible();
+  await page.locator('.catalog-row').nth(1).click();
+  await expect(page.locator('.item-panel')).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
+test('previews the demo as the Makola shop attendant', async ({ page }) => {
+  await page.goto('/login');
+  await page.getByRole('button', { name: 'Preview as shop attendant' }).click();
+  await expect(page).toHaveURL('/');
+  await expect(page.getByText('You are viewing a read-only demo.')).toBeVisible();
+  await expect(page.getByText('Joyce Baidoo').first()).toBeVisible();
 });

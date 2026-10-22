@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildSnapshot, type ItemRecord, type LocationRecord, type MovementRecord } from './inventory-calculations.js';
+import { buildSnapshot, lowestBalanceFrom, withoutCosts, type ItemRecord, type LocationRecord, type MovementRecord } from './inventory-calculations.js';
 import { StockMovementType } from './inventory.types.js';
 
 const warehouse: LocationRecord = { id: 'warehouse', name: 'Main warehouse', type: 'warehouse' };
@@ -117,5 +117,48 @@ describe('buildSnapshot', () => {
     expect(atWarehouse).toMatchObject({ closing: 12, sales: 0 });
     expect(atShop).toMatchObject({ closing: 5, sales: 3, outLastPeriod: 3 });
     expect(snapshot.summary.closingUnits).toBe(17);
+  });
+});
+
+describe('lowestBalanceFrom', () => {
+  const dated = (type: StockMovementType, quantity: number, movementDate: string, locationId = warehouse.id, destinationLocationId: string | null = null) => ({
+    ...movement(type, quantity, locationId, destinationLocationId),
+    id: `${type}-${movementDate}-${quantity}`,
+    movementDate,
+  });
+  const opening = [{ locationId: warehouse.id, itemId: item.id, openingStock: 0 }];
+
+  it('rejects a backdated sale that only fits because of a later receipt', () => {
+    const movements = [dated(StockMovementType.PURCHASE, 10, '2026-09-20')];
+    expect(lowestBalanceFrom(opening, movements, item.id, warehouse.id, '2026-09-10')).toBe(0);
+    expect(lowestBalanceFrom(opening, movements, item.id, warehouse.id, '2026-09-20')).toBe(10);
+  });
+
+  it('keeps room for later outbound movements', () => {
+    const movements = [
+      dated(StockMovementType.PURCHASE, 10, '2026-09-01'),
+      dated(StockMovementType.DAMAGE, 8, '2026-09-15'),
+    ];
+    expect(lowestBalanceFrom(opening, movements, item.id, warehouse.id, '2026-09-05')).toBe(2);
+  });
+
+  it('counts a transfer at both places', () => {
+    const movements = [
+      dated(StockMovementType.PURCHASE, 6, '2026-09-01'),
+      dated(StockMovementType.TRANSFER, 4, '2026-09-02', warehouse.id, shop.id),
+    ];
+    expect(lowestBalanceFrom(opening, movements, item.id, warehouse.id, '')).toBe(0);
+    expect(lowestBalanceFrom(opening, movements, item.id, shop.id, '2026-09-02')).toBe(4);
+  });
+});
+
+describe('withoutCosts', () => {
+  it('removes unit costs and stock value from a shop snapshot', () => {
+    const purchase = { ...movement(StockMovementType.PURCHASE, 4, shop.id), unitCostCents: 900 };
+    const snapshot = withoutCosts(buildSnapshot([item], [shop], [], [purchase], 30, shop.id, new Date('2026-09-16T12:00:00.000Z')));
+    expect(snapshot.items[0]!.unitCostCents).toBe(0);
+    expect(snapshot.summary.stockValueCents).toBe(0);
+    expect(snapshot.positions[0]).toMatchObject({ closing: 4, valueCents: 0, item: { unitCostCents: 0 } });
+    expect(snapshot.movements[0]).toMatchObject({ unitCostCents: null, costTotalCents: null, item: { unitCostCents: 0 } });
   });
 });

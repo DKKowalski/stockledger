@@ -1,0 +1,11 @@
+{
+  "dependencies": {
+    "@ai-sdk/openai": "4.0.98",
+    "@e2e-dev/web": "0.15.2",
+    "ai": "7.0.147",
+    "e2e": "0.21.2"
+  },
+  "name": "stockledger-testerarmy-tests",
+  "version": "0.0.0",
+  "private": true
+}

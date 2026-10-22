@@ -16,6 +16,22 @@
       "model": "InventoryItem",
       "namespace": "public"
     },
+    "inventory_valuation_checkpoints": {
+      "model": "InventoryValuationCheckpoint",
+      "namespace": "public"
+    },
+    "inventory_valuation_entries": {
+      "model": "InventoryValuationEntry",
+      "namespace": "public"
+    },
+    "inventory_valuation_requests": {
+      "model": "InventoryValuationRequest",
+      "namespace": "public"
+    },
+    "item_pricing_versions": {
+      "model": "ItemPricingVersion",
+      "namespace": "public"
+    },
     "location_stocks": {
       "model": "LocationStock",
       "namespace": "public"
@@ -26,6 +42,30 @@
     },
     "refresh_sessions": {
       "model": "RefreshSession",
+      "namespace": "public"
+    },
+    "sale_components": {
+      "model": "SaleComponent",
+      "namespace": "public"
+    },
+    "sale_lines": {
+      "model": "SaleLine",
+      "namespace": "public"
+    },
+    "sale_return_allocations": {
+      "model": "SaleReturnAllocation",
+      "namespace": "public"
+    },
+    "sale_return_requests": {
+      "model": "SaleReturnRequest",
+      "namespace": "public"
+    },
+    "sale_returns": {
+      "model": "SaleReturn",
+      "namespace": "public"
+    },
+    "sales": {
+      "model": "Sale",
       "namespace": "public"
     },
     "stock_counts": {
@@ -324,6 +364,13 @@
                   }
                 }
               },
+              "hybridPricingEnabled": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/bool@1",
+                  "kind": "scalar"
+                }
+              },
               "id": {
                 "nullable": false,
                 "type": {
@@ -479,6 +526,9 @@
                 },
                 "defaultUnit": {
                   "column": "default_unit"
+                },
+                "hybridPricingEnabled": {
+                  "column": "hybrid_pricing_enabled"
                 },
                 "id": {
                   "column": "id"
@@ -685,6 +735,787 @@
               },
               "namespaceId": "public",
               "table": "inventory_items"
+            }
+          },
+          "InventoryValuationCheckpoint": {
+            "fields": {
+              "baseUnit": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 20
+                  }
+                }
+              },
+              "companyId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "costReviewId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdByUserId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "currency": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 3
+                  }
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "itemId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "openingQuantity": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "openingValueCents": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "reference": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 200
+                  }
+                }
+              },
+              "requestId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "actor": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "companyId",
+                    "createdByUserId"
+                  ],
+                  "targetFields": [
+                    "companyId",
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              },
+              "item": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "companyId",
+                    "itemId"
+                  ],
+                  "targetFields": [
+                    "companyId",
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "InventoryItem",
+                  "namespace": "public"
+                }
+              },
+              "request": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "companyId",
+                    "requestId"
+                  ],
+                  "targetFields": [
+                    "companyId",
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "InventoryValuationRequest",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "baseUnit": {
+                  "column": "base_unit"
+                },
+                "companyId": {
+                  "column": "company_id"
+                },
+                "costReviewId": {
+                  "column": "cost_review_id"
+                },
+                "createdAt": {
+                  "column": "created_at"
+                },
+                "createdByUserId": {
+                  "column": "created_by_user_id"
+                },
+                "currency": {
+                  "column": "currency"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "itemId": {
+                  "column": "item_id"
+                },
+                "openingQuantity": {
+                  "column": "opening_quantity"
+                },
+                "openingValueCents": {
+                  "column": "opening_value_cents"
+                },
+                "reference": {
+                  "column": "reference"
+                },
+                "requestId": {
+                  "column": "request_id"
+                }
+              },
+              "namespaceId": "public",
+              "table": "inventory_valuation_checkpoints"
+            }
+          },
+          "InventoryValuationEntry": {
+            "fields": {
+              "checkpointId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "companyId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdByUserId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "itemId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "kind": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 20
+                  }
+                }
+              },
+              "movementId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "quantityAfter": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "quantityDelta": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "reference": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 200
+                  }
+                }
+              },
+              "requestId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "sequence": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "valueAfterCents": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "valueDeltaCents": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "actor": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "companyId",
+                    "createdByUserId"
+                  ],
+                  "targetFields": [
+                    "companyId",
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              },
+              "checkpoint": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "companyId",
+                    "itemId",
+                    "checkpointId"
+                  ],
+                  "targetFields": [
+                    "companyId",
+                    "itemId",
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "InventoryValuationCheckpoint",
+                  "namespace": "public"
+                }
+              },
+              "movement": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "companyId",
+                    "movementId"
+                  ],
+                  "targetFields": [
+                    "companyId",
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "StockMovement",
+                  "namespace": "public"
+                }
+              },
+              "request": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "companyId",
+                    "requestId"
+                  ],
+                  "targetFields": [
+                    "companyId",
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "InventoryValuationRequest",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "checkpointId": {
+                  "column": "checkpoint_id"
+                },
+                "companyId": {
+                  "column": "company_id"
+                },
+                "createdAt": {
+                  "column": "created_at"
+                },
+                "createdByUserId": {
+                  "column": "created_by_user_id"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "itemId": {
+                  "column": "item_id"
+                },
+                "kind": {
+                  "column": "kind"
+                },
+                "movementId": {
+                  "column": "movement_id"
+                },
+                "quantityAfter": {
+                  "column": "quantity_after"
+                },
+                "quantityDelta": {
+                  "column": "quantity_delta"
+                },
+                "reference": {
+                  "column": "reference"
+                },
+                "requestId": {
+                  "column": "request_id"
+                },
+                "sequence": {
+                  "column": "sequence"
+                },
+                "valueAfterCents": {
+                  "column": "value_after_cents"
+                },
+                "valueDeltaCents": {
+                  "column": "value_delta_cents"
+                }
+              },
+              "namespaceId": "public",
+              "table": "inventory_valuation_entries"
+            }
+          },
+          "InventoryValuationRequest": {
+            "fields": {
+              "companyId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdByUserId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "finishedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "inputHash": {
+                "nullable": true,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 64
+                  }
+                }
+              },
+              "inputJson": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/jsonb@1",
+                  "kind": "scalar"
+                }
+              },
+              "itemId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "requestKey": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "status": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 12
+                  }
+                }
+              }
+            },
+            "relations": {
+              "actor": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "companyId",
+                    "createdByUserId"
+                  ],
+                  "targetFields": [
+                    "companyId",
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              },
+              "company": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "companyId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Company",
+                  "namespace": "public"
+                }
+              },
+              "item": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "companyId",
+                    "itemId"
+                  ],
+                  "targetFields": [
+                    "companyId",
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "InventoryItem",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "companyId": {
+                  "column": "company_id"
+                },
+                "createdAt": {
+                  "column": "created_at"
+                },
+                "createdByUserId": {
+                  "column": "created_by_user_id"
+                },
+                "finishedAt": {
+                  "column": "finished_at"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "inputHash": {
+                  "column": "input_hash"
+                },
+                "inputJson": {
+                  "column": "input_json"
+                },
+                "itemId": {
+                  "column": "item_id"
+                },
+                "requestKey": {
+                  "column": "request_key"
+                },
+                "status": {
+                  "column": "status"
+                }
+              },
+              "namespaceId": "public",
+              "table": "inventory_valuation_requests"
+            }
+          },
+          "ItemPricingVersion": {
+            "fields": {
+              "baseUnit": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 20
+                  }
+                }
+              },
+              "bulkTiers": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/jsonb@1",
+                  "kind": "scalar"
+                }
+              },
+              "companyId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdByUserId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "itemId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "packageLabel": {
+                "nullable": true,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 20
+                  }
+                }
+              },
+              "packagePriceCents": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "packageSize": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "previewEnabled": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/bool@1",
+                  "kind": "scalar"
+                }
+              },
+              "version": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "createdBy": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "companyId",
+                    "createdByUserId"
+                  ],
+                  "targetFields": [
+                    "companyId",
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              },
+              "item": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "companyId",
+                    "itemId"
+                  ],
+                  "targetFields": [
+                    "companyId",
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "InventoryItem",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "baseUnit": {
+                  "column": "base_unit"
+                },
+                "bulkTiers": {
+                  "column": "bulk_tiers"
+                },
+                "companyId": {
+                  "column": "company_id"
+                },
+                "createdAt": {
+                  "column": "created_at"
+                },
+                "createdByUserId": {
+                  "column": "created_by_user_id"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "itemId": {
+                  "column": "item_id"
+                },
+                "packageLabel": {
+                  "column": "package_label"
+                },
+                "packagePriceCents": {
+                  "column": "package_price_cents"
+                },
+                "packageSize": {
+                  "column": "package_size"
+                },
+                "previewEnabled": {
+                  "column": "preview_enabled"
+                },
+                "version": {
+                  "column": "version"
+                }
+              },
+              "namespaceId": "public",
+              "table": "item_pricing_versions"
             }
           },
           "Location": {
@@ -1039,6 +1870,1252 @@
               },
               "namespaceId": "public",
               "table": "refresh_sessions"
+            }
+          },
+          "Sale": {
+            "fields": {
+              "automaticDiscountCents": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "cogsCents": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "companyId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdByUserId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "currency": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 3
+                  }
+                }
+              },
+              "grossSalesCents": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "idempotencyKey": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "locationId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "movementDate": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/date-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "requestHash": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 64
+                  }
+                }
+              },
+              "totalCents": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "createdBy": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "companyId",
+                    "createdByUserId"
+                  ],
+                  "targetFields": [
+                    "companyId",
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              },
+              "location": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "companyId",
+                    "locationId"
+                  ],
+                  "targetFields": [
+                    "companyId",
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Location",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "automaticDiscountCents": {
+                  "column": "automatic_discount_cents"
+                },
+                "cogsCents": {
+                  "column": "cogs_cents"
+                },
+                "companyId": {
+                  "column": "company_id"
+                },
+                "createdAt": {
+                  "column": "created_at"
+                },
+                "createdByUserId": {
+                  "column": "created_by_user_id"
+                },
+                "currency": {
+                  "column": "currency"
+                },
+                "grossSalesCents": {
+                  "column": "gross_sales_cents"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "idempotencyKey": {
+                  "column": "idempotency_key"
+                },
+                "locationId": {
+                  "column": "location_id"
+                },
+                "movementDate": {
+                  "column": "movement_date"
+                },
+                "requestHash": {
+                  "column": "request_hash"
+                },
+                "totalCents": {
+                  "column": "total_cents"
+                }
+              },
+              "namespaceId": "public",
+              "table": "sales"
+            }
+          },
+          "SaleComponent": {
+            "fields": {
+              "category": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 10
+                  }
+                }
+              },
+              "companyId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "movementId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "position": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "quantity": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "saleLineId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "totalCents": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "unitPriceCents": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "line": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "companyId",
+                    "saleLineId"
+                  ],
+                  "targetFields": [
+                    "companyId",
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "SaleLine",
+                  "namespace": "public"
+                }
+              },
+              "movement": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "companyId",
+                    "movementId"
+                  ],
+                  "targetFields": [
+                    "companyId",
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "StockMovement",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "category": {
+                  "column": "category"
+                },
+                "companyId": {
+                  "column": "company_id"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "movementId": {
+                  "column": "movement_id"
+                },
+                "position": {
+                  "column": "position"
+                },
+                "quantity": {
+                  "column": "quantity"
+                },
+                "saleLineId": {
+                  "column": "sale_line_id"
+                },
+                "totalCents": {
+                  "column": "total_cents"
+                },
+                "unitPriceCents": {
+                  "column": "unit_price_cents"
+                }
+              },
+              "namespaceId": "public",
+              "table": "sale_components"
+            }
+          },
+          "SaleLine": {
+            "fields": {
+              "automaticDiscountCents": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "baseUnit": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 20
+                  }
+                }
+              },
+              "category": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 80
+                  }
+                }
+              },
+              "cogsCents": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "companyId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "grossSalesCents": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "itemId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "itemName": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 120
+                  }
+                }
+              },
+              "position": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "pricingSnapshot": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/jsonb@1",
+                  "kind": "scalar"
+                }
+              },
+              "quantity": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "retailPriceCents": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "saleId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "sku": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 40
+                  }
+                }
+              },
+              "totalCents": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "unitCostCents": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "valuationCheckpointId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "item": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "companyId",
+                    "itemId"
+                  ],
+                  "targetFields": [
+                    "companyId",
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "InventoryItem",
+                  "namespace": "public"
+                }
+              },
+              "sale": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "companyId",
+                    "saleId"
+                  ],
+                  "targetFields": [
+                    "companyId",
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Sale",
+                  "namespace": "public"
+                }
+              },
+              "valuationCheckpoint": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "companyId",
+                    "itemId",
+                    "valuationCheckpointId"
+                  ],
+                  "targetFields": [
+                    "companyId",
+                    "itemId",
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "InventoryValuationCheckpoint",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "automaticDiscountCents": {
+                  "column": "automatic_discount_cents"
+                },
+                "baseUnit": {
+                  "column": "base_unit"
+                },
+                "category": {
+                  "column": "category"
+                },
+                "cogsCents": {
+                  "column": "cogs_cents"
+                },
+                "companyId": {
+                  "column": "company_id"
+                },
+                "grossSalesCents": {
+                  "column": "gross_sales_cents"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "itemId": {
+                  "column": "item_id"
+                },
+                "itemName": {
+                  "column": "item_name"
+                },
+                "position": {
+                  "column": "position"
+                },
+                "pricingSnapshot": {
+                  "column": "pricing_snapshot"
+                },
+                "quantity": {
+                  "column": "quantity"
+                },
+                "retailPriceCents": {
+                  "column": "retail_price_cents"
+                },
+                "saleId": {
+                  "column": "sale_id"
+                },
+                "sku": {
+                  "column": "sku"
+                },
+                "totalCents": {
+                  "column": "total_cents"
+                },
+                "unitCostCents": {
+                  "column": "unit_cost_cents"
+                },
+                "valuationCheckpointId": {
+                  "column": "valuation_checkpoint_id"
+                }
+              },
+              "namespaceId": "public",
+              "table": "sale_lines"
+            }
+          },
+          "SaleReturn": {
+            "fields": {
+              "cogsCents": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "companyId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdByUserId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "currency": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 3
+                  }
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "kind": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 12
+                  }
+                }
+              },
+              "legacyMovementId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "locationId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "movementDate": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/date-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "reason": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 200
+                  }
+                }
+              },
+              "reference": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 200
+                  }
+                }
+              },
+              "refundCents": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "requestId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "sourceSaleId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "actor": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "companyId",
+                    "createdByUserId"
+                  ],
+                  "targetFields": [
+                    "companyId",
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              },
+              "legacy": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "companyId",
+                    "legacyMovementId"
+                  ],
+                  "targetFields": [
+                    "companyId",
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "StockMovement",
+                  "namespace": "public"
+                }
+              },
+              "location": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "companyId",
+                    "locationId"
+                  ],
+                  "targetFields": [
+                    "companyId",
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Location",
+                  "namespace": "public"
+                }
+              },
+              "request": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "companyId",
+                    "requestId"
+                  ],
+                  "targetFields": [
+                    "companyId",
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "SaleReturnRequest",
+                  "namespace": "public"
+                }
+              },
+              "sale": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "companyId",
+                    "sourceSaleId"
+                  ],
+                  "targetFields": [
+                    "companyId",
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Sale",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "cogsCents": {
+                  "column": "cogs_cents"
+                },
+                "companyId": {
+                  "column": "company_id"
+                },
+                "createdAt": {
+                  "column": "created_at"
+                },
+                "createdByUserId": {
+                  "column": "created_by_user_id"
+                },
+                "currency": {
+                  "column": "currency"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "kind": {
+                  "column": "kind"
+                },
+                "legacyMovementId": {
+                  "column": "legacy_movement_id"
+                },
+                "locationId": {
+                  "column": "location_id"
+                },
+                "movementDate": {
+                  "column": "movement_date"
+                },
+                "reason": {
+                  "column": "reason"
+                },
+                "reference": {
+                  "column": "reference"
+                },
+                "refundCents": {
+                  "column": "refund_cents"
+                },
+                "requestId": {
+                  "column": "request_id"
+                },
+                "sourceSaleId": {
+                  "column": "source_sale_id"
+                }
+              },
+              "namespaceId": "public",
+              "table": "sale_returns"
+            }
+          },
+          "SaleReturnAllocation": {
+            "fields": {
+              "cogsCents": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "companyId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "disposition": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 12
+                  }
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "itemId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "lossMovementId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "originalMovementId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "position": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "quantity": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "refundCents": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "returnId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "returnMovementId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "unitCostCents": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "unitPriceCents": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "item": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "companyId",
+                    "itemId"
+                  ],
+                  "targetFields": [
+                    "companyId",
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "InventoryItem",
+                  "namespace": "public"
+                }
+              },
+              "loss": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "companyId",
+                    "lossMovementId"
+                  ],
+                  "targetFields": [
+                    "companyId",
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "StockMovement",
+                  "namespace": "public"
+                }
+              },
+              "movement": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "companyId",
+                    "returnMovementId"
+                  ],
+                  "targetFields": [
+                    "companyId",
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "StockMovement",
+                  "namespace": "public"
+                }
+              },
+              "original": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "companyId",
+                    "originalMovementId"
+                  ],
+                  "targetFields": [
+                    "companyId",
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "StockMovement",
+                  "namespace": "public"
+                }
+              },
+              "returned": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "companyId",
+                    "returnId"
+                  ],
+                  "targetFields": [
+                    "companyId",
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "SaleReturn",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "cogsCents": {
+                  "column": "cogs_cents"
+                },
+                "companyId": {
+                  "column": "company_id"
+                },
+                "disposition": {
+                  "column": "disposition"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "itemId": {
+                  "column": "item_id"
+                },
+                "lossMovementId": {
+                  "column": "loss_movement_id"
+                },
+                "originalMovementId": {
+                  "column": "original_movement_id"
+                },
+                "position": {
+                  "column": "position"
+                },
+                "quantity": {
+                  "column": "quantity"
+                },
+                "refundCents": {
+                  "column": "refund_cents"
+                },
+                "returnId": {
+                  "column": "return_id"
+                },
+                "returnMovementId": {
+                  "column": "return_movement_id"
+                },
+                "unitCostCents": {
+                  "column": "unit_cost_cents"
+                },
+                "unitPriceCents": {
+                  "column": "unit_price_cents"
+                }
+              },
+              "namespaceId": "public",
+              "table": "sale_return_allocations"
+            }
+          },
+          "SaleReturnRequest": {
+            "fields": {
+              "companyId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdByUserId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "finishedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "inputHash": {
+                "nullable": true,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 64
+                  }
+                }
+              },
+              "inputJson": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/jsonb@1",
+                  "kind": "scalar"
+                }
+              },
+              "previewJson": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/jsonb@1",
+                  "kind": "scalar"
+                }
+              },
+              "requestKey": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "status": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 12
+                  }
+                }
+              }
+            },
+            "relations": {
+              "actor": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "companyId",
+                    "createdByUserId"
+                  ],
+                  "targetFields": [
+                    "companyId",
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              },
+              "company": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "companyId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Company",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "companyId": {
+                  "column": "company_id"
+                },
+                "createdAt": {
+                  "column": "created_at"
+                },
+                "createdByUserId": {
+                  "column": "created_by_user_id"
+                },
+                "finishedAt": {
+                  "column": "finished_at"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "inputHash": {
+                  "column": "input_hash"
+                },
+                "inputJson": {
+                  "column": "input_json"
+                },
+                "previewJson": {
+                  "column": "preview_json"
+                },
+                "requestKey": {
+                  "column": "request_key"
+                },
+                "status": {
+                  "column": "status"
+                }
+              },
+              "namespaceId": "public",
+              "table": "sale_return_requests"
             }
           },
           "StockCount": {
@@ -1993,6 +4070,45 @@
               "using": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid",
               "withCheck": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
             },
+            "item_pricing_read": {
+              "kind": "policy",
+              "name": "item_pricing_read_10e0fa81",
+              "namespaceId": "public",
+              "operation": "select",
+              "permissive": true,
+              "prefix": "item_pricing_read",
+              "roles": [
+                "stockledger_app"
+              ],
+              "tableName": "item_pricing_versions",
+              "using": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+            },
+            "item_pricing_workspace_delete": {
+              "kind": "policy",
+              "name": "item_pricing_workspace_delete_336681c2",
+              "namespaceId": "public",
+              "operation": "delete",
+              "permissive": true,
+              "prefix": "item_pricing_workspace_delete",
+              "roles": [
+                "stockledger_app"
+              ],
+              "tableName": "item_pricing_versions",
+              "using": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid AND current_setting('app.workspace_deletion_company_id', true) = company_id::text"
+            },
+            "item_pricing_write": {
+              "kind": "policy",
+              "name": "item_pricing_write_1c87de9a",
+              "namespaceId": "public",
+              "operation": "insert",
+              "permissive": true,
+              "prefix": "item_pricing_write",
+              "roles": [
+                "stockledger_app"
+              ],
+              "tableName": "item_pricing_versions",
+              "withCheck": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+            },
             "location_stock_tenant": {
               "kind": "policy",
               "name": "location_stock_tenant_f6e81ebe",
@@ -2033,6 +4149,254 @@
               ],
               "tableName": "refresh_sessions",
               "using": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid",
+              "withCheck": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+            },
+            "sale_component_read": {
+              "kind": "policy",
+              "name": "sale_component_read_10e0fa81",
+              "namespaceId": "public",
+              "operation": "select",
+              "permissive": true,
+              "prefix": "sale_component_read",
+              "roles": [
+                "stockledger_app"
+              ],
+              "tableName": "sale_components",
+              "using": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+            },
+            "sale_component_workspace_delete": {
+              "kind": "policy",
+              "name": "sale_component_workspace_delete_336681c2",
+              "namespaceId": "public",
+              "operation": "delete",
+              "permissive": true,
+              "prefix": "sale_component_workspace_delete",
+              "roles": [
+                "stockledger_app"
+              ],
+              "tableName": "sale_components",
+              "using": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid AND current_setting('app.workspace_deletion_company_id', true) = company_id::text"
+            },
+            "sale_component_write": {
+              "kind": "policy",
+              "name": "sale_component_write_1c87de9a",
+              "namespaceId": "public",
+              "operation": "insert",
+              "permissive": true,
+              "prefix": "sale_component_write",
+              "roles": [
+                "stockledger_app"
+              ],
+              "tableName": "sale_components",
+              "withCheck": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+            },
+            "sale_line_read": {
+              "kind": "policy",
+              "name": "sale_line_read_10e0fa81",
+              "namespaceId": "public",
+              "operation": "select",
+              "permissive": true,
+              "prefix": "sale_line_read",
+              "roles": [
+                "stockledger_app"
+              ],
+              "tableName": "sale_lines",
+              "using": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+            },
+            "sale_line_workspace_delete": {
+              "kind": "policy",
+              "name": "sale_line_workspace_delete_336681c2",
+              "namespaceId": "public",
+              "operation": "delete",
+              "permissive": true,
+              "prefix": "sale_line_workspace_delete",
+              "roles": [
+                "stockledger_app"
+              ],
+              "tableName": "sale_lines",
+              "using": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid AND current_setting('app.workspace_deletion_company_id', true) = company_id::text"
+            },
+            "sale_line_write": {
+              "kind": "policy",
+              "name": "sale_line_write_1c87de9a",
+              "namespaceId": "public",
+              "operation": "insert",
+              "permissive": true,
+              "prefix": "sale_line_write",
+              "roles": [
+                "stockledger_app"
+              ],
+              "tableName": "sale_lines",
+              "withCheck": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+            },
+            "sale_read": {
+              "kind": "policy",
+              "name": "sale_read_10e0fa81",
+              "namespaceId": "public",
+              "operation": "select",
+              "permissive": true,
+              "prefix": "sale_read",
+              "roles": [
+                "stockledger_app"
+              ],
+              "tableName": "sales",
+              "using": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+            },
+            "sale_return_allocation_delete": {
+              "kind": "policy",
+              "name": "sale_return_allocation_delete_336681c2",
+              "namespaceId": "public",
+              "operation": "delete",
+              "permissive": true,
+              "prefix": "sale_return_allocation_delete",
+              "roles": [
+                "stockledger_app"
+              ],
+              "tableName": "sale_return_allocations",
+              "using": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid AND current_setting('app.workspace_deletion_company_id', true) = company_id::text"
+            },
+            "sale_return_allocation_insert": {
+              "kind": "policy",
+              "name": "sale_return_allocation_insert_1c87de9a",
+              "namespaceId": "public",
+              "operation": "insert",
+              "permissive": true,
+              "prefix": "sale_return_allocation_insert",
+              "roles": [
+                "stockledger_app"
+              ],
+              "tableName": "sale_return_allocations",
+              "withCheck": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+            },
+            "sale_return_allocation_select": {
+              "kind": "policy",
+              "name": "sale_return_allocation_select_10e0fa81",
+              "namespaceId": "public",
+              "operation": "select",
+              "permissive": true,
+              "prefix": "sale_return_allocation_select",
+              "roles": [
+                "stockledger_app"
+              ],
+              "tableName": "sale_return_allocations",
+              "using": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+            },
+            "sale_return_delete": {
+              "kind": "policy",
+              "name": "sale_return_delete_336681c2",
+              "namespaceId": "public",
+              "operation": "delete",
+              "permissive": true,
+              "prefix": "sale_return_delete",
+              "roles": [
+                "stockledger_app"
+              ],
+              "tableName": "sale_returns",
+              "using": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid AND current_setting('app.workspace_deletion_company_id', true) = company_id::text"
+            },
+            "sale_return_insert": {
+              "kind": "policy",
+              "name": "sale_return_insert_1c87de9a",
+              "namespaceId": "public",
+              "operation": "insert",
+              "permissive": true,
+              "prefix": "sale_return_insert",
+              "roles": [
+                "stockledger_app"
+              ],
+              "tableName": "sale_returns",
+              "withCheck": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+            },
+            "sale_return_request_delete": {
+              "kind": "policy",
+              "name": "sale_return_request_delete_336681c2",
+              "namespaceId": "public",
+              "operation": "delete",
+              "permissive": true,
+              "prefix": "sale_return_request_delete",
+              "roles": [
+                "stockledger_app"
+              ],
+              "tableName": "sale_return_requests",
+              "using": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid AND current_setting('app.workspace_deletion_company_id', true) = company_id::text"
+            },
+            "sale_return_request_finish": {
+              "kind": "policy",
+              "name": "sale_return_request_finish_277a30ed",
+              "namespaceId": "public",
+              "operation": "update",
+              "permissive": true,
+              "prefix": "sale_return_request_finish",
+              "roles": [
+                "stockledger_app"
+              ],
+              "tableName": "sale_return_requests",
+              "using": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid AND status = 'prepared'",
+              "withCheck": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid AND status IN ('applied','cancelled')"
+            },
+            "sale_return_request_insert": {
+              "kind": "policy",
+              "name": "sale_return_request_insert_1c87de9a",
+              "namespaceId": "public",
+              "operation": "insert",
+              "permissive": true,
+              "prefix": "sale_return_request_insert",
+              "roles": [
+                "stockledger_app"
+              ],
+              "tableName": "sale_return_requests",
+              "withCheck": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+            },
+            "sale_return_request_select": {
+              "kind": "policy",
+              "name": "sale_return_request_select_10e0fa81",
+              "namespaceId": "public",
+              "operation": "select",
+              "permissive": true,
+              "prefix": "sale_return_request_select",
+              "roles": [
+                "stockledger_app"
+              ],
+              "tableName": "sale_return_requests",
+              "using": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+            },
+            "sale_return_select": {
+              "kind": "policy",
+              "name": "sale_return_select_10e0fa81",
+              "namespaceId": "public",
+              "operation": "select",
+              "permissive": true,
+              "prefix": "sale_return_select",
+              "roles": [
+                "stockledger_app"
+              ],
+              "tableName": "sale_returns",
+              "using": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+            },
+            "sale_workspace_delete": {
+              "kind": "policy",
+              "name": "sale_workspace_delete_336681c2",
+              "namespaceId": "public",
+              "operation": "delete",
+              "permissive": true,
+              "prefix": "sale_workspace_delete",
+              "roles": [
+                "stockledger_app"
+              ],
+              "tableName": "sales",
+              "using": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid AND current_setting('app.workspace_deletion_company_id', true) = company_id::text"
+            },
+            "sale_write": {
+              "kind": "policy",
+              "name": "sale_write_1c87de9a",
+              "namespaceId": "public",
+              "operation": "insert",
+              "permissive": true,
+              "prefix": "sale_write",
+              "roles": [
+                "stockledger_app"
+              ],
+              "tableName": "sales",
               "withCheck": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
             },
             "stock_count_tenant": {
@@ -2090,6 +4454,137 @@
               "tableName": "users",
               "using": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid",
               "withCheck": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+            },
+            "valuation_checkpoint_delete": {
+              "kind": "policy",
+              "name": "valuation_checkpoint_delete_336681c2",
+              "namespaceId": "public",
+              "operation": "delete",
+              "permissive": true,
+              "prefix": "valuation_checkpoint_delete",
+              "roles": [
+                "stockledger_app"
+              ],
+              "tableName": "inventory_valuation_checkpoints",
+              "using": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid AND current_setting('app.workspace_deletion_company_id', true) = company_id::text"
+            },
+            "valuation_checkpoint_insert": {
+              "kind": "policy",
+              "name": "valuation_checkpoint_insert_1c87de9a",
+              "namespaceId": "public",
+              "operation": "insert",
+              "permissive": true,
+              "prefix": "valuation_checkpoint_insert",
+              "roles": [
+                "stockledger_app"
+              ],
+              "tableName": "inventory_valuation_checkpoints",
+              "withCheck": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+            },
+            "valuation_checkpoint_select": {
+              "kind": "policy",
+              "name": "valuation_checkpoint_select_10e0fa81",
+              "namespaceId": "public",
+              "operation": "select",
+              "permissive": true,
+              "prefix": "valuation_checkpoint_select",
+              "roles": [
+                "stockledger_app"
+              ],
+              "tableName": "inventory_valuation_checkpoints",
+              "using": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+            },
+            "valuation_entry_delete": {
+              "kind": "policy",
+              "name": "valuation_entry_delete_336681c2",
+              "namespaceId": "public",
+              "operation": "delete",
+              "permissive": true,
+              "prefix": "valuation_entry_delete",
+              "roles": [
+                "stockledger_app"
+              ],
+              "tableName": "inventory_valuation_entries",
+              "using": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid AND current_setting('app.workspace_deletion_company_id', true) = company_id::text"
+            },
+            "valuation_entry_insert": {
+              "kind": "policy",
+              "name": "valuation_entry_insert_1c87de9a",
+              "namespaceId": "public",
+              "operation": "insert",
+              "permissive": true,
+              "prefix": "valuation_entry_insert",
+              "roles": [
+                "stockledger_app"
+              ],
+              "tableName": "inventory_valuation_entries",
+              "withCheck": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+            },
+            "valuation_entry_select": {
+              "kind": "policy",
+              "name": "valuation_entry_select_10e0fa81",
+              "namespaceId": "public",
+              "operation": "select",
+              "permissive": true,
+              "prefix": "valuation_entry_select",
+              "roles": [
+                "stockledger_app"
+              ],
+              "tableName": "inventory_valuation_entries",
+              "using": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+            },
+            "valuation_request_delete": {
+              "kind": "policy",
+              "name": "valuation_request_delete_336681c2",
+              "namespaceId": "public",
+              "operation": "delete",
+              "permissive": true,
+              "prefix": "valuation_request_delete",
+              "roles": [
+                "stockledger_app"
+              ],
+              "tableName": "inventory_valuation_requests",
+              "using": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid AND current_setting('app.workspace_deletion_company_id', true) = company_id::text"
+            },
+            "valuation_request_finish": {
+              "kind": "policy",
+              "name": "valuation_request_finish_277a30ed",
+              "namespaceId": "public",
+              "operation": "update",
+              "permissive": true,
+              "prefix": "valuation_request_finish",
+              "roles": [
+                "stockledger_app"
+              ],
+              "tableName": "inventory_valuation_requests",
+              "using": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid AND status = 'prepared'",
+              "withCheck": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid AND status IN ('applied','cancelled')"
+            },
+            "valuation_request_insert": {
+              "kind": "policy",
+              "name": "valuation_request_insert_1c87de9a",
+              "namespaceId": "public",
+              "operation": "insert",
+              "permissive": true,
+              "prefix": "valuation_request_insert",
+              "roles": [
+                "stockledger_app"
+              ],
+              "tableName": "inventory_valuation_requests",
+              "withCheck": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+            },
+            "valuation_request_select": {
+              "kind": "policy",
+              "name": "valuation_request_select_10e0fa81",
+              "namespaceId": "public",
+              "operation": "select",
+              "permissive": true,
+              "prefix": "valuation_request_select",
+              "roles": [
+                "stockledger_app"
+              ],
+              "tableName": "inventory_valuation_requests",
+              "using": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
             }
           },
           "rls": {
@@ -2108,6 +4603,26 @@
               "namespaceId": "public",
               "tableName": "inventory_items"
             },
+            "inventory_valuation_checkpoints": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "inventory_valuation_checkpoints"
+            },
+            "inventory_valuation_entries": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "inventory_valuation_entries"
+            },
+            "inventory_valuation_requests": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "inventory_valuation_requests"
+            },
+            "item_pricing_versions": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "item_pricing_versions"
+            },
             "location_stocks": {
               "kind": "rls",
               "namespaceId": "public",
@@ -2122,6 +4637,36 @@
               "kind": "rls",
               "namespaceId": "public",
               "tableName": "refresh_sessions"
+            },
+            "sale_components": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "sale_components"
+            },
+            "sale_lines": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "sale_lines"
+            },
+            "sale_return_allocations": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "sale_return_allocations"
+            },
+            "sale_return_requests": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "sale_return_requests"
+            },
+            "sale_returns": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "sale_returns"
+            },
+            "sales": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "sales"
             },
             "stock_counts": {
               "kind": "rls",
@@ -2348,6 +4893,15 @@
                   "typeParams": {
                     "length": 20
                   }
+                },
+                "hybrid_pricing_enabled": {
+                  "codecId": "pg/bool@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": false
+                  },
+                  "nativeType": "bool",
+                  "nullable": false
                 },
                 "id": {
                   "codecId": "pg/uuid@1",
@@ -2639,6 +5193,780 @@
                   "columns": [
                     "company_id",
                     "id"
+                  ]
+                }
+              ]
+            },
+            "inventory_valuation_checkpoints": {
+              "checks": [
+                {
+                  "expression": "opening_quantity >= 0 AND opening_value_cents >= 0 AND (opening_quantity > 0 OR opening_value_cents = 0) AND length(btrim(reference)) > 0 AND length(btrim(base_unit)) > 0",
+                  "name": "valuation_checkpoint_valid_ed805c31",
+                  "prefix": "valuation_checkpoint_valid"
+                }
+              ],
+              "columns": {
+                "base_unit": {
+                  "codecId": "sql/varchar@1",
+                  "nativeType": "character varying",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 20
+                  }
+                },
+                "company_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "cost_review_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": true
+                },
+                "created_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "created_by_user_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "currency": {
+                  "codecId": "sql/varchar@1",
+                  "nativeType": "character varying",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 3
+                  }
+                },
+                "id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "item_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "opening_quantity": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "opening_value_cents": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "reference": {
+                  "codecId": "sql/varchar@1",
+                  "nativeType": "character varying",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 200
+                  }
+                },
+                "request_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "onDelete": "restrict",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "company_id",
+                      "item_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "inventory_valuation_checkpoints"
+                  },
+                  "target": {
+                    "columns": [
+                      "company_id",
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "inventory_items"
+                  }
+                },
+                {
+                  "onDelete": "restrict",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "company_id",
+                      "request_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "inventory_valuation_checkpoints"
+                  },
+                  "target": {
+                    "columns": [
+                      "company_id",
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "inventory_valuation_requests"
+                  }
+                },
+                {
+                  "onDelete": "restrict",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "company_id",
+                      "created_by_user_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "inventory_valuation_checkpoints"
+                  },
+                  "target": {
+                    "columns": [
+                      "company_id",
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "users"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "company_id",
+                    "created_by_user_id"
+                  ],
+                  "name": "inventory_valuation_checkpoints_company_id_created_by__fd5eba49",
+                  "prefix": "inventory_valuation_checkpoints_company_id_created_by_",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "company_id",
+                    "item_id"
+                  ]
+                },
+                {
+                  "columns": [
+                    "company_id",
+                    "item_id",
+                    "id"
+                  ]
+                },
+                {
+                  "columns": [
+                    "company_id",
+                    "request_id"
+                  ]
+                }
+              ]
+            },
+            "inventory_valuation_entries": {
+              "checks": [
+                {
+                  "expression": "sequence > 0 AND quantity_after >= 0 AND value_after_cents >= 0 AND (quantity_after > 0 OR value_after_cents = 0) AND length(btrim(reference)) > 0 AND ((kind = 'receipt' AND quantity_delta > 0 AND value_delta_cents >= 0 AND movement_id IS NOT NULL AND request_id IS NOT NULL) OR (kind = 'sale' AND quantity_delta < 0 AND value_delta_cents <= 0 AND movement_id IS NOT NULL AND request_id IS NULL) OR (kind = 'customer_return' AND quantity_delta > 0 AND value_delta_cents >= 0 AND movement_id IS NOT NULL AND request_id IS NULL) OR (kind = 'return_disposal' AND quantity_delta = 0 AND value_delta_cents = 0 AND movement_id IS NOT NULL AND request_id IS NULL) OR (kind IN ('damage','count_out','supplier_return','receipt_reversal') AND quantity_delta < 0 AND value_delta_cents <= 0 AND movement_id IS NOT NULL AND request_id IS NOT NULL) OR (kind = 'count_in' AND quantity_delta > 0 AND value_delta_cents >= 0 AND movement_id IS NOT NULL AND request_id IS NOT NULL) OR (kind = 'transfer' AND quantity_delta = 0 AND value_delta_cents = 0 AND movement_id IS NOT NULL AND request_id IS NOT NULL) OR (kind = 'count_check' AND quantity_delta = 0 AND value_delta_cents = 0 AND movement_id IS NULL AND request_id IS NOT NULL) OR (kind = 'value_adjustment' AND quantity_delta = 0 AND movement_id IS NULL AND request_id IS NOT NULL))",
+                  "name": "valuation_entry_valid_40761e35",
+                  "prefix": "valuation_entry_valid"
+                }
+              ],
+              "columns": {
+                "checkpoint_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "company_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "created_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "created_by_user_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "item_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "kind": {
+                  "codecId": "sql/varchar@1",
+                  "nativeType": "character varying",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 20
+                  }
+                },
+                "movement_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": true
+                },
+                "quantity_after": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "quantity_delta": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "reference": {
+                  "codecId": "sql/varchar@1",
+                  "nativeType": "character varying",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 200
+                  }
+                },
+                "request_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": true
+                },
+                "sequence": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "value_after_cents": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "value_delta_cents": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "onDelete": "restrict",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "company_id",
+                      "item_id",
+                      "checkpoint_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "inventory_valuation_entries"
+                  },
+                  "target": {
+                    "columns": [
+                      "company_id",
+                      "item_id",
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "inventory_valuation_checkpoints"
+                  }
+                },
+                {
+                  "onDelete": "restrict",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "company_id",
+                      "request_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "inventory_valuation_entries"
+                  },
+                  "target": {
+                    "columns": [
+                      "company_id",
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "inventory_valuation_requests"
+                  }
+                },
+                {
+                  "onDelete": "restrict",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "company_id",
+                      "movement_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "inventory_valuation_entries"
+                  },
+                  "target": {
+                    "columns": [
+                      "company_id",
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "stock_movements"
+                  }
+                },
+                {
+                  "onDelete": "restrict",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "company_id",
+                      "created_by_user_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "inventory_valuation_entries"
+                  },
+                  "target": {
+                    "columns": [
+                      "company_id",
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "users"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "company_id",
+                    "created_by_user_id"
+                  ],
+                  "name": "inventory_valuation_entries_company_id_created_by_user_fd5eba49",
+                  "prefix": "inventory_valuation_entries_company_id_created_by_user",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "company_id",
+                    "item_id",
+                    "checkpoint_id"
+                  ],
+                  "name": "inventory_valuation_entries_company_id_item_id_checkpo_083480a5",
+                  "prefix": "inventory_valuation_entries_company_id_item_id_checkpo",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "company_id",
+                    "request_id"
+                  ],
+                  "name": "inventory_valuation_entries_company_id_request_id_idx_47368113",
+                  "prefix": "inventory_valuation_entries_company_id_request_id_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "company_id",
+                    "item_id",
+                    "sequence"
+                  ]
+                },
+                {
+                  "columns": [
+                    "company_id",
+                    "movement_id"
+                  ]
+                }
+              ]
+            },
+            "inventory_valuation_requests": {
+              "checks": [
+                {
+                  "expression": "status IN ('prepared','applied','cancelled') AND ((status = 'prepared' AND finished_at IS NULL) OR (status <> 'prepared' AND finished_at IS NOT NULL)) AND ((item_id IS NOT NULL AND input_json IS NOT NULL AND input_hash IS NOT NULL) OR (status = 'cancelled' AND item_id IS NULL AND input_json IS NULL AND input_hash IS NULL))",
+                  "name": "valuation_request_valid_60cd4609",
+                  "prefix": "valuation_request_valid"
+                }
+              ],
+              "columns": {
+                "company_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "created_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "created_by_user_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "finished_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": true
+                },
+                "id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "input_hash": {
+                  "codecId": "sql/varchar@1",
+                  "nativeType": "character varying",
+                  "nullable": true,
+                  "typeParams": {
+                    "length": 64
+                  }
+                },
+                "input_json": {
+                  "codecId": "pg/jsonb@1",
+                  "nativeType": "jsonb",
+                  "nullable": true
+                },
+                "item_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": true
+                },
+                "request_key": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "status": {
+                  "codecId": "sql/varchar@1",
+                  "nativeType": "character varying",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 12
+                  }
+                }
+              },
+              "foreignKeys": [
+                {
+                  "onDelete": "restrict",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "company_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "inventory_valuation_requests"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "companies"
+                  }
+                },
+                {
+                  "onDelete": "restrict",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "company_id",
+                      "created_by_user_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "inventory_valuation_requests"
+                  },
+                  "target": {
+                    "columns": [
+                      "company_id",
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "users"
+                  }
+                },
+                {
+                  "onDelete": "restrict",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "company_id",
+                      "item_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "inventory_valuation_requests"
+                  },
+                  "target": {
+                    "columns": [
+                      "company_id",
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "inventory_items"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "company_id",
+                    "created_by_user_id"
+                  ],
+                  "name": "inventory_valuation_requests_company_id_created_by_use_fd5eba49",
+                  "prefix": "inventory_valuation_requests_company_id_created_by_use",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "company_id"
+                  ],
+                  "name": "inventory_valuation_requests_company_id_idx_1303a718",
+                  "prefix": "inventory_valuation_requests_company_id_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "company_id",
+                    "item_id"
+                  ],
+                  "name": "inventory_valuation_requests_company_id_item_id_idx_a27622c0",
+                  "prefix": "inventory_valuation_requests_company_id_item_id_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "company_id",
+                    "id"
+                  ]
+                },
+                {
+                  "columns": [
+                    "company_id",
+                    "request_key"
+                  ]
+                }
+              ]
+            },
+            "item_pricing_versions": {
+              "checks": [
+                {
+                  "expression": "length(btrim(base_unit)) > 0",
+                  "name": "item_pricing_base_unit_present_169acc26",
+                  "prefix": "item_pricing_base_unit_present"
+                },
+                {
+                  "expression": "(package_label IS NULL AND package_size IS NULL AND package_price_cents IS NULL) OR (package_label IS NOT NULL AND length(btrim(package_label)) > 0 AND package_size IS NOT NULL AND package_size > 1 AND package_price_cents IS NOT NULL AND package_price_cents >= 0)",
+                  "name": "item_pricing_package_valid_dbc7f253",
+                  "prefix": "item_pricing_package_valid"
+                },
+                {
+                  "expression": "jsonb_typeof(bulk_tiers) = 'array'",
+                  "name": "item_pricing_tiers_array_47c3262c",
+                  "prefix": "item_pricing_tiers_array"
+                },
+                {
+                  "expression": "version > 0",
+                  "name": "item_pricing_version_positive_341aaa74",
+                  "prefix": "item_pricing_version_positive"
+                }
+              ],
+              "columns": {
+                "base_unit": {
+                  "codecId": "sql/varchar@1",
+                  "nativeType": "character varying",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 20
+                  }
+                },
+                "bulk_tiers": {
+                  "codecId": "pg/jsonb@1",
+                  "nativeType": "jsonb",
+                  "nullable": false
+                },
+                "company_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "created_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "created_by_user_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "item_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "package_label": {
+                  "codecId": "sql/varchar@1",
+                  "nativeType": "character varying",
+                  "nullable": true,
+                  "typeParams": {
+                    "length": 20
+                  }
+                },
+                "package_price_cents": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": true
+                },
+                "package_size": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": true
+                },
+                "preview_enabled": {
+                  "codecId": "pg/bool@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": false
+                  },
+                  "nativeType": "bool",
+                  "nullable": false
+                },
+                "version": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "onDelete": "restrict",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "company_id",
+                      "item_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "item_pricing_versions"
+                  },
+                  "target": {
+                    "columns": [
+                      "company_id",
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "inventory_items"
+                  }
+                },
+                {
+                  "onDelete": "restrict",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "company_id",
+                      "created_by_user_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "item_pricing_versions"
+                  },
+                  "target": {
+                    "columns": [
+                      "company_id",
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "users"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "company_id",
+                    "created_by_user_id"
+                  ],
+                  "name": "item_pricing_actor_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "company_id"
+                  ],
+                  "name": "item_pricing_versions_company_id_idx_1303a718",
+                  "prefix": "item_pricing_versions_company_id_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "company_id",
+                    "item_id"
+                  ],
+                  "name": "item_pricing_versions_company_id_item_id_idx_a27622c0",
+                  "prefix": "item_pricing_versions_company_id_item_id_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "company_id",
+                    "item_id",
+                    "version"
                   ]
                 }
               ]
@@ -3020,6 +6348,1200 @@
                 {
                   "columns": [
                     "token_hash"
+                  ]
+                }
+              ]
+            },
+            "sale_components": {
+              "checks": [
+                {
+                  "expression": "position >= 0 AND quantity > 0 AND unit_price_cents >= 0 AND total_cents::bigint = quantity::bigint * unit_price_cents AND category IN ('retail', 'bulk', 'box')",
+                  "name": "sale_component_valid_124d5f7d",
+                  "prefix": "sale_component_valid"
+                }
+              ],
+              "columns": {
+                "category": {
+                  "codecId": "sql/varchar@1",
+                  "nativeType": "character varying",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 10
+                  }
+                },
+                "company_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "movement_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "position": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "quantity": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "sale_line_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "total_cents": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "unit_price_cents": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "onDelete": "restrict",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "company_id",
+                      "sale_line_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "sale_components"
+                  },
+                  "target": {
+                    "columns": [
+                      "company_id",
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "sale_lines"
+                  }
+                },
+                {
+                  "onDelete": "restrict",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "company_id",
+                      "movement_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "sale_components"
+                  },
+                  "target": {
+                    "columns": [
+                      "company_id",
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "stock_movements"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "company_id",
+                    "sale_line_id"
+                  ],
+                  "name": "sale_components_company_id_sale_line_id_idx_5575d9da",
+                  "prefix": "sale_components_company_id_sale_line_id_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "company_id",
+                    "movement_id"
+                  ]
+                },
+                {
+                  "columns": [
+                    "company_id",
+                    "sale_line_id",
+                    "position"
+                  ]
+                }
+              ]
+            },
+            "sale_lines": {
+              "checks": [
+                {
+                  "expression": "position >= 0 AND quantity > 0 AND retail_price_cents >= 0 AND unit_cost_cents >= 0 AND gross_sales_cents::bigint = quantity::bigint * retail_price_cents AND cogs_cents >= 0 AND (valuation_checkpoint_id IS NOT NULL OR cogs_cents::bigint = quantity::bigint * unit_cost_cents) AND total_cents >= 0 AND automatic_discount_cents >= 0 AND gross_sales_cents::bigint - automatic_discount_cents = total_cents",
+                  "name": "sale_line_amounts_valid_491d1ffe",
+                  "prefix": "sale_line_amounts_valid"
+                }
+              ],
+              "columns": {
+                "automatic_discount_cents": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "base_unit": {
+                  "codecId": "sql/varchar@1",
+                  "nativeType": "character varying",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 20
+                  }
+                },
+                "category": {
+                  "codecId": "sql/varchar@1",
+                  "nativeType": "character varying",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 80
+                  }
+                },
+                "cogs_cents": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "company_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "gross_sales_cents": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "item_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "item_name": {
+                  "codecId": "sql/varchar@1",
+                  "nativeType": "character varying",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 120
+                  }
+                },
+                "position": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "pricing_snapshot": {
+                  "codecId": "pg/jsonb@1",
+                  "nativeType": "jsonb",
+                  "nullable": false
+                },
+                "quantity": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "retail_price_cents": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "sale_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "sku": {
+                  "codecId": "sql/varchar@1",
+                  "nativeType": "character varying",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 40
+                  }
+                },
+                "total_cents": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "unit_cost_cents": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "valuation_checkpoint_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": true
+                }
+              },
+              "foreignKeys": [
+                {
+                  "onDelete": "restrict",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "company_id",
+                      "item_id",
+                      "valuation_checkpoint_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "sale_lines"
+                  },
+                  "target": {
+                    "columns": [
+                      "company_id",
+                      "item_id",
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "inventory_valuation_checkpoints"
+                  }
+                },
+                {
+                  "onDelete": "restrict",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "company_id",
+                      "sale_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "sale_lines"
+                  },
+                  "target": {
+                    "columns": [
+                      "company_id",
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "sales"
+                  }
+                },
+                {
+                  "onDelete": "restrict",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "company_id",
+                      "item_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "sale_lines"
+                  },
+                  "target": {
+                    "columns": [
+                      "company_id",
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "inventory_items"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "company_id",
+                    "item_id"
+                  ],
+                  "name": "sale_lines_company_id_item_id_idx_a27622c0",
+                  "prefix": "sale_lines_company_id_item_id_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "company_id",
+                    "item_id",
+                    "valuation_checkpoint_id"
+                  ],
+                  "name": "sale_lines_company_id_item_id_valuation_checkpoint_id__2fc0facd",
+                  "prefix": "sale_lines_company_id_item_id_valuation_checkpoint_id_",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "company_id",
+                    "sale_id"
+                  ],
+                  "name": "sale_lines_company_id_sale_id_idx_792a8b41",
+                  "prefix": "sale_lines_company_id_sale_id_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "company_id",
+                    "id"
+                  ]
+                },
+                {
+                  "columns": [
+                    "company_id",
+                    "sale_id",
+                    "item_id"
+                  ]
+                },
+                {
+                  "columns": [
+                    "company_id",
+                    "sale_id",
+                    "position"
+                  ]
+                }
+              ]
+            },
+            "sale_return_allocations": {
+              "checks": [
+                {
+                  "expression": "position >= 0 AND quantity > 0 AND unit_price_cents >= 0 AND unit_cost_cents >= 0 AND refund_cents::bigint = quantity::bigint * unit_price_cents AND cogs_cents::bigint = quantity::bigint * unit_cost_cents AND ((disposition = 'resellable' AND loss_movement_id IS NULL) OR (disposition = 'damaged' AND loss_movement_id IS NOT NULL))",
+                  "name": "sale_return_allocation_valid_7d8bd791",
+                  "prefix": "sale_return_allocation_valid"
+                }
+              ],
+              "columns": {
+                "cogs_cents": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "company_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "disposition": {
+                  "codecId": "sql/varchar@1",
+                  "nativeType": "character varying",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 12
+                  }
+                },
+                "id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "item_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "loss_movement_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": true
+                },
+                "original_movement_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "position": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "quantity": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "refund_cents": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "return_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "return_movement_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "unit_cost_cents": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "unit_price_cents": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "onDelete": "restrict",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "company_id",
+                      "return_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "sale_return_allocations"
+                  },
+                  "target": {
+                    "columns": [
+                      "company_id",
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "sale_returns"
+                  }
+                },
+                {
+                  "onDelete": "restrict",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "company_id",
+                      "item_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "sale_return_allocations"
+                  },
+                  "target": {
+                    "columns": [
+                      "company_id",
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "inventory_items"
+                  }
+                },
+                {
+                  "onDelete": "restrict",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "company_id",
+                      "original_movement_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "sale_return_allocations"
+                  },
+                  "target": {
+                    "columns": [
+                      "company_id",
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "stock_movements"
+                  }
+                },
+                {
+                  "onDelete": "restrict",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "company_id",
+                      "return_movement_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "sale_return_allocations"
+                  },
+                  "target": {
+                    "columns": [
+                      "company_id",
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "stock_movements"
+                  }
+                },
+                {
+                  "onDelete": "restrict",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "company_id",
+                      "loss_movement_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "sale_return_allocations"
+                  },
+                  "target": {
+                    "columns": [
+                      "company_id",
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "stock_movements"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "company_id",
+                    "item_id"
+                  ],
+                  "name": "sale_return_allocations_company_id_item_id_idx_a27622c0",
+                  "prefix": "sale_return_allocations_company_id_item_id_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "company_id",
+                    "original_movement_id"
+                  ],
+                  "name": "sale_return_allocations_company_id_original_movement_i_e6cab644",
+                  "prefix": "sale_return_allocations_company_id_original_movement_i",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "company_id",
+                    "return_id"
+                  ],
+                  "name": "sale_return_allocations_company_id_return_id_idx_a2d80f4e",
+                  "prefix": "sale_return_allocations_company_id_return_id_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "company_id",
+                    "return_id",
+                    "position"
+                  ]
+                },
+                {
+                  "columns": [
+                    "company_id",
+                    "return_movement_id"
+                  ]
+                },
+                {
+                  "columns": [
+                    "company_id",
+                    "loss_movement_id"
+                  ]
+                }
+              ]
+            },
+            "sale_return_requests": {
+              "checks": [
+                {
+                  "expression": "status IN ('prepared','applied','cancelled') AND ((status = 'prepared' AND finished_at IS NULL) OR (status <> 'prepared' AND finished_at IS NOT NULL)) AND ((input_json IS NOT NULL AND preview_json IS NOT NULL AND input_hash IS NOT NULL) OR (status = 'cancelled' AND input_json IS NULL AND preview_json IS NULL AND input_hash IS NULL))",
+                  "name": "sale_return_request_valid_c9187f36",
+                  "prefix": "sale_return_request_valid"
+                }
+              ],
+              "columns": {
+                "company_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "created_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "created_by_user_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "finished_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": true
+                },
+                "id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "input_hash": {
+                  "codecId": "sql/varchar@1",
+                  "nativeType": "character varying",
+                  "nullable": true,
+                  "typeParams": {
+                    "length": 64
+                  }
+                },
+                "input_json": {
+                  "codecId": "pg/jsonb@1",
+                  "nativeType": "jsonb",
+                  "nullable": true
+                },
+                "preview_json": {
+                  "codecId": "pg/jsonb@1",
+                  "nativeType": "jsonb",
+                  "nullable": true
+                },
+                "request_key": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "status": {
+                  "codecId": "sql/varchar@1",
+                  "nativeType": "character varying",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 12
+                  }
+                }
+              },
+              "foreignKeys": [
+                {
+                  "onDelete": "restrict",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "company_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "sale_return_requests"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "companies"
+                  }
+                },
+                {
+                  "onDelete": "restrict",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "company_id",
+                      "created_by_user_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "sale_return_requests"
+                  },
+                  "target": {
+                    "columns": [
+                      "company_id",
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "users"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "company_id",
+                    "created_by_user_id"
+                  ],
+                  "name": "sale_return_requests_company_id_created_by_user_id_idx_fd5eba49",
+                  "prefix": "sale_return_requests_company_id_created_by_user_id_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "company_id"
+                  ],
+                  "name": "sale_return_requests_company_id_idx_1303a718",
+                  "prefix": "sale_return_requests_company_id_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "company_id",
+                    "id"
+                  ]
+                },
+                {
+                  "columns": [
+                    "company_id",
+                    "request_key"
+                  ]
+                }
+              ]
+            },
+            "sale_returns": {
+              "checks": [
+                {
+                  "expression": "(source_sale_id IS NULL) <> (legacy_movement_id IS NULL) AND kind IN ('return','reversal') AND refund_cents >= 0 AND cogs_cents >= 0 AND length(btrim(reason)) > 0 AND length(btrim(reference)) > 0",
+                  "name": "sale_return_valid_43f30c79",
+                  "prefix": "sale_return_valid"
+                }
+              ],
+              "columns": {
+                "cogs_cents": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "company_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "created_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "created_by_user_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "currency": {
+                  "codecId": "sql/varchar@1",
+                  "nativeType": "character varying",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 3
+                  }
+                },
+                "id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "kind": {
+                  "codecId": "sql/varchar@1",
+                  "nativeType": "character varying",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 12
+                  }
+                },
+                "legacy_movement_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": true
+                },
+                "location_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "movement_date": {
+                  "codecId": "pg/date-string@1",
+                  "nativeType": "date",
+                  "nullable": false
+                },
+                "reason": {
+                  "codecId": "sql/varchar@1",
+                  "nativeType": "character varying",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 200
+                  }
+                },
+                "reference": {
+                  "codecId": "sql/varchar@1",
+                  "nativeType": "character varying",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 200
+                  }
+                },
+                "refund_cents": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "request_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "source_sale_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": true
+                }
+              },
+              "foreignKeys": [
+                {
+                  "onDelete": "restrict",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "company_id",
+                      "request_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "sale_returns"
+                  },
+                  "target": {
+                    "columns": [
+                      "company_id",
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "sale_return_requests"
+                  }
+                },
+                {
+                  "onDelete": "restrict",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "company_id",
+                      "source_sale_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "sale_returns"
+                  },
+                  "target": {
+                    "columns": [
+                      "company_id",
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "sales"
+                  }
+                },
+                {
+                  "onDelete": "restrict",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "company_id",
+                      "legacy_movement_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "sale_returns"
+                  },
+                  "target": {
+                    "columns": [
+                      "company_id",
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "stock_movements"
+                  }
+                },
+                {
+                  "onDelete": "restrict",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "company_id",
+                      "location_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "sale_returns"
+                  },
+                  "target": {
+                    "columns": [
+                      "company_id",
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "locations"
+                  }
+                },
+                {
+                  "onDelete": "restrict",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "company_id",
+                      "created_by_user_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "sale_returns"
+                  },
+                  "target": {
+                    "columns": [
+                      "company_id",
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "users"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "company_id",
+                    "created_by_user_id"
+                  ],
+                  "name": "sale_returns_company_id_created_by_user_id_idx_fd5eba49",
+                  "prefix": "sale_returns_company_id_created_by_user_id_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "company_id",
+                    "legacy_movement_id"
+                  ],
+                  "name": "sale_returns_company_id_legacy_movement_id_idx_25046540",
+                  "prefix": "sale_returns_company_id_legacy_movement_id_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "company_id",
+                    "location_id"
+                  ],
+                  "name": "sale_returns_company_id_location_id_idx_a140a7ef",
+                  "prefix": "sale_returns_company_id_location_id_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "company_id",
+                    "source_sale_id"
+                  ],
+                  "name": "sale_returns_company_id_source_sale_id_idx_f69ee873",
+                  "prefix": "sale_returns_company_id_source_sale_id_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "company_id",
+                    "id"
+                  ]
+                },
+                {
+                  "columns": [
+                    "company_id",
+                    "request_id"
+                  ]
+                }
+              ]
+            },
+            "sales": {
+              "checks": [
+                {
+                  "expression": "gross_sales_cents >= 0 AND automatic_discount_cents >= 0 AND total_cents >= 0 AND cogs_cents >= 0 AND gross_sales_cents::bigint - automatic_discount_cents = total_cents",
+                  "name": "sale_amounts_valid_10975e07",
+                  "prefix": "sale_amounts_valid"
+                }
+              ],
+              "columns": {
+                "automatic_discount_cents": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "cogs_cents": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "company_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "created_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "created_by_user_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "currency": {
+                  "codecId": "sql/varchar@1",
+                  "nativeType": "character varying",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 3
+                  }
+                },
+                "gross_sales_cents": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "idempotency_key": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "location_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "movement_date": {
+                  "codecId": "pg/date-string@1",
+                  "nativeType": "date",
+                  "nullable": false
+                },
+                "request_hash": {
+                  "codecId": "sql/varchar@1",
+                  "nativeType": "character varying",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 64
+                  }
+                },
+                "total_cents": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "onDelete": "restrict",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "company_id",
+                      "location_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "sales"
+                  },
+                  "target": {
+                    "columns": [
+                      "company_id",
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "locations"
+                  }
+                },
+                {
+                  "onDelete": "restrict",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "company_id",
+                      "created_by_user_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "sales"
+                  },
+                  "target": {
+                    "columns": [
+                      "company_id",
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "users"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "company_id",
+                    "created_by_user_id"
+                  ],
+                  "name": "sales_company_id_created_by_user_id_idx_fd5eba49",
+                  "prefix": "sales_company_id_created_by_user_id_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "company_id",
+                    "location_id",
+                    "created_at"
+                  ],
+                  "name": "sales_company_id_location_id_created_at_idx_b7eac4a2",
+                  "prefix": "sales_company_id_location_id_created_at_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "company_id",
+                    "location_id"
+                  ],
+                  "name": "sales_company_id_location_id_idx_a140a7ef",
+                  "prefix": "sales_company_id_location_id_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "company_id",
+                    "id"
+                  ]
+                },
+                {
+                  "columns": [
+                    "company_id",
+                    "idempotency_key"
                   ]
                 }
               ]
@@ -4038,10 +8560,10 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "af0f799e84bed462c8c7be7ef11cd3ccc5971603b3c727b8ef34b4b55918fb19"
+    "storageHash": "5ccb1739876988e11fc0dc2dfeb65052a75dbaebb1d4f138d285b2c9f8d8ecb6"
   },
   "execution": {
-    "executionHash": "b43e3bc4b16addb2d1b967638641ba478fb9e6d206de9632cbb70e7e68055c8e",
+    "executionHash": "c6a58d0b341efd94a6fc30f245eb9f467084e1e2f1ea5de1aaf0d62423d89217",
     "mutations": {
       "defaults": [
         {
@@ -4115,6 +8637,50 @@
           "ref": {
             "column": "id",
             "namespace": "public",
+            "table": "inventory_valuation_checkpoints"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "uuidv4",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "id",
+            "namespace": "public",
+            "table": "inventory_valuation_entries"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "uuidv4",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "id",
+            "namespace": "public",
+            "table": "inventory_valuation_requests"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "uuidv4",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "id",
+            "namespace": "public",
+            "table": "item_pricing_versions"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "uuidv4",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "id",
+            "namespace": "public",
             "table": "location_stocks"
           }
         },
@@ -4183,6 +8749,72 @@
             "column": "updated_at",
             "namespace": "public",
             "table": "refresh_sessions"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "uuidv4",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "id",
+            "namespace": "public",
+            "table": "sale_components"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "uuidv4",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "id",
+            "namespace": "public",
+            "table": "sale_lines"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "uuidv4",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "id",
+            "namespace": "public",
+            "table": "sale_return_allocations"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "uuidv4",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "id",
+            "namespace": "public",
+            "table": "sale_return_requests"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "uuidv4",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "id",
+            "namespace": "public",
+            "table": "sale_returns"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "uuidv4",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "id",
+            "namespace": "public",
+            "table": "sales"
           }
         },
         {

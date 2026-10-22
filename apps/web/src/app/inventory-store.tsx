@@ -79,8 +79,15 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
     setError(null);
     try {
       await action();
-      setSnapshot(await api.snapshot(accessToken, days, locationId));
       toast.success('Inventory updated', { description: successMessage });
+      try {
+        setSnapshot(await api.snapshot(accessToken, days, locationId));
+      } catch (refreshError) {
+        // The write already succeeded. Resolve so forms reset instead of inviting a duplicate submission.
+        setError('Your change was saved, but inventory could not refresh. Refresh before recording another change.');
+        toast.warning('Saved; refresh required', { description: 'Your change was recorded. Refresh inventory before continuing.' });
+        if (refreshError instanceof ApiError && refreshError.status === 401) signOut();
+      }
     } catch (caught) {
       if (caught instanceof ApiError && caught.status === 401) {
         toast.error('Session expired', { description: 'Sign in again to continue.' });

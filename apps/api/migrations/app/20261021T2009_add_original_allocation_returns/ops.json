@@ -1,0 +1,2010 @@
+[
+  {
+    "id": "dropConstraint.inventory_valuation_entries.inventory_valuation_entries_company_id_request_id_key",
+    "label": "Drop constraint \"inventory_valuation_entries_company_id_request_id_key\" on \"inventory_valuation_entries\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "inventory_valuation_entries_company_id_request_id_key",
+        "table": "inventory_valuation_entries"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"inventory_valuation_entries_company_id_request_id_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "inventory_valuation_entries_company_id_request_id_key",
+          "public",
+          "\"public\".\"inventory_valuation_entries\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop constraint \"inventory_valuation_entries_company_id_request_id_key\"",
+        "sql": "ALTER TABLE \"public\".\"inventory_valuation_entries\" DROP CONSTRAINT \"inventory_valuation_entries_company_id_request_id_key\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"inventory_valuation_entries_company_id_request_id_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "inventory_valuation_entries_company_id_request_id_key",
+          "public",
+          "\"public\".\"inventory_valuation_entries\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.sale_return_allocations",
+    "label": "Create table \"sale_return_allocations\"",
+    "summary": "Creates table \"sale_return_allocations\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "sale_return_allocations"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"sale_return_allocations\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"sale_return_allocations\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"sale_return_allocations\"",
+        "sql": "CREATE TABLE \"public\".\"sale_return_allocations\" (\n  \"cogs_cents\" int4 NOT NULL,\n  \"company_id\" uuid NOT NULL,\n  \"disposition\" character varying(12) NOT NULL,\n  \"id\" uuid NOT NULL,\n  \"item_id\" uuid NOT NULL,\n  \"loss_movement_id\" uuid,\n  \"original_movement_id\" uuid NOT NULL,\n  \"position\" int4 NOT NULL,\n  \"quantity\" int4 NOT NULL,\n  \"refund_cents\" int4 NOT NULL,\n  \"return_id\" uuid NOT NULL,\n  \"return_movement_id\" uuid NOT NULL,\n  \"unit_cost_cents\" int4 NOT NULL,\n  \"unit_price_cents\" int4 NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"sale_return_allocation_valid_7d8bd791\" CHECK (position >= 0 AND quantity > 0 AND unit_price_cents >= 0 AND unit_cost_cents >= 0 AND refund_cents::bigint = quantity::bigint * unit_price_cents AND cogs_cents::bigint = quantity::bigint * unit_cost_cents AND ((disposition = 'resellable' AND loss_movement_id IS NULL) OR (disposition = 'damaged' AND loss_movement_id IS NOT NULL)))\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"sale_return_allocations\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"sale_return_allocations\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.sale_return_requests",
+    "label": "Create table \"sale_return_requests\"",
+    "summary": "Creates table \"sale_return_requests\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "sale_return_requests"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"sale_return_requests\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"sale_return_requests\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"sale_return_requests\"",
+        "sql": "CREATE TABLE \"public\".\"sale_return_requests\" (\n  \"company_id\" uuid NOT NULL,\n  \"created_at\" timestamptz DEFAULT (now()) NOT NULL,\n  \"created_by_user_id\" uuid NOT NULL,\n  \"finished_at\" timestamptz,\n  \"id\" uuid NOT NULL,\n  \"input_hash\" character varying(64),\n  \"input_json\" jsonb,\n  \"preview_json\" jsonb,\n  \"request_key\" uuid NOT NULL,\n  \"status\" character varying(12) NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"sale_return_request_valid_c9187f36\" CHECK (status IN ('prepared','applied','cancelled') AND ((status = 'prepared' AND finished_at IS NULL) OR (status <> 'prepared' AND finished_at IS NOT NULL)) AND ((input_json IS NOT NULL AND preview_json IS NOT NULL AND input_hash IS NOT NULL) OR (status = 'cancelled' AND input_json IS NULL AND preview_json IS NULL AND input_hash IS NULL)))\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"sale_return_requests\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"sale_return_requests\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.sale_returns",
+    "label": "Create table \"sale_returns\"",
+    "summary": "Creates table \"sale_returns\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "sale_returns"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"sale_returns\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"sale_returns\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"sale_returns\"",
+        "sql": "CREATE TABLE \"public\".\"sale_returns\" (\n  \"cogs_cents\" int4 NOT NULL,\n  \"company_id\" uuid NOT NULL,\n  \"created_at\" timestamptz DEFAULT (now()) NOT NULL,\n  \"created_by_user_id\" uuid NOT NULL,\n  \"currency\" character varying(3) NOT NULL,\n  \"id\" uuid NOT NULL,\n  \"kind\" character varying(12) NOT NULL,\n  \"legacy_movement_id\" uuid,\n  \"location_id\" uuid NOT NULL,\n  \"movement_date\" date NOT NULL,\n  \"reason\" character varying(200) NOT NULL,\n  \"reference\" character varying(200) NOT NULL,\n  \"refund_cents\" int4 NOT NULL,\n  \"request_id\" uuid NOT NULL,\n  \"source_sale_id\" uuid,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"sale_return_valid_43f30c79\" CHECK ((source_sale_id IS NULL) <> (legacy_movement_id IS NULL) AND kind IN ('return','reversal') AND refund_cents >= 0 AND cogs_cents >= 0 AND length(btrim(reason)) > 0 AND length(btrim(reference)) > 0)\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"sale_returns\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"sale_returns\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "checkConstraint.inventory_valuation_entries.valuation_entry_valid_40761e35",
+    "label": "Add check constraint \"valuation_entry_valid_40761e35\" on \"inventory_valuation_entries\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "valuation_entry_valid_40761e35",
+        "table": "inventory_valuation_entries"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"valuation_entry_valid_40761e35\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "valuation_entry_valid_40761e35",
+          "public",
+          "\"public\".\"inventory_valuation_entries\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add check constraint \"valuation_entry_valid_40761e35\"",
+        "sql": "ALTER TABLE \"public\".\"inventory_valuation_entries\" ADD CONSTRAINT \"valuation_entry_valid_40761e35\" CHECK (sequence > 0 AND quantity_after >= 0 AND value_after_cents >= 0 AND (quantity_after > 0 OR value_after_cents = 0) AND length(btrim(reference)) > 0 AND ((kind = 'receipt' AND quantity_delta > 0 AND value_delta_cents >= 0 AND movement_id IS NOT NULL AND request_id IS NOT NULL) OR (kind = 'sale' AND quantity_delta < 0 AND value_delta_cents <= 0 AND movement_id IS NOT NULL AND request_id IS NULL) OR (kind = 'customer_return' AND quantity_delta > 0 AND value_delta_cents >= 0 AND movement_id IS NOT NULL AND request_id IS NULL) OR (kind = 'return_disposal' AND quantity_delta = 0 AND value_delta_cents = 0 AND movement_id IS NOT NULL AND request_id IS NULL) OR (kind IN ('damage','count_out','supplier_return','receipt_reversal') AND quantity_delta < 0 AND value_delta_cents <= 0 AND movement_id IS NOT NULL AND request_id IS NOT NULL) OR (kind = 'count_in' AND quantity_delta > 0 AND value_delta_cents >= 0 AND movement_id IS NOT NULL AND request_id IS NOT NULL) OR (kind = 'transfer' AND quantity_delta = 0 AND value_delta_cents = 0 AND movement_id IS NOT NULL AND request_id IS NOT NULL) OR (kind = 'count_check' AND quantity_delta = 0 AND value_delta_cents = 0 AND movement_id IS NULL AND request_id IS NOT NULL) OR (kind = 'value_adjustment' AND quantity_delta = 0 AND movement_id IS NULL AND request_id IS NOT NULL)))"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"valuation_entry_valid_40761e35\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "valuation_entry_valid_40761e35",
+          "public",
+          "\"public\".\"inventory_valuation_entries\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropCheckConstraint.inventory_valuation_entries.valuation_entry_valid_6d8c9d4f",
+    "label": "Drop check constraint \"valuation_entry_valid_6d8c9d4f\" on \"inventory_valuation_entries\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "valuation_entry_valid_6d8c9d4f",
+        "table": "inventory_valuation_entries"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"valuation_entry_valid_6d8c9d4f\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "valuation_entry_valid_6d8c9d4f",
+          "public",
+          "\"public\".\"inventory_valuation_entries\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop check constraint \"valuation_entry_valid_6d8c9d4f\"",
+        "sql": "ALTER TABLE \"public\".\"inventory_valuation_entries\" DROP CONSTRAINT \"valuation_entry_valid_6d8c9d4f\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"valuation_entry_valid_6d8c9d4f\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "valuation_entry_valid_6d8c9d4f",
+          "public",
+          "\"public\".\"inventory_valuation_entries\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.sale_return_allocations.sale_return_allocations_company_id_return_id_position_key",
+    "label": "Add unique constraint on \"sale_return_allocations\" (company_id, return_id, position)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "sale_return_allocations_company_id_return_id_position_key",
+        "table": "sale_return_allocations"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"sale_return_allocations_company_id_return_id_position_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_return_allocations_company_id_return_id_position_key",
+          "public",
+          "\"public\".\"sale_return_allocations\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"sale_return_allocations_company_id_return_id_position_key\"",
+        "sql": "ALTER TABLE \"public\".\"sale_return_allocations\" ADD CONSTRAINT \"sale_return_allocations_company_id_return_id_position_key\" UNIQUE (\"company_id\", \"return_id\", \"position\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"sale_return_allocations_company_id_return_id_position_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_return_allocations_company_id_return_id_position_key",
+          "public",
+          "\"public\".\"sale_return_allocations\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.sale_return_allocations.sale_return_allocations_company_id_return_movement_id_key",
+    "label": "Add unique constraint on \"sale_return_allocations\" (company_id, return_movement_id)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "sale_return_allocations_company_id_return_movement_id_key",
+        "table": "sale_return_allocations"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"sale_return_allocations_company_id_return_movement_id_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_return_allocations_company_id_return_movement_id_key",
+          "public",
+          "\"public\".\"sale_return_allocations\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"sale_return_allocations_company_id_return_movement_id_key\"",
+        "sql": "ALTER TABLE \"public\".\"sale_return_allocations\" ADD CONSTRAINT \"sale_return_allocations_company_id_return_movement_id_key\" UNIQUE (\"company_id\", \"return_movement_id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"sale_return_allocations_company_id_return_movement_id_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_return_allocations_company_id_return_movement_id_key",
+          "public",
+          "\"public\".\"sale_return_allocations\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.sale_return_allocations.sale_return_allocations_company_id_loss_movement_id_key",
+    "label": "Add unique constraint on \"sale_return_allocations\" (company_id, loss_movement_id)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "sale_return_allocations_company_id_loss_movement_id_key",
+        "table": "sale_return_allocations"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"sale_return_allocations_company_id_loss_movement_id_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_return_allocations_company_id_loss_movement_id_key",
+          "public",
+          "\"public\".\"sale_return_allocations\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"sale_return_allocations_company_id_loss_movement_id_key\"",
+        "sql": "ALTER TABLE \"public\".\"sale_return_allocations\" ADD CONSTRAINT \"sale_return_allocations_company_id_loss_movement_id_key\" UNIQUE (\"company_id\", \"loss_movement_id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"sale_return_allocations_company_id_loss_movement_id_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_return_allocations_company_id_loss_movement_id_key",
+          "public",
+          "\"public\".\"sale_return_allocations\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.sale_return_requests.sale_return_requests_company_id_id_key",
+    "label": "Add unique constraint on \"sale_return_requests\" (company_id, id)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "sale_return_requests_company_id_id_key",
+        "table": "sale_return_requests"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"sale_return_requests_company_id_id_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_return_requests_company_id_id_key",
+          "public",
+          "\"public\".\"sale_return_requests\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"sale_return_requests_company_id_id_key\"",
+        "sql": "ALTER TABLE \"public\".\"sale_return_requests\" ADD CONSTRAINT \"sale_return_requests_company_id_id_key\" UNIQUE (\"company_id\", \"id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"sale_return_requests_company_id_id_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_return_requests_company_id_id_key",
+          "public",
+          "\"public\".\"sale_return_requests\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.sale_return_requests.sale_return_requests_company_id_request_key_key",
+    "label": "Add unique constraint on \"sale_return_requests\" (company_id, request_key)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "sale_return_requests_company_id_request_key_key",
+        "table": "sale_return_requests"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"sale_return_requests_company_id_request_key_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_return_requests_company_id_request_key_key",
+          "public",
+          "\"public\".\"sale_return_requests\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"sale_return_requests_company_id_request_key_key\"",
+        "sql": "ALTER TABLE \"public\".\"sale_return_requests\" ADD CONSTRAINT \"sale_return_requests_company_id_request_key_key\" UNIQUE (\"company_id\", \"request_key\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"sale_return_requests_company_id_request_key_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_return_requests_company_id_request_key_key",
+          "public",
+          "\"public\".\"sale_return_requests\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.sale_returns.sale_returns_company_id_id_key",
+    "label": "Add unique constraint on \"sale_returns\" (company_id, id)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "sale_returns_company_id_id_key",
+        "table": "sale_returns"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"sale_returns_company_id_id_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_returns_company_id_id_key",
+          "public",
+          "\"public\".\"sale_returns\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"sale_returns_company_id_id_key\"",
+        "sql": "ALTER TABLE \"public\".\"sale_returns\" ADD CONSTRAINT \"sale_returns_company_id_id_key\" UNIQUE (\"company_id\", \"id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"sale_returns_company_id_id_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_returns_company_id_id_key",
+          "public",
+          "\"public\".\"sale_returns\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.sale_returns.sale_returns_company_id_request_id_key",
+    "label": "Add unique constraint on \"sale_returns\" (company_id, request_id)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "sale_returns_company_id_request_id_key",
+        "table": "sale_returns"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"sale_returns_company_id_request_id_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_returns_company_id_request_id_key",
+          "public",
+          "\"public\".\"sale_returns\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"sale_returns_company_id_request_id_key\"",
+        "sql": "ALTER TABLE \"public\".\"sale_returns\" ADD CONSTRAINT \"sale_returns_company_id_request_id_key\" UNIQUE (\"company_id\", \"request_id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"sale_returns_company_id_request_id_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_returns_company_id_request_id_key",
+          "public",
+          "\"public\".\"sale_returns\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.inventory_valuation_entries.inventory_valuation_entries_company_id_request_id_idx_47368113",
+    "label": "Create index \"inventory_valuation_entries_company_id_request_id_idx_47368113\" on \"inventory_valuation_entries\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "inventory_valuation_entries_company_id_request_id_idx_47368113",
+        "table": "inventory_valuation_entries"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"inventory_valuation_entries_company_id_request_id_idx_47368113\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"inventory_valuation_entries_company_id_request_id_idx_47368113\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"inventory_valuation_entries_company_id_request_id_idx_47368113\"",
+        "sql": "CREATE INDEX \"inventory_valuation_entries_company_id_request_id_idx_47368113\" ON \"public\".\"inventory_valuation_entries\" (\"company_id\", \"request_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"inventory_valuation_entries_company_id_request_id_idx_47368113\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"inventory_valuation_entries_company_id_request_id_idx_47368113\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.sale_return_allocations.sale_return_allocations_company_id_item_id_idx_a27622c0",
+    "label": "Create index \"sale_return_allocations_company_id_item_id_idx_a27622c0\" on \"sale_return_allocations\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "sale_return_allocations_company_id_item_id_idx_a27622c0",
+        "table": "sale_return_allocations"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"sale_return_allocations_company_id_item_id_idx_a27622c0\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"sale_return_allocations_company_id_item_id_idx_a27622c0\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"sale_return_allocations_company_id_item_id_idx_a27622c0\"",
+        "sql": "CREATE INDEX \"sale_return_allocations_company_id_item_id_idx_a27622c0\" ON \"public\".\"sale_return_allocations\" (\"company_id\", \"item_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"sale_return_allocations_company_id_item_id_idx_a27622c0\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"sale_return_allocations_company_id_item_id_idx_a27622c0\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.sale_return_allocations.sale_return_allocations_company_id_original_movement_i_e6cab644",
+    "label": "Create index \"sale_return_allocations_company_id_original_movement_i_e6cab644\" on \"sale_return_allocations\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "sale_return_allocations_company_id_original_movement_i_e6cab644",
+        "table": "sale_return_allocations"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"sale_return_allocations_company_id_original_movement_i_e6cab644\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"sale_return_allocations_company_id_original_movement_i_e6cab644\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"sale_return_allocations_company_id_original_movement_i_e6cab644\"",
+        "sql": "CREATE INDEX \"sale_return_allocations_company_id_original_movement_i_e6cab644\" ON \"public\".\"sale_return_allocations\" (\"company_id\", \"original_movement_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"sale_return_allocations_company_id_original_movement_i_e6cab644\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"sale_return_allocations_company_id_original_movement_i_e6cab644\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.sale_return_allocations.sale_return_allocations_company_id_return_id_idx_a2d80f4e",
+    "label": "Create index \"sale_return_allocations_company_id_return_id_idx_a2d80f4e\" on \"sale_return_allocations\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "sale_return_allocations_company_id_return_id_idx_a2d80f4e",
+        "table": "sale_return_allocations"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"sale_return_allocations_company_id_return_id_idx_a2d80f4e\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"sale_return_allocations_company_id_return_id_idx_a2d80f4e\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"sale_return_allocations_company_id_return_id_idx_a2d80f4e\"",
+        "sql": "CREATE INDEX \"sale_return_allocations_company_id_return_id_idx_a2d80f4e\" ON \"public\".\"sale_return_allocations\" (\"company_id\", \"return_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"sale_return_allocations_company_id_return_id_idx_a2d80f4e\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"sale_return_allocations_company_id_return_id_idx_a2d80f4e\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.sale_return_requests.sale_return_requests_company_id_created_by_user_id_idx_fd5eba49",
+    "label": "Create index \"sale_return_requests_company_id_created_by_user_id_idx_fd5eba49\" on \"sale_return_requests\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "sale_return_requests_company_id_created_by_user_id_idx_fd5eba49",
+        "table": "sale_return_requests"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"sale_return_requests_company_id_created_by_user_id_idx_fd5eba49\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"sale_return_requests_company_id_created_by_user_id_idx_fd5eba49\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"sale_return_requests_company_id_created_by_user_id_idx_fd5eba49\"",
+        "sql": "CREATE INDEX \"sale_return_requests_company_id_created_by_user_id_idx_fd5eba49\" ON \"public\".\"sale_return_requests\" (\"company_id\", \"created_by_user_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"sale_return_requests_company_id_created_by_user_id_idx_fd5eba49\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"sale_return_requests_company_id_created_by_user_id_idx_fd5eba49\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.sale_return_requests.sale_return_requests_company_id_idx_1303a718",
+    "label": "Create index \"sale_return_requests_company_id_idx_1303a718\" on \"sale_return_requests\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "sale_return_requests_company_id_idx_1303a718",
+        "table": "sale_return_requests"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"sale_return_requests_company_id_idx_1303a718\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"sale_return_requests_company_id_idx_1303a718\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"sale_return_requests_company_id_idx_1303a718\"",
+        "sql": "CREATE INDEX \"sale_return_requests_company_id_idx_1303a718\" ON \"public\".\"sale_return_requests\" (\"company_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"sale_return_requests_company_id_idx_1303a718\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"sale_return_requests_company_id_idx_1303a718\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.sale_returns.sale_returns_company_id_created_by_user_id_idx_fd5eba49",
+    "label": "Create index \"sale_returns_company_id_created_by_user_id_idx_fd5eba49\" on \"sale_returns\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "sale_returns_company_id_created_by_user_id_idx_fd5eba49",
+        "table": "sale_returns"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"sale_returns_company_id_created_by_user_id_idx_fd5eba49\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"sale_returns_company_id_created_by_user_id_idx_fd5eba49\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"sale_returns_company_id_created_by_user_id_idx_fd5eba49\"",
+        "sql": "CREATE INDEX \"sale_returns_company_id_created_by_user_id_idx_fd5eba49\" ON \"public\".\"sale_returns\" (\"company_id\", \"created_by_user_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"sale_returns_company_id_created_by_user_id_idx_fd5eba49\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"sale_returns_company_id_created_by_user_id_idx_fd5eba49\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.sale_returns.sale_returns_company_id_legacy_movement_id_idx_25046540",
+    "label": "Create index \"sale_returns_company_id_legacy_movement_id_idx_25046540\" on \"sale_returns\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "sale_returns_company_id_legacy_movement_id_idx_25046540",
+        "table": "sale_returns"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"sale_returns_company_id_legacy_movement_id_idx_25046540\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"sale_returns_company_id_legacy_movement_id_idx_25046540\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"sale_returns_company_id_legacy_movement_id_idx_25046540\"",
+        "sql": "CREATE INDEX \"sale_returns_company_id_legacy_movement_id_idx_25046540\" ON \"public\".\"sale_returns\" (\"company_id\", \"legacy_movement_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"sale_returns_company_id_legacy_movement_id_idx_25046540\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"sale_returns_company_id_legacy_movement_id_idx_25046540\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.sale_returns.sale_returns_company_id_location_id_idx_a140a7ef",
+    "label": "Create index \"sale_returns_company_id_location_id_idx_a140a7ef\" on \"sale_returns\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "sale_returns_company_id_location_id_idx_a140a7ef",
+        "table": "sale_returns"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"sale_returns_company_id_location_id_idx_a140a7ef\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"sale_returns_company_id_location_id_idx_a140a7ef\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"sale_returns_company_id_location_id_idx_a140a7ef\"",
+        "sql": "CREATE INDEX \"sale_returns_company_id_location_id_idx_a140a7ef\" ON \"public\".\"sale_returns\" (\"company_id\", \"location_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"sale_returns_company_id_location_id_idx_a140a7ef\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"sale_returns_company_id_location_id_idx_a140a7ef\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.sale_returns.sale_returns_company_id_source_sale_id_idx_f69ee873",
+    "label": "Create index \"sale_returns_company_id_source_sale_id_idx_f69ee873\" on \"sale_returns\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "sale_returns_company_id_source_sale_id_idx_f69ee873",
+        "table": "sale_returns"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"sale_returns_company_id_source_sale_id_idx_f69ee873\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"sale_returns_company_id_source_sale_id_idx_f69ee873\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"sale_returns_company_id_source_sale_id_idx_f69ee873\"",
+        "sql": "CREATE INDEX \"sale_returns_company_id_source_sale_id_idx_f69ee873\" ON \"public\".\"sale_returns\" (\"company_id\", \"source_sale_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"sale_returns_company_id_source_sale_id_idx_f69ee873\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"sale_returns_company_id_source_sale_id_idx_f69ee873\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.sale_return_allocations.sale_return_allocations_company_id_return_id_fkey",
+    "label": "Add foreign key \"sale_return_allocations_company_id_return_id_fkey\" on \"sale_return_allocations\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "sale_return_allocations_company_id_return_id_fkey",
+        "table": "sale_return_allocations"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"sale_return_allocations_company_id_return_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_return_allocations_company_id_return_id_fkey",
+          "public",
+          "\"public\".\"sale_return_allocations\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"sale_return_allocations_company_id_return_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"sale_return_allocations\"\nADD CONSTRAINT \"sale_return_allocations_company_id_return_id_fkey\"\nFOREIGN KEY (\"company_id\", \"return_id\")\nREFERENCES \"public\".\"sale_returns\" (\"company_id\", \"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"sale_return_allocations_company_id_return_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_return_allocations_company_id_return_id_fkey",
+          "public",
+          "\"public\".\"sale_return_allocations\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.sale_return_allocations.sale_return_allocations_company_id_item_id_fkey",
+    "label": "Add foreign key \"sale_return_allocations_company_id_item_id_fkey\" on \"sale_return_allocations\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "sale_return_allocations_company_id_item_id_fkey",
+        "table": "sale_return_allocations"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"sale_return_allocations_company_id_item_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_return_allocations_company_id_item_id_fkey",
+          "public",
+          "\"public\".\"sale_return_allocations\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"sale_return_allocations_company_id_item_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"sale_return_allocations\"\nADD CONSTRAINT \"sale_return_allocations_company_id_item_id_fkey\"\nFOREIGN KEY (\"company_id\", \"item_id\")\nREFERENCES \"public\".\"inventory_items\" (\"company_id\", \"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"sale_return_allocations_company_id_item_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_return_allocations_company_id_item_id_fkey",
+          "public",
+          "\"public\".\"sale_return_allocations\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.sale_return_allocations.sale_return_allocations_company_id_original_movement_id_fkey",
+    "label": "Add foreign key \"sale_return_allocations_company_id_original_movement_id_fkey\" on \"sale_return_allocations\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "sale_return_allocations_company_id_original_movement_id_fkey",
+        "table": "sale_return_allocations"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"sale_return_allocations_company_id_original_movement_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_return_allocations_company_id_original_movement_id_fkey",
+          "public",
+          "\"public\".\"sale_return_allocations\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"sale_return_allocations_company_id_original_movement_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"sale_return_allocations\"\nADD CONSTRAINT \"sale_return_allocations_company_id_original_movement_id_fkey\"\nFOREIGN KEY (\"company_id\", \"original_movement_id\")\nREFERENCES \"public\".\"stock_movements\" (\"company_id\", \"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"sale_return_allocations_company_id_original_movement_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_return_allocations_company_id_original_movement_id_fkey",
+          "public",
+          "\"public\".\"sale_return_allocations\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.sale_return_allocations.sale_return_allocations_company_id_return_movement_id_fkey",
+    "label": "Add foreign key \"sale_return_allocations_company_id_return_movement_id_fkey\" on \"sale_return_allocations\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "sale_return_allocations_company_id_return_movement_id_fkey",
+        "table": "sale_return_allocations"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"sale_return_allocations_company_id_return_movement_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_return_allocations_company_id_return_movement_id_fkey",
+          "public",
+          "\"public\".\"sale_return_allocations\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"sale_return_allocations_company_id_return_movement_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"sale_return_allocations\"\nADD CONSTRAINT \"sale_return_allocations_company_id_return_movement_id_fkey\"\nFOREIGN KEY (\"company_id\", \"return_movement_id\")\nREFERENCES \"public\".\"stock_movements\" (\"company_id\", \"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"sale_return_allocations_company_id_return_movement_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_return_allocations_company_id_return_movement_id_fkey",
+          "public",
+          "\"public\".\"sale_return_allocations\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.sale_return_allocations.sale_return_allocations_company_id_loss_movement_id_fkey",
+    "label": "Add foreign key \"sale_return_allocations_company_id_loss_movement_id_fkey\" on \"sale_return_allocations\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "sale_return_allocations_company_id_loss_movement_id_fkey",
+        "table": "sale_return_allocations"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"sale_return_allocations_company_id_loss_movement_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_return_allocations_company_id_loss_movement_id_fkey",
+          "public",
+          "\"public\".\"sale_return_allocations\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"sale_return_allocations_company_id_loss_movement_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"sale_return_allocations\"\nADD CONSTRAINT \"sale_return_allocations_company_id_loss_movement_id_fkey\"\nFOREIGN KEY (\"company_id\", \"loss_movement_id\")\nREFERENCES \"public\".\"stock_movements\" (\"company_id\", \"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"sale_return_allocations_company_id_loss_movement_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_return_allocations_company_id_loss_movement_id_fkey",
+          "public",
+          "\"public\".\"sale_return_allocations\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.sale_return_requests.sale_return_requests_company_id_fkey",
+    "label": "Add foreign key \"sale_return_requests_company_id_fkey\" on \"sale_return_requests\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "sale_return_requests_company_id_fkey",
+        "table": "sale_return_requests"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"sale_return_requests_company_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_return_requests_company_id_fkey",
+          "public",
+          "\"public\".\"sale_return_requests\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"sale_return_requests_company_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"sale_return_requests\"\nADD CONSTRAINT \"sale_return_requests_company_id_fkey\"\nFOREIGN KEY (\"company_id\")\nREFERENCES \"public\".\"companies\" (\"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"sale_return_requests_company_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_return_requests_company_id_fkey",
+          "public",
+          "\"public\".\"sale_return_requests\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.sale_return_requests.sale_return_requests_company_id_created_by_user_id_fkey",
+    "label": "Add foreign key \"sale_return_requests_company_id_created_by_user_id_fkey\" on \"sale_return_requests\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "sale_return_requests_company_id_created_by_user_id_fkey",
+        "table": "sale_return_requests"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"sale_return_requests_company_id_created_by_user_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_return_requests_company_id_created_by_user_id_fkey",
+          "public",
+          "\"public\".\"sale_return_requests\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"sale_return_requests_company_id_created_by_user_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"sale_return_requests\"\nADD CONSTRAINT \"sale_return_requests_company_id_created_by_user_id_fkey\"\nFOREIGN KEY (\"company_id\", \"created_by_user_id\")\nREFERENCES \"public\".\"users\" (\"company_id\", \"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"sale_return_requests_company_id_created_by_user_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_return_requests_company_id_created_by_user_id_fkey",
+          "public",
+          "\"public\".\"sale_return_requests\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.sale_returns.sale_returns_company_id_request_id_fkey",
+    "label": "Add foreign key \"sale_returns_company_id_request_id_fkey\" on \"sale_returns\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "sale_returns_company_id_request_id_fkey",
+        "table": "sale_returns"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"sale_returns_company_id_request_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_returns_company_id_request_id_fkey",
+          "public",
+          "\"public\".\"sale_returns\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"sale_returns_company_id_request_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"sale_returns\"\nADD CONSTRAINT \"sale_returns_company_id_request_id_fkey\"\nFOREIGN KEY (\"company_id\", \"request_id\")\nREFERENCES \"public\".\"sale_return_requests\" (\"company_id\", \"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"sale_returns_company_id_request_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_returns_company_id_request_id_fkey",
+          "public",
+          "\"public\".\"sale_returns\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.sale_returns.sale_returns_company_id_source_sale_id_fkey",
+    "label": "Add foreign key \"sale_returns_company_id_source_sale_id_fkey\" on \"sale_returns\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "sale_returns_company_id_source_sale_id_fkey",
+        "table": "sale_returns"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"sale_returns_company_id_source_sale_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_returns_company_id_source_sale_id_fkey",
+          "public",
+          "\"public\".\"sale_returns\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"sale_returns_company_id_source_sale_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"sale_returns\"\nADD CONSTRAINT \"sale_returns_company_id_source_sale_id_fkey\"\nFOREIGN KEY (\"company_id\", \"source_sale_id\")\nREFERENCES \"public\".\"sales\" (\"company_id\", \"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"sale_returns_company_id_source_sale_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_returns_company_id_source_sale_id_fkey",
+          "public",
+          "\"public\".\"sale_returns\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.sale_returns.sale_returns_company_id_legacy_movement_id_fkey",
+    "label": "Add foreign key \"sale_returns_company_id_legacy_movement_id_fkey\" on \"sale_returns\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "sale_returns_company_id_legacy_movement_id_fkey",
+        "table": "sale_returns"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"sale_returns_company_id_legacy_movement_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_returns_company_id_legacy_movement_id_fkey",
+          "public",
+          "\"public\".\"sale_returns\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"sale_returns_company_id_legacy_movement_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"sale_returns\"\nADD CONSTRAINT \"sale_returns_company_id_legacy_movement_id_fkey\"\nFOREIGN KEY (\"company_id\", \"legacy_movement_id\")\nREFERENCES \"public\".\"stock_movements\" (\"company_id\", \"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"sale_returns_company_id_legacy_movement_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_returns_company_id_legacy_movement_id_fkey",
+          "public",
+          "\"public\".\"sale_returns\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.sale_returns.sale_returns_company_id_location_id_fkey",
+    "label": "Add foreign key \"sale_returns_company_id_location_id_fkey\" on \"sale_returns\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "sale_returns_company_id_location_id_fkey",
+        "table": "sale_returns"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"sale_returns_company_id_location_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_returns_company_id_location_id_fkey",
+          "public",
+          "\"public\".\"sale_returns\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"sale_returns_company_id_location_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"sale_returns\"\nADD CONSTRAINT \"sale_returns_company_id_location_id_fkey\"\nFOREIGN KEY (\"company_id\", \"location_id\")\nREFERENCES \"public\".\"locations\" (\"company_id\", \"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"sale_returns_company_id_location_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_returns_company_id_location_id_fkey",
+          "public",
+          "\"public\".\"sale_returns\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.sale_returns.sale_returns_company_id_created_by_user_id_fkey",
+    "label": "Add foreign key \"sale_returns_company_id_created_by_user_id_fkey\" on \"sale_returns\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "sale_returns_company_id_created_by_user_id_fkey",
+        "table": "sale_returns"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"sale_returns_company_id_created_by_user_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_returns_company_id_created_by_user_id_fkey",
+          "public",
+          "\"public\".\"sale_returns\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"sale_returns_company_id_created_by_user_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"sale_returns\"\nADD CONSTRAINT \"sale_returns_company_id_created_by_user_id_fkey\"\nFOREIGN KEY (\"company_id\", \"created_by_user_id\")\nREFERENCES \"public\".\"users\" (\"company_id\", \"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"sale_returns_company_id_created_by_user_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_returns_company_id_created_by_user_id_fkey",
+          "public",
+          "\"public\".\"sale_returns\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rowLevelSecurity.public.sale_return_allocations",
+    "label": "Enable row-level security on \"sale_return_allocations\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rowLevelSecurity",
+        "name": "sale_return_allocations"
+      }
+    },
+    "precheck": [
+      {
+        "description": "check RLS is not already enabled on \"sale_return_allocations\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND NOT (\"c\".\"relrowsecurity\"))) AS \"result\"",
+        "params": [
+          "public",
+          "sale_return_allocations"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "enable row-level security on \"sale_return_allocations\"",
+        "sql": "ALTER TABLE \"public\".\"sale_return_allocations\" ENABLE ROW LEVEL SECURITY"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify row-level security is enabled on \"sale_return_allocations\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"c\".\"relrowsecurity\")) AS \"result\"",
+        "params": [
+          "public",
+          "sale_return_allocations"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rowLevelSecurity.public.sale_return_requests",
+    "label": "Enable row-level security on \"sale_return_requests\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rowLevelSecurity",
+        "name": "sale_return_requests"
+      }
+    },
+    "precheck": [
+      {
+        "description": "check RLS is not already enabled on \"sale_return_requests\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND NOT (\"c\".\"relrowsecurity\"))) AS \"result\"",
+        "params": [
+          "public",
+          "sale_return_requests"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "enable row-level security on \"sale_return_requests\"",
+        "sql": "ALTER TABLE \"public\".\"sale_return_requests\" ENABLE ROW LEVEL SECURITY"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify row-level security is enabled on \"sale_return_requests\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"c\".\"relrowsecurity\")) AS \"result\"",
+        "params": [
+          "public",
+          "sale_return_requests"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rowLevelSecurity.public.sale_returns",
+    "label": "Enable row-level security on \"sale_returns\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rowLevelSecurity",
+        "name": "sale_returns"
+      }
+    },
+    "precheck": [
+      {
+        "description": "check RLS is not already enabled on \"sale_returns\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND NOT (\"c\".\"relrowsecurity\"))) AS \"result\"",
+        "params": [
+          "public",
+          "sale_returns"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "enable row-level security on \"sale_returns\"",
+        "sql": "ALTER TABLE \"public\".\"sale_returns\" ENABLE ROW LEVEL SECURITY"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify row-level security is enabled on \"sale_returns\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"c\".\"relrowsecurity\")) AS \"result\"",
+        "params": [
+          "public",
+          "sale_returns"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.sale_return_allocations.sale_return_allocation_delete_336681c2",
+    "label": "Create RLS policy \"sale_return_allocation_delete_336681c2\" on \"sale_return_allocations\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "sale_return_allocation_delete_336681c2",
+        "table": "sale_return_allocations"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"sale_return_allocation_delete_336681c2\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "sale_return_allocations",
+          "sale_return_allocation_delete_336681c2"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"sale_return_allocation_delete_336681c2\"",
+        "sql": "CREATE POLICY \"sale_return_allocation_delete_336681c2\" ON \"public\".\"sale_return_allocations\" AS PERMISSIVE FOR DELETE TO stockledger_app USING (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid AND current_setting('app.workspace_deletion_company_id', true) = company_id::text)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"sale_return_allocation_delete_336681c2\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "sale_return_allocations",
+          "sale_return_allocation_delete_336681c2"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.sale_return_allocations.sale_return_allocation_insert_1c87de9a",
+    "label": "Create RLS policy \"sale_return_allocation_insert_1c87de9a\" on \"sale_return_allocations\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "sale_return_allocation_insert_1c87de9a",
+        "table": "sale_return_allocations"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"sale_return_allocation_insert_1c87de9a\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "sale_return_allocations",
+          "sale_return_allocation_insert_1c87de9a"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"sale_return_allocation_insert_1c87de9a\"",
+        "sql": "CREATE POLICY \"sale_return_allocation_insert_1c87de9a\" ON \"public\".\"sale_return_allocations\" AS PERMISSIVE FOR INSERT TO stockledger_app WITH CHECK (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"sale_return_allocation_insert_1c87de9a\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "sale_return_allocations",
+          "sale_return_allocation_insert_1c87de9a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.sale_return_allocations.sale_return_allocation_select_10e0fa81",
+    "label": "Create RLS policy \"sale_return_allocation_select_10e0fa81\" on \"sale_return_allocations\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "sale_return_allocation_select_10e0fa81",
+        "table": "sale_return_allocations"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"sale_return_allocation_select_10e0fa81\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "sale_return_allocations",
+          "sale_return_allocation_select_10e0fa81"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"sale_return_allocation_select_10e0fa81\"",
+        "sql": "CREATE POLICY \"sale_return_allocation_select_10e0fa81\" ON \"public\".\"sale_return_allocations\" AS PERMISSIVE FOR SELECT TO stockledger_app USING (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"sale_return_allocation_select_10e0fa81\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "sale_return_allocations",
+          "sale_return_allocation_select_10e0fa81"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.sale_return_requests.sale_return_request_delete_336681c2",
+    "label": "Create RLS policy \"sale_return_request_delete_336681c2\" on \"sale_return_requests\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "sale_return_request_delete_336681c2",
+        "table": "sale_return_requests"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"sale_return_request_delete_336681c2\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "sale_return_requests",
+          "sale_return_request_delete_336681c2"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"sale_return_request_delete_336681c2\"",
+        "sql": "CREATE POLICY \"sale_return_request_delete_336681c2\" ON \"public\".\"sale_return_requests\" AS PERMISSIVE FOR DELETE TO stockledger_app USING (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid AND current_setting('app.workspace_deletion_company_id', true) = company_id::text)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"sale_return_request_delete_336681c2\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "sale_return_requests",
+          "sale_return_request_delete_336681c2"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.sale_return_requests.sale_return_request_finish_277a30ed",
+    "label": "Create RLS policy \"sale_return_request_finish_277a30ed\" on \"sale_return_requests\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "sale_return_request_finish_277a30ed",
+        "table": "sale_return_requests"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"sale_return_request_finish_277a30ed\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "sale_return_requests",
+          "sale_return_request_finish_277a30ed"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"sale_return_request_finish_277a30ed\"",
+        "sql": "CREATE POLICY \"sale_return_request_finish_277a30ed\" ON \"public\".\"sale_return_requests\" AS PERMISSIVE FOR UPDATE TO stockledger_app USING (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid AND status = 'prepared') WITH CHECK (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid AND status IN ('applied','cancelled'))",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"sale_return_request_finish_277a30ed\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "sale_return_requests",
+          "sale_return_request_finish_277a30ed"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.sale_return_requests.sale_return_request_insert_1c87de9a",
+    "label": "Create RLS policy \"sale_return_request_insert_1c87de9a\" on \"sale_return_requests\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "sale_return_request_insert_1c87de9a",
+        "table": "sale_return_requests"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"sale_return_request_insert_1c87de9a\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "sale_return_requests",
+          "sale_return_request_insert_1c87de9a"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"sale_return_request_insert_1c87de9a\"",
+        "sql": "CREATE POLICY \"sale_return_request_insert_1c87de9a\" ON \"public\".\"sale_return_requests\" AS PERMISSIVE FOR INSERT TO stockledger_app WITH CHECK (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"sale_return_request_insert_1c87de9a\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "sale_return_requests",
+          "sale_return_request_insert_1c87de9a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.sale_return_requests.sale_return_request_select_10e0fa81",
+    "label": "Create RLS policy \"sale_return_request_select_10e0fa81\" on \"sale_return_requests\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "sale_return_request_select_10e0fa81",
+        "table": "sale_return_requests"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"sale_return_request_select_10e0fa81\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "sale_return_requests",
+          "sale_return_request_select_10e0fa81"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"sale_return_request_select_10e0fa81\"",
+        "sql": "CREATE POLICY \"sale_return_request_select_10e0fa81\" ON \"public\".\"sale_return_requests\" AS PERMISSIVE FOR SELECT TO stockledger_app USING (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"sale_return_request_select_10e0fa81\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "sale_return_requests",
+          "sale_return_request_select_10e0fa81"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.sale_returns.sale_return_delete_336681c2",
+    "label": "Create RLS policy \"sale_return_delete_336681c2\" on \"sale_returns\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "sale_return_delete_336681c2",
+        "table": "sale_returns"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"sale_return_delete_336681c2\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "sale_returns",
+          "sale_return_delete_336681c2"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"sale_return_delete_336681c2\"",
+        "sql": "CREATE POLICY \"sale_return_delete_336681c2\" ON \"public\".\"sale_returns\" AS PERMISSIVE FOR DELETE TO stockledger_app USING (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid AND current_setting('app.workspace_deletion_company_id', true) = company_id::text)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"sale_return_delete_336681c2\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "sale_returns",
+          "sale_return_delete_336681c2"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.sale_returns.sale_return_insert_1c87de9a",
+    "label": "Create RLS policy \"sale_return_insert_1c87de9a\" on \"sale_returns\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "sale_return_insert_1c87de9a",
+        "table": "sale_returns"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"sale_return_insert_1c87de9a\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "sale_returns",
+          "sale_return_insert_1c87de9a"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"sale_return_insert_1c87de9a\"",
+        "sql": "CREATE POLICY \"sale_return_insert_1c87de9a\" ON \"public\".\"sale_returns\" AS PERMISSIVE FOR INSERT TO stockledger_app WITH CHECK (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"sale_return_insert_1c87de9a\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "sale_returns",
+          "sale_return_insert_1c87de9a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.sale_returns.sale_return_select_10e0fa81",
+    "label": "Create RLS policy \"sale_return_select_10e0fa81\" on \"sale_returns\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "sale_return_select_10e0fa81",
+        "table": "sale_returns"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"sale_return_select_10e0fa81\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "sale_returns",
+          "sale_return_select_10e0fa81"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"sale_return_select_10e0fa81\"",
+        "sql": "CREATE POLICY \"sale_return_select_10e0fa81\" ON \"public\".\"sale_returns\" AS PERMISSIVE FOR SELECT TO stockledger_app USING (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"sale_return_select_10e0fa81\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "sale_returns",
+          "sale_return_select_10e0fa81"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "sale_returns.runtime_grants",
+    "label": "Grant immutable returns and guarded request completion",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres"
+    },
+    "precheck": [
+      {
+        "description": "Return grants absent",
+        "sql": "SELECT NOT has_table_privilege('stockledger_app','public.sale_returns','SELECT') AS result"
+      }
+    ],
+    "execute": [
+      {
+        "description": "Immutable return records",
+        "sql": "GRANT SELECT,INSERT,DELETE ON public.sale_return_requests,public.sale_returns,public.sale_return_allocations TO stockledger_app"
+      },
+      {
+        "description": "Only request terminal columns are mutable",
+        "sql": "GRANT UPDATE(status,finished_at) ON public.sale_return_requests TO stockledger_app"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "Immutable inputs and records",
+        "sql": "SELECT has_table_privilege('stockledger_app','public.sale_returns','SELECT,INSERT,DELETE') AND NOT has_table_privilege('stockledger_app','public.sale_returns','UPDATE') AND NOT has_column_privilege('stockledger_app','public.sale_return_requests','input_json','UPDATE') AND has_column_privilege('stockledger_app','public.sale_return_requests','status','UPDATE') AS result"
+      }
+    ]
+  }
+]

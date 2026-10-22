@@ -14,7 +14,11 @@ type ProfitLine = {
   grossProfitCents: number;
   marginPercent: number | null;
   uncostedSaleUnits: number;
+  discountCents: number;
 };
+
+// Automatic box and quantity discounts recorded on each checkout sale line.
+export type SaleDiscount = { locationId: string; itemId: string; movementDate: string; discountCents: number };
 
 export type ProfitabilityFilters = {
   days: number;
@@ -30,6 +34,7 @@ export function buildProfitability(
   movements: readonly MovementRecord[],
   filters: ProfitabilityFilters,
   now = new Date(),
+  discounts: readonly SaleDiscount[] = [],
 ) {
   const { days, locationId, locationType, itemId, category } = filters;
   const periodStart = new Date(now);
@@ -37,18 +42,19 @@ export function buildProfitability(
   const startDate = periodStart.toISOString().slice(0, 10);
   const itemById = new Map(items.map((item) => [item.id, item]));
   const locationById = new Map(locations.map((location) => [location.id, location]));
-  const relevant = movements.filter((movement) => {
-    const item = itemById.get(movement.itemId);
-    const location = locationById.get(movement.locationId);
-    return movement.movementDate >= startDate
-      && (!locationId || movement.locationId === locationId)
+  const inScope = (entry: { movementDate: string; locationId: string; itemId: string }) => {
+    const item = itemById.get(entry.itemId);
+    const location = locationById.get(entry.locationId);
+    return entry.movementDate >= startDate
+      && (!locationId || entry.locationId === locationId)
       && (!locationType || location?.type === locationType)
-      && (!itemId || movement.itemId === itemId)
+      && (!itemId || entry.itemId === itemId)
       && (!category || item?.category === category);
-  });
+  };
+  const relevant = movements.filter(inScope);
   const lines = new Map<string, ProfitLine>();
 
-  const lineFor = (movement: MovementRecord) => {
+  const lineFor = (movement: Pick<MovementRecord, 'locationId' | 'itemId'>) => {
     const key = `${movement.locationId}:${movement.itemId}`;
     const existing = lines.get(key);
     if (existing) return existing;
@@ -65,6 +71,7 @@ export function buildProfitability(
       grossProfitCents: 0,
       marginPercent: null,
       uncostedSaleUnits: 0,
+      discountCents: 0,
     };
     lines.set(key, line);
     return line;
@@ -85,6 +92,10 @@ export function buildProfitability(
     }
   }
 
+  for (const discount of discounts) {
+    if (inScope(discount)) lineFor(discount).discountCents += discount.discountCents;
+  }
+
   const presentedLines = [...lines.values()].map((line) => {
     const grossProfitCents = line.costedRevenueCents - line.cogsCents;
     return {
@@ -99,6 +110,7 @@ export function buildProfitability(
   const netSalesCents = presentedLines.reduce((total, line) => total + line.netSalesCents, 0);
   const costedRevenueCents = presentedLines.reduce((total, line) => total + line.costedRevenueCents, 0);
   const cogsCents = presentedLines.reduce((total, line) => total + line.cogsCents, 0);
+  const discountsGivenCents = presentedLines.reduce((total, line) => total + line.discountCents, 0);
   const grossProfitCents = costedRevenueCents - cogsCents;
   const inventoryLossCents = relevant
     .filter((movement) => movement.type === StockMovementType.DAMAGE || movement.type === StockMovementType.ADJUSTMENT_OUT)
@@ -132,6 +144,8 @@ export function buildProfitability(
     category,
     summary: {
       netSalesCents,
+      discountsGivenCents,
+      fullPriceSalesCents: netSalesCents + discountsGivenCents,
       costedRevenueCents,
       cogsCents,
       grossProfitCents,

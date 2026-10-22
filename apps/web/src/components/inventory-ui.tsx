@@ -9,8 +9,8 @@ import { SelectControl } from './ui/select-control';
 
 export { SelectControl } from './ui/select-control';
 
-export function PageHeader({ title, subtitle, actions }: { title: string; subtitle: string; actions?: ReactNode }) {
-  return <div className="page-header"><div><h1>{title}</h1><p>{subtitle}</p></div>{actions && <div className="actions">{actions}</div>}</div>;
+export function PageHeader({ title, accent, subtitle, actions }: { title: string; accent?: string; subtitle?: string; actions?: ReactNode }) {
+  return <div className="page-header"><div><h1>{title}{accent && <> <span className="title-accent">{accent}</span></>}</h1>{subtitle && <p>{subtitle}</p>}</div>{actions && <div className="actions">{actions}</div>}</div>;
 }
 
 export function PageState({ children }: { children: ReactNode }) {
@@ -23,10 +23,10 @@ export function EmptyState({ text, icon }: { text: string; icon?: ReactNode }) {
   return <div className="empty">{icon ?? <EmptyInventoryIcon />}<p>{text}</p></div>;
 }
 
-export function Kpi({ icon: Icon, label, value, note, tone = '' }: { icon: LucideIcon; label: string; value: string; note: string; tone?: string }) {
+export function Kpi({ icon: Icon, label, value, note, tone = '', amount = false }: { icon: LucideIcon; label: string; value: string; note: string; tone?: string; amount?: boolean }) {
   return <article className="panel kpi">
     <div className="kpi-top"><p>{label}</p><span className={`kpi-icon ${tone}`}><Icon size={19} /></span></div>
-    <strong>{value}</strong>
+    <strong className={amount ? 'kpi-amount' : undefined}>{value}</strong>
     <small>{note}</small>
   </article>;
 }

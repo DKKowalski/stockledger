@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import * as argon2 from 'argon2';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PrismaService } from '../../prisma/prisma.service.js';
@@ -34,6 +34,7 @@ describe('SettingsService', () => {
   const tx = { query, execute, orm: { public: {
     User: { first: userFirst },
     Company: { first: companyFirst, where: companyWhere },
+    InventoryValuationCheckpoint: {first: vi.fn().mockResolvedValue(null)},
     Location: { first: locationFirst },
     AuditEvent: { create: auditCreate, where: auditWhere },
   } } };
@@ -166,6 +167,7 @@ describe('SettingsService', () => {
     const locationId = '51000000-0000-4000-8000-000000000001';
     locationFirst.mockResolvedValue({ id: locationId, companyId });
     companyFirst
+      .mockResolvedValueOnce(company)
       .mockResolvedValueOnce({
         ...company,
         defaultLocationId: locationId,
@@ -193,6 +195,31 @@ describe('SettingsService', () => {
     expect(companyUpdate).toHaveBeenCalledWith(expect.objectContaining({ defaultUnit: 'carton', skuPrefix: 'PRD' }));
     expect(result).toMatchObject({ defaultLocationId: locationId, skuPrefix: 'PRD' });
     expect(auditCreate).toHaveBeenCalledWith(expect.objectContaining({ action: 'company.inventory_settings_updated' }));
+  });
+
+  it('switches on box and quantity deals and records who did it', async () => {
+    companyFirst
+      .mockResolvedValueOnce({ ...company, hybridPricingEnabled: false })
+      .mockResolvedValueOnce({ ...company, hybridPricingEnabled: true });
+
+    const result = await service.updateInventory(ownerId, companyId, {
+      defaultLocationId: null, defaultUnit: 'pcs', defaultReorderLevel: 10, skuPrefix: 'SKU', nextSkuNumber: 1,
+      allowNegativeStock: false, requirePurchaseSource: false, requireAdjustmentReason: true, hybridPricingEnabled: true,
+    });
+
+    expect(companyUpdate).toHaveBeenCalledWith(expect.objectContaining({ hybridPricingEnabled: true }));
+    expect(result).toMatchObject({ hybridPricingEnabled: true });
+    expect(auditCreate).toHaveBeenCalledWith(expect.objectContaining({ action: 'company.hybrid_pricing_switched_on' }));
+  });
+
+  it('refuses negative stock while box and quantity deals stay on, even when the client omits the switch', async () => {
+    companyFirst.mockResolvedValueOnce({ ...company, hybridPricingEnabled: true });
+
+    await expect(service.updateInventory(ownerId, companyId, {
+      defaultLocationId: null, defaultUnit: 'pcs', defaultReorderLevel: 10, skuPrefix: 'SKU', nextSkuNumber: 1,
+      allowNegativeStock: true, requirePurchaseSource: false, requireAdjustmentReason: true,
+    })).rejects.toBeInstanceOf(ConflictException);
+    expect(companyUpdate).not.toHaveBeenCalled();
   });
 
   it('rejects a default location from outside the workspace', async () => {
@@ -241,9 +268,9 @@ describe('SettingsService', () => {
       confirmation: 'Mensah Trading',
     })).resolves.toEqual({ deleted: true });
 
-    expect(query).toHaveBeenCalledOnce();
-    expect(execute).toHaveBeenCalledTimes(11);
-    expect(rawStatement.affectedCount).toHaveBeenCalledTimes(11);
+    expect(query).toHaveBeenCalledTimes(2);
+    expect(execute).toHaveBeenCalledTimes(21);
+    expect(rawStatement.affectedCount).toHaveBeenCalledTimes(21);
   });
 
   it('keeps the workspace when its name does not match', async () => {

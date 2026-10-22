@@ -61,7 +61,7 @@ describe('AuthService launch account flows', () => {
     'auth.refreshTokenTtlDays': 30,
     'app.webOrigin': 'https://stockledger.example',
   })[key]);
-  const get = vi.fn(() => undefined);
+  const get = vi.fn((): string | undefined => undefined);
   const send = vi.fn();
   const sendVerification = vi.fn();
   const sendInvitation = vi.fn();
