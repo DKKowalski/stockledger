@@ -4,6 +4,7 @@ type TallyMascotProps = {
   step?: 0 | 1 | 2 | 3 | 4;
   compact?: boolean;
   celebrating?: boolean;
+  tip?: string;
 };
 
 const tips = [
@@ -14,11 +15,11 @@ const tips = [
   'Your setup is saved. The next milestones happen inside your workspace.',
 ] as const;
 
-export function TallyMascot({ step = 0, compact = false, celebrating = false }: TallyMascotProps) {
+export function TallyMascot({ step = 0, compact = false, celebrating = false, tip }: TallyMascotProps) {
   const [tipOpen, setTipOpen] = useState(false);
 
   return <div className={`tally ${compact ? 'compact' : ''} ${celebrating ? 'is-celebrating' : ''} ${tipOpen ? 'is-engaged' : ''}`}>
-    {tipOpen && <div className="tally-tip" role="status">{tips[step]}</div>}
+    {tipOpen && <div className="tally-tip" role="status">{tip ?? tips[step]}</div>}
     <button
       aria-expanded={tipOpen}
       aria-label={tipOpen ? 'Hide Tally tip' : 'Ask Tally for a tip'}

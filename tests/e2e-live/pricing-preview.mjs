@@ -86,6 +86,10 @@ async function http(path, token, method = 'GET', body) {
   });
   return { status: response.status, body: await response.json() };
 }
+async function openPricing(page) {
+  await page.locator('.catalog-row', { hasText: 'Live preview product' }).click();
+  await page.getByRole('tab', { name: 'Pricing', exact: true }).click();
+}
 async function select(page, label, name) {
   await page.getByRole('combobox', { name: label, exact: true }).click();
   await page.getByRole('option', { name, exact: true }).click();
@@ -186,11 +190,11 @@ try {
   const baselineStock = await stockSnapshot();
   await scenario('Desktop administrator configures optional package/bulk pricing through real API and RLS', async () => {
     await admin.goto(`${webBase}/items`);
-    await select(admin, 'Pricing item', 'Live preview product');
+    await openPricing(admin);
     const panel = admin.locator('.pricing-preview-panel');
     await select(admin, 'Pricing option', 'Box and quantity discounts');
     await panel.getByLabel('Offer a box or carton price').check();
-    await panel.getByLabel('Units per box or carton').fill('10');
+    await panel.getByLabel('pcs per box').fill('10');
     await panel.getByLabel('Price for one box or carton', { exact: true }).fill('120');
     await panel.getByRole('button', { name: 'Add quantity discount' }).click();
     await panel.getByLabel('Discount minimum 1').fill('5');
@@ -228,9 +232,9 @@ try {
   });
   await scenario('Real saved rules survive reload; mobile has no page overflow and labelled preview controls', async () => {
     await admin.reload();
-    await select(admin, 'Pricing item', 'Live preview product');
+    await openPricing(admin);
     const panel = admin.locator('.pricing-preview-panel');
-    await expect(panel.getByLabel('Units per box or carton')).toHaveValue('10');
+    await expect(panel.getByLabel('pcs per box')).toHaveValue('10');
     await expect(panel.getByLabel('Discount price 1')).toHaveValue('13.00');
     await admin.setViewportSize({ width: 390, height: 844 });
     await panel.getByLabel('Test quantity', { exact: true }).fill('15');
@@ -249,7 +253,8 @@ try {
     await panel.scrollIntoViewIfNeeded();
     await admin.screenshot({ path: resolve(output, 'mobile-pricing.png'), fullPage: true });
   });
-  await scenario('Administrator reviews the current cost without changing stock, prices or recorded sales', async () => {
+  // The cost review screen is hidden in the app for now; its API stays covered by integration tests.
+  if (process.env.E2E_LIVE_COST_REVIEW_UI === '1') await scenario('Administrator reviews the current cost without changing stock, prices or recorded sales', async () => {
     const before = (await sql.query('SELECT row_to_json(i) AS row FROM inventory_items i WHERE company_id=$1', [company])).rows;
     const beforeStocks = await stockSnapshot();
     const beforeMovements = await movementCount();
@@ -271,7 +276,7 @@ try {
     await panel.screenshot({ path: resolve(output, 'mobile-cost-review.png') });
     await admin.setViewportSize({ width: 1440, height: 1100 });
     await panel.screenshot({ path: resolve(output, 'desktop-cost-review.png') });
-    await select(admin, 'Pricing item', 'Live preview product');
+    await openPricing(admin);
   });
   await scenario('Concurrent configuration changes reject stale browser preview and recover by explicit reload', async () => {
     const panel = admin.locator('.pricing-preview-panel');
@@ -322,7 +327,9 @@ try {
     const context = await browser.newContext(); const page = await context.newPage();
     const token = await login(page, 'administrator', disabledCompany);
     await page.goto(`${webBase}/items`);
-    await expect(page.getByRole('heading', { name: 'Selling prices', exact: true })).toBeVisible();
+    await page.locator('.catalog-row').first().click();
+    await page.getByRole('tab', { name: 'Pricing', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Box and quantity pricing is off', exact: true })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Box and quantity pricing', exact: true })).toHaveCount(0);
     assert.equal((await http(`/inventory/items/${disabledItem}/pricing-preview`, token, 'PATCH', rules)).status, 403);
     const quote = await http('/inventory/pricing-preview/quote', token, 'POST', { lines: [{ itemId: disabledItem, quantity: 15 }] });
@@ -379,11 +386,10 @@ try {
     await scenario('Development checkout survives a committed sale with lost response and browser reload', async () => {
       const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
       const page = await context.newPage(); await login(page, 'shop_attendant'); await page.goto(`${webBase}/sell`);
-      await page.getByRole('button', { name: 'Open development checkout', exact: true }).click();
       await expect(page.getByRole('button', { name: 'Review sale', exact: true })).toBeVisible();
       await select(page, 'Item', 'Live preview product'); await page.getByLabel('Quantity', { exact: true }).fill('15');
       await page.getByRole('button', { name: 'Review sale', exact: true }).click();
-      await expect(page.locator('.pricing-quote-result strong')).toContainText('185.00');
+      await expect(page.locator('.checkout-pay dd')).toContainText('185.00');
       let posts = 0;
       await page.route('**/inventory/sales/complete', async (route) => {
         posts++; recoveredRequest = route.request().postDataJSON();
@@ -406,11 +412,10 @@ try {
     await scenario('Mobile development checkout records once and clears its key after committed sale plus refresh failure', async () => {
       const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
       const page = await context.newPage(); await login(page, 'shop_attendant'); await page.goto(`${webBase}/sell`);
-      await page.getByRole('button', { name: 'Open development checkout', exact: true }).click();
       await expect(page.getByRole('button', { name: 'Review sale', exact: true })).toBeVisible();
       await select(page, 'Item', 'Live preview product'); await page.getByLabel('Quantity', { exact: true }).fill('5');
       await page.getByRole('button', { name: 'Review sale', exact: true }).click();
-      await expect(page.locator('.pricing-quote-result strong')).toContainText('65.00');
+      await expect(page.locator('.checkout-pay dd')).toContainText('65.00');
       let writes = 0; page.on('request', (r) => { if (r.url().endsWith('/inventory/sales/complete') && r.method() === 'POST') writes++; });
       await page.route('**/inventory/snapshot**', (route) => route.fulfill({ status: 503, json: { message: 'Injected post-commit refresh failure' } }));
       await page.getByRole('button', { name: 'Complete sale', exact: true }).click();
@@ -421,17 +426,15 @@ try {
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
       await page.screenshot({ path: resolve(output, 'mobile-sale-refresh-failure.png'), fullPage: true });
       await page.unroute('**/inventory/snapshot**'); await page.reload();
-      await page.getByRole('button', { name: 'Open development checkout', exact: true }).click();
       await expect(page.getByRole('button', { name: 'Review sale', exact: true })).toBeVisible();
       assert.equal(writes, 1); await context.close();
     });
     await scenario('An uncommitted lost request retries with the original key and disabled writer still serves committed recovery', async () => {
       const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
       const page = await context.newPage(); await login(page, 'shop_attendant'); await page.goto(`${webBase}/sell`);
-      await page.getByRole('button', { name: 'Open development checkout', exact: true }).click();
       await expect(page.getByRole('button', { name: 'Review sale', exact: true })).toBeVisible();
       await select(page, 'Item', 'Live preview product'); await page.getByLabel('Quantity', { exact: true }).fill('1');
-      await page.getByRole('button', { name: 'Review sale', exact: true }).click(); await expect(page.locator('.pricing-quote-result strong')).toContainText('15.00');
+      await page.getByRole('button', { name: 'Review sale', exact: true }).click(); await expect(page.locator('.checkout-pay dd')).toContainText('15.00');
       const keys = [];
       await page.route('**/inventory/sales/complete', async (route) => { keys.push(route.request().postDataJSON().idempotencyKey); if (keys.length === 1) await route.abort('failed'); else await route.continue(); });
       await page.getByRole('button', { name: 'Complete sale', exact: true }).click(); await expect(page.getByRole('alert')).toBeVisible();

@@ -31,8 +31,8 @@ export function Kpi({ icon: Icon, label, value, note, tone = '', amount = false 
   </article>;
 }
 
-export function Panel({ title, subtitle, className = '', children }: { title: string; subtitle?: string; className?: string; children: ReactNode }) {
-  return <section className={`panel ${className}`}><div className="panel-header"><h2>{title}</h2>{subtitle && <p>{subtitle}</p>}</div>{children}</section>;
+export function Panel({ title, subtitle, className = '', tour, children }: { title: string; subtitle?: string; className?: string; tour?: string; children: ReactNode }) {
+  return <section className={`panel ${className}`} data-tour={tour}><div className="panel-header"><h2>{title}</h2>{subtitle && <p>{subtitle}</p>}</div>{children}</section>;
 }
 
 export function LocationFilter() {

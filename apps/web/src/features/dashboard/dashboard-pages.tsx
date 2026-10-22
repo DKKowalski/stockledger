@@ -8,9 +8,12 @@ import { LedgerSyncIcon } from '../../components/ledger-sync-icon';
 import { movementMeta } from '../../lib/presentation';
 import type { Movement, Position, Snapshot } from '../../types';
 import { OwnerSetupChecklist } from '../onboarding/owner-setup-checklist';
+import { DealsAttendantNotice, DealsWhatsNew } from '../../components/deals-tour';
+import { useAuth } from '../../auth-context';
 
 export function OperationsDashboardPage() {
   const { snapshot, refresh, loading } = useInventoryStore();
+  const { user } = useAuth();
   return <PageState>{snapshot && <DashboardBody
     title="Inventory"
     accent="overview"
@@ -19,7 +22,7 @@ export function OperationsDashboardPage() {
     movements={snapshot.movements}
     periodDays={snapshot.periodDays}
     summary={snapshot.summary}
-    setup={<OwnerSetupChecklist />}
+    setup={<>{user?.role === 'administrator' && <DealsWhatsNew />}<OwnerSetupChecklist /></>}
   />}</PageState>;
 }
 
@@ -33,6 +36,7 @@ export function ShopDashboardPage() {
   const unitsSold = sales.reduce((total, sale) => total + sale.quantity, 0);
   return <PageState>
     <PageHeader title={shop?.name ?? `Your ${terms.shop}`} actions={<><InventorySyncButton loading={loading} refresh={refresh} /><NavLink className="button" to="/sell">Sell<ArrowUpRight size={16} /></NavLink></>} />
+    <DealsAttendantNotice />
     <section className="kpi-grid">
       <Kpi icon={Warehouse} label="Stock on hand" value={snapshot.summary.closingUnits.toLocaleString()} note={`${snapshot.positions.length} stocked ${terms.item} lines`} />
       <Kpi icon={ShoppingBag} label="Units sold" value={unitsSold.toLocaleString()} note={`During the last ${snapshot.periodDays} days`} tone="success" />

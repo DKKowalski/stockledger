@@ -1,4 +1,4 @@
-import { Archive, Check, Info, Pencil, Plus, RotateCcw, Search, X } from 'lucide-react';
+import { Archive, Check, CircleHelp, Info, Pencil, Plus, RotateCcw, Search, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../../api';
@@ -6,6 +6,7 @@ import { useInventoryStore } from '../../app/inventory-store';
 import { useCompanySettings } from '../../app/company-settings-store';
 import { useAuth } from '../../auth-context';
 import { EmptyState, PageHeader, PageState } from '../../components/inventory-ui';
+import { useDealsTour } from '../../components/deals-tour-context';
 import { SpreadsheetImportIcon } from '../../components/animated-icons';
 import { InputControl } from '../../components/ui/input-control';
 import { movementMeta } from '../../lib/presentation';
@@ -168,11 +169,19 @@ function CatalogRowButton({ row, selected, tone, share, onSelect }: { row: Catal
 }
 
 function ItemPanel({ row, tone }: { row: CatalogRow; tone: string }) {
+  const [searchParams] = useSearchParams();
   const { busy } = useInventoryStore();
   const { terms } = useCompanySettings();
   const toggleActive = useToggleItemActive();
-  const [tab, setTab] = useState<ItemTab>(row.item.sellingPriceCents == null ? 'pricing' : 'stock');
+  const [tab, setTab] = useState<ItemTab>(row.item.sellingPriceCents == null || searchParams.get('tab') === 'pricing' ? 'pricing' : 'stock');
   const [editing, setEditing] = useState(false);
+  const tabParam = searchParams.get('tab');
+  // The deals guide links here with ?tab=pricing; follow it when it changes.
+  const [lastTabParam, setLastTabParam] = useState(tabParam);
+  if (tabParam !== lastTabParam) {
+    setLastTabParam(tabParam);
+    if (tabParam === 'pricing') setTab('pricing');
+  }
   const { item } = row;
   const tabs: Array<{ key: ItemTab; label: string }> = [{ key: 'stock', label: 'Stock' }, { key: 'pricing', label: 'Pricing' }, { key: 'history', label: 'History' }];
   return <>
@@ -225,6 +234,7 @@ function PricingTab({ item }: { item: Item }) {
   const { mutate, busy } = useInventoryStore();
   const { money } = useCompanySettings();
   const previewAvailable = usePricingPreviewAvailable();
+  const { start: startTour } = useDealsTour();
   const [price, setPrice] = useState(item.sellingPriceCents == null ? '' : (item.sellingPriceCents / 100).toFixed(2));
   const unchanged = price === (item.sellingPriceCents == null ? '' : (item.sellingPriceCents / 100).toFixed(2));
   const margin = item.sellingPriceCents ? Math.round((item.sellingPriceCents - item.unitCostCents) / item.sellingPriceCents * 100) : null;
@@ -246,14 +256,14 @@ function PricingTab({ item }: { item: Item }) {
       </form>
     </div>
     <p className="item-note"><Info size={16} aria-hidden="true" />One price for every shop. Sales already made keep the price they were sold at.</p>
-    {previewAvailable === true && <section className="item-hybrid pricing-preview-panel" aria-label="Box and quantity pricing">
-      <h3>Box and quantity pricing</h3>
+    {previewAvailable === true && <section className="item-hybrid pricing-preview-panel" aria-label="Box and quantity pricing" data-tour="item-pricing">
+      <div className="item-hybrid-heading"><h3>Box and quantity pricing</h3><button className="text-button" onClick={startTour} type="button"><CircleHelp size={15} />How deals work</button></div>
       <p>Sell a whole box or carton for less, or give a lower price per {item.unit} when someone buys more. Shops charge these prices automatically at checkout.</p>
       <p className="item-hybrid-notice">Changes apply to the next sale. Sales already made keep the price they were sold at.</p>
       <PricingEditor key={`${item.id}:${item.unit}:${item.sellingPriceCents}`} item={item} />
     </section>}
-    {previewAvailable === false && <section className="item-hybrid item-hybrid-off" aria-label="Box and quantity pricing">
-      <h3>Box and quantity pricing is off</h3>
+    {previewAvailable === false && <section className="item-hybrid item-hybrid-off" aria-label="Box and quantity pricing" data-tour="item-pricing">
+      <div className="item-hybrid-heading"><h3>Box and quantity pricing is off</h3><button className="text-button" onClick={startTour} type="button"><CircleHelp size={15} />How deals work</button></div>
       <p>Turn on <b>Box and quantity deals</b> to sell by the box or carton and give lower prices for bigger quantities. Until then, every {item.unit} sells at the price above.</p>
       <Link className="button secondary" to="/settings/inventory">Open settings</Link>
     </section>}

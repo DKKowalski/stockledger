@@ -1,4 +1,4 @@
-import { Barcode, Boxes, MapPin, Save, ShieldCheck, Tags, type LucideIcon } from 'lucide-react';
+import { Barcode, Boxes, MapPin, ShieldCheck, Tags, type LucideIcon } from 'lucide-react';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 import { api } from '../../api';
@@ -10,6 +10,7 @@ import { InputControl } from '../../components/ui/input-control';
 import { SelectControl } from '../../components/ui/select-control';
 import type { InventorySettings, Place } from '../../types';
 import { SettingsNavigation } from './settings-navigation';
+import { SettingsSaveBar } from './settings-save-bar';
 
 export function InventorySettingsPage() {
   const { accessToken } = useAuth();
@@ -71,9 +72,9 @@ function InventorySettingsForm({ initial, locations, loadError, save }: { initia
         </div>
       </Panel>
 
-      <Panel className="spaced" title="Selling" subtitle="How shops charge for items.">
+      <Panel className="spaced" title="Selling" subtitle="How shops charge for items." tour="deals-switch">
         <div className="settings-switch-list">
-          <SettingsSwitch checked={form.hybridPricingEnabled} icon={Tags} title="Box and quantity deals" description="Shops charge the box and quantity prices you set on each item under Items → Pricing, and you can take customer returns under Movements. Items without deals keep their single price." onChange={(hybridPricingEnabled) => setForm({ ...form, hybridPricingEnabled, allowNegativeStock: hybridPricingEnabled ? false : form.allowNegativeStock })} />
+          <SettingsSwitch checked={form.hybridPricingEnabled} icon={Tags} title="Box and quantity deals" description="Shops charge the box and quantity prices you set on each item under Items → Pricing, and you can take customer returns under Movements. Items without deals keep their normal price." onChange={(hybridPricingEnabled) => setForm({ ...form, hybridPricingEnabled, allowNegativeStock: hybridPricingEnabled ? false : form.allowNegativeStock })} />
         </div>
         {form.hybridPricingEnabled && initial.allowNegativeStock && <p className="settings-switch-note">Saving this also switches off negative stock, because checkout never sells stock a shop does not have.</p>}
       </Panel>
@@ -86,7 +87,7 @@ function InventorySettingsForm({ initial, locations, loadError, save }: { initia
         </div>
       </Panel>
 
-      <div className="settings-save-bar"><span>{changed ? 'You have unsaved changes.' : 'Everything is up to date.'}</span><button className="button" disabled={saving || !changed}>{saving ? <><StockLedgerMark animated size={20} />Saving</> : <><Save size={16} />Save inventory settings</>}</button></div>
+      <SettingsSaveBar changed={changed} saving={saving} onDiscard={() => setForm(initial)} />
     </form>
   </>;
 }

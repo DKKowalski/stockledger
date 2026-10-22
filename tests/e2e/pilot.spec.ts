@@ -168,4 +168,27 @@ test('previews the demo as the Makola shop attendant', async ({ page }) => {
   await expect(page).toHaveURL('/');
   await expect(page.getByText('You are viewing a read-only demo.')).toBeVisible();
   await expect(page.getByText('Joyce Baidoo').first()).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Deals are on' })).toBeVisible();
+  await page.getByRole('button', { name: 'Got it' }).click();
+  await expect(page.getByRole('heading', { name: 'Deals are on' })).toBeHidden();
+});
+
+test('walks the owner through box and quantity deals once', async ({ page }) => {
+  await signIntoDemo(page);
+  await page.getByRole('button', { name: 'Show me' }).click();
+  const guide = page.getByRole('dialog');
+  await expect(page).toHaveURL('/settings/inventory');
+  await expect(guide.getByRole('heading', { name: 'Turn deals on' })).toBeVisible();
+  await expect(page.locator('[data-tour="deals-switch"]')).toHaveClass(/tour-highlight/);
+  await guide.getByRole('button', { name: 'Next' }).click();
+  await expect(page.locator('[data-tour="item-pricing"]')).toHaveClass(/tour-highlight/);
+  await guide.getByRole('button', { name: 'Next' }).click();
+  await expect(guide.getByText('Customer pays')).toBeVisible();
+  await guide.getByRole('button', { name: 'Next' }).click();
+  await expect(page).toHaveURL('/profitability');
+  await guide.getByRole('button', { name: 'Done' }).click();
+  await expect(guide).toBeHidden();
+  await page.goto('/');
+  await expect(page.getByText('Closing stock')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Show me' })).toBeHidden();
 });

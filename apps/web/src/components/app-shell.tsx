@@ -8,6 +8,7 @@ import { MenuMorphIcon } from './animated-icons';
 import { StockLedgerMark } from './stockledger-mark';
 import { LowStockNotifications } from './low-stock-notifications';
 import { useCompanySettings } from '../app/company-settings-store';
+import { DealsTourProvider } from './deals-tour';
 
 export type NavigationMotion = 'overview' | 'items' | 'movement' | 'reports' | 'places' | 'team' | 'sell';
 export type NavigationItem = readonly [path: string, label: string, icon: LucideIcon, motion: NavigationMotion];
@@ -38,7 +39,7 @@ export function AppShell({ navigation }: { navigation: readonly NavigationItem[]
     <div className="shell-content">
       {user?.isDemo && <div className="demo-mode-banner" role="status"><span>You are viewing a read-only demo.</span><NavLink to="/signup" onClick={signOut}>Create a workspace</NavLink></div>}
       {error && <div className="error-banner" role="alert"><span>{error}</span><button onClick={() => void refresh()}>Try again</button></div>}
-      <main className="page"><Outlet /></main>
+      <DealsTourProvider><main className="page"><Outlet /></main></DealsTourProvider>
     </div>
   </div>;
 }

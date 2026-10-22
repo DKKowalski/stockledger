@@ -11,6 +11,12 @@ export type DataExportType = 'workspace' | 'workspace-v2' | 'workspace-v3' | 'wo
 
 const base = (import.meta.env.VITE_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 
+// The free API host sleeps when idle. Start it waking as soon as anyone opens the site,
+// so it is usually ready by the time they sign in.
+export function wakeApi() {
+  void fetch(`${base}/health`, { mode: 'no-cors', cache: 'no-store' }).catch(() => undefined);
+}
+
 export class ApiError extends Error {
   constructor(message: string, readonly status: number, readonly code?: string, readonly requestId?: string) {
     super(message);

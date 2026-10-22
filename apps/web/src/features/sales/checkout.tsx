@@ -29,10 +29,10 @@ export function hasPendingSale(user: User) {
   try { return Object.keys(localStorage).some((key) => key.startsWith(prefix(user))); } catch { return false; }
 }
 
-const pricingLabels = { retail: 'Single price', bulk: 'Quantity discount', box: 'Box price' } as const;
+const pricingLabels = { retail: 'Normal price', bulk: 'Quantity discount', box: 'Box price' } as const;
 
 // The Sell screen when the owner has switched on box and quantity deals.
-// Items without deals are charged their single price.
+// Items without deals are charged their normal price.
 export function Checkout({ enabled }: { enabled: boolean }) {
   const { user, accessToken } = useAuth();
   const { snapshot, mutate, busy: inventoryBusy, error: inventoryError } = useInventoryStore();
@@ -147,9 +147,13 @@ export function Checkout({ enabled }: { enabled: boolean }) {
         </fieldset>
       </form>}
       {!pending && quote && <div className="pricing-quote-result" role="status">
-        <p>{quote.lines[0].quantity} {quote.lines[0].baseUnit} · Total <strong>{money(quote.totalCents)}</strong></p>
-        {quote.automaticDiscountCents > 0 && <p className="checkout-saving">Includes {money(quote.automaticDiscountCents)} off the single price of {money(quote.grossSalesCents)}.</p>}
-        <div className="table-wrap"><table><thead><tr><th>How it is charged</th><th className="num">Quantity</th><th className="num">Each</th><th className="num">Total</th></tr></thead><tbody>{quote.lines[0].components.map((part, index) => <tr key={index}><td>{part.category === 'box' && quote.lines[0].package ? `${quote.lines[0].package.label.charAt(0).toUpperCase()}${quote.lines[0].package.label.slice(1)} price (${quote.lines[0].package.size} per ${quote.lines[0].package.label})` : pricingLabels[part.category]}</td><td className="num">{part.quantity}</td><td className="num">{money(part.unitPriceCents)}</td><td className="num">{money(part.totalCents)}</td></tr>)}</tbody></table></div>
+        <p>{quote.lines[0].quantity} {quote.lines[0].baseUnit}</p>
+        <dl className="checkout-totals">
+          {quote.automaticDiscountCents > 0 && <><div><dt>Price before discount</dt><dd>{money(quote.grossSalesCents)}</dd></div>
+          <div className="checkout-discount"><dt>Discount</dt><dd>− {money(quote.automaticDiscountCents)}</dd></div></>}
+          <div className="checkout-pay"><dt>Customer pays</dt><dd>{money(quote.totalCents)}</dd></div>
+        </dl>
+        <div className="table-wrap"><table><thead><tr><th>Price used</th><th className="num">Quantity</th><th className="num">Each</th><th className="num">Total</th></tr></thead><tbody>{quote.lines[0].components.map((part, index) => <tr key={index}><td>{part.category === 'box' && quote.lines[0].package ? `${quote.lines[0].package.label.charAt(0).toUpperCase()}${quote.lines[0].package.label.slice(1)} price (${quote.lines[0].package.size} per ${quote.lines[0].package.label})` : pricingLabels[part.category]}</td><td className="num">{part.quantity}</td><td className="num">{money(part.unitPriceCents)}</td><td className="num">{money(part.totalCents)}</td></tr>)}</tbody></table></div>
         <button className="button" disabled={busy || !enabled || !!inventoryError} onClick={complete}>Complete sale</button>
       </div>}
       {completed && <p role="status">Sale recorded · {money(completed.totalCents, completed.currency)}</p>}

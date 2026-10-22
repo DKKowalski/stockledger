@@ -25,7 +25,7 @@ async function prepared(context: BrowserContext, suspendStorageEvents = false) {
     await page.goto('/sell');
     await page.getByRole('combobox', { name: 'Item', exact: true }).click(); await page.getByRole('option', { name: item.name, exact: true }).click();
     await page.getByLabel('Quantity', { exact: true }).fill('15'); await page.getByRole('button', { name: 'Review sale', exact: true }).click();
-    await expect(page.locator('.pricing-quote-result strong')).toContainText('185.00');
+    await expect(page.locator('.checkout-pay dd')).toContainText('185.00');
   }
   return { pages, quote };
 }

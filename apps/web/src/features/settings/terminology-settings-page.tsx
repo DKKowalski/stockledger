@@ -1,4 +1,4 @@
-import { BookType, Check, Package, Save, Store, Warehouse } from 'lucide-react';
+import { BookType, Check, Package, Store, Warehouse } from 'lucide-react';
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { useCompanySettings } from '../../app/company-settings-store';
@@ -6,6 +6,7 @@ import { PageHeader, Panel } from '../../components/inventory-ui';
 import { StockLedgerMark } from '../../components/stockledger-mark';
 import type { CompanySettings, TerminologySettings } from '../../types';
 import { SettingsNavigation } from './settings-navigation';
+import { SettingsSaveBar } from './settings-save-bar';
 
 export function TerminologySettingsPage() {
   const { settings, loading, error, saveTerminology } = useCompanySettings();
@@ -39,7 +40,7 @@ function TerminologyForm({ settings, save }: { settings: CompanySettings; save: 
         </div>
       </Panel>
       <div className="terminology-preview"><BookType size={18} /><span>Your team will read:</span><b>{capital(form.itemTerm)} stock across every {form.shopTerm} and {form.warehouseTerm}</b></div>
-      <div className="settings-save-bar"><span>{changed ? 'You have unsaved changes.' : 'Everything is up to date.'}</span><button className="button" disabled={saving || !changed}>{saving ? <><StockLedgerMark animated size={20} />Saving</> : <><Save size={16} />Save words</>}</button></div>
+      <SettingsSaveBar changed={changed} saving={saving} onDiscard={() => setForm(initial)} />
     </form>
   </>;
 }
