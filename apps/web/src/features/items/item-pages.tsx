@@ -1,6 +1,7 @@
 import { Dialog } from '@base-ui/react/dialog';
-import { Save, X } from 'lucide-react';
+import { ArrowRight, Save, X } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../../api';
 import { useInventoryStore } from '../../app/inventory-store';
 import { useCompanySettings } from '../../app/company-settings-store';
@@ -9,6 +10,8 @@ import { EmptyState, PageHeader, PageState, Panel, SelectControl } from '../../c
 import { InputControl } from '../../components/ui/input-control';
 import { AsyncActionButton } from '../../components/ui/async-action-button';
 import { useAsyncActionState } from '../../components/ui/use-async-action-state';
+import { knownCategory, sameName } from '../../lib/item-names';
+import { CategoryField } from './category-field';
 import { SpreadsheetImportForm } from './spreadsheet-import-form';
 import type { Item } from '../../types';
 
@@ -49,35 +52,60 @@ export function ShopCatalogPage() {
   </PageState>;
 }
 
+/** Categories already in use, so people pick one instead of retyping it. */
+function useCategories() {
+  const { snapshot } = useInventoryStore();
+  return [...new Set(snapshot?.items.filter((item) => item.isActive).map((item) => item.category) ?? [])].sort((left, right) => left.localeCompare(right));
+}
+
 export function AddItemPanel({ onClose }: { onClose: () => void }) {
   const { accessToken } = useAuth();
+  const navigate = useNavigate();
   const { snapshot, mutate, busy } = useInventoryStore();
   const { settings, terms } = useCompanySettings();
+  const categories = useCategories();
   const addAction = useAsyncActionState();
-  const defaults = () => ({ sku: '', name: '', category: '', unit: settings?.defaultUnit ?? 'pcs', reorderLevel: String(settings?.defaultReorderLevel ?? 10), unitCost: '0', sellingPrice: '', openingStock: '0', locationId: settings?.defaultLocationId ?? '' });
-  const [form, setForm] = useState(defaults);
+  const defaults = (category = '') => ({ sku: '', name: '', category, unit: settings?.defaultUnit ?? 'pcs', reorderLevel: String(settings?.defaultReorderLevel ?? 10), unitCost: '0', sellingPrice: '', openingStock: '0', locationId: settings?.defaultLocationId ?? '' });
+  const [form, setForm] = useState(() => defaults());
+  const [added, setAdded] = useState(0);
   const change = (key: keyof typeof form, value: string) => setForm((current) => ({ ...current, [key]: value }));
+  // Typing an item that already exists is usually a top-up, which belongs on the existing item.
+  const existing = form.name.trim() ? snapshot?.items.find((item) => item.isActive && sameName(item.name, form.name)) : undefined;
+  const existingStock = existing ? (snapshot?.positions.filter((position) => position.item.id === existing.id).reduce((total, position) => total + position.closing, 0) ?? 0) : 0;
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!accessToken) return;
+    if (!accessToken || existing) return;
+    const category = knownCategory(categories, form.category) || 'General';
     await addAction.run(() => mutate(() => api.addItem(accessToken, {
-      ...(form.sku.trim() ? { sku: form.sku } : {}), name: form.name, category: form.category || 'General', unit: form.unit,
+      ...(form.sku.trim() ? { sku: form.sku } : {}), name: form.name, category, unit: form.unit,
       reorderLevel: Number(form.reorderLevel), unitCostCents: Math.round(Number(form.unitCost) * 100),
       ...(form.sellingPrice !== '' ? { sellingPriceCents: Math.round(Number(form.sellingPrice) * 100) } : {}),
       openingStock: Number(form.openingStock), locationId: form.locationId,
     }), `${form.name} was added to inventory.`));
-    setForm(defaults());
+    // The next item is often in the same category, so keep it chosen.
+    setForm(defaults(category));
+    setAdded((count) => count + 1);
   };
   return <Panel title={`Add ${terms.item}`} className="add-item-panel">
     <button aria-label={`Close add ${terms.item}`} className="panel-close" onClick={onClose} type="button"><X size={16} /></button>
     <form className="form-grid item-form" onSubmit={(event) => void submit(event).catch(() => {})}>
-    {(['sku', 'name', 'category', 'unit'] as const).map((key) => <label key={key}><span>{key === 'sku' ? `${terms.Item} code (optional)` : key[0].toUpperCase() + key.slice(1)}</span><InputControl placeholder={key === 'sku' ? 'Created automatically' : undefined} required={key === 'name' || key === 'unit'} value={form[key]} onValueChange={(value) => change(key, value)} /></label>)}
+    <label><span>{terms.Item} code (optional)</span><InputControl placeholder="Created automatically" value={form.sku} onValueChange={(value) => change('sku', value)} /></label>
+    <label><span>Name</span><InputControl required value={form.name} onValueChange={(value) => change('name', value)} /></label>
+    <CategoryField key={added} categories={categories} value={form.category} onValueChange={(value) => change('category', value)} />
+    <label><span>Unit</span><InputControl required value={form.unit} onValueChange={(value) => change('unit', value)} /></label>
+    {existing && <div className="duplicate-item-warning" role="alert">
+      <div>
+        <b>You already have {existing.name}</b>
+        <p>{existing.sku} · {existingStock} {existing.unit} in stock{snapshot?.locationId ? ' at this place' : ''}. To add more of it, record a purchase so the stock stays on one {terms.item}. If this is a different product, add something that tells them apart, such as the size.</p>
+      </div>
+      <button className="button" type="button" onClick={() => navigate(`/movements?item=${existing.id}`)}>Add stock to {existing.name}<ArrowRight size={15} /></button>
+    </div>}
     <label><span>Reorder level</span><InputControl type="number" min="0" required value={form.reorderLevel} onValueChange={(value) => change('reorderLevel', value)} /></label>
     <label><span>Unit cost</span><InputControl type="number" min="0" step="0.01" required value={form.unitCost} onValueChange={(value) => change('unitCost', value)} /></label>
     <label><span>Selling price (optional)</span><InputControl type="number" min="0" max="21474836.47" step="0.01" placeholder="Not set" value={form.sellingPrice} onValueChange={(value) => change('sellingPrice', value)} /></label>
     <label><span>Opening place</span><SelectControl aria-label="Opening place" required value={form.locationId} onValueChange={(value) => change('locationId', value)} options={[{ value: '', label: 'Select place' }, ...(snapshot?.locations.map((place) => ({ value: place.id, label: place.name })) ?? [])]} /></label>
     <label><span>Opening stock</span><InputControl type="number" min="0" required value={form.openingStock} onValueChange={(value) => change('openingStock', value)} /></label>
-    <AsyncActionButton disabled={busy || !snapshot?.locations.length} idleLabel={`Add ${terms.item}`} pendingLabel="Adding" state={addAction.state} successLabel={`${terms.Item} added`} />
+    <AsyncActionButton disabled={busy || !snapshot?.locations.length || Boolean(existing)} idleLabel={`Add ${terms.item}`} pendingLabel="Adding" state={addAction.state} successLabel={`${terms.Item} added`} />
   </form>
   </Panel>;
 }
@@ -109,6 +137,7 @@ export function ItemEditDialog({ item, onClose }: { item: Item; onClose: () => v
   const { accessToken } = useAuth();
   const { mutate, busy } = useInventoryStore();
   const { terms } = useCompanySettings();
+  const categories = useCategories();
   const [form, setForm] = useState<ItemForm>(() => itemForm(item));
   const change = (key: keyof ItemForm, value: string) => setForm((current) => ({ ...current, [key]: value }));
   const submit = async (event: FormEvent) => {
@@ -117,7 +146,7 @@ export function ItemEditDialog({ item, onClose }: { item: Item; onClose: () => v
     await mutate(() => api.updateItem(accessToken, item.id, {
       sku: form.sku.trim(),
       name: form.name.trim(),
-      category: form.category.trim(),
+      category: knownCategory(categories, form.category),
       unit: form.unit.trim(),
       reorderLevel: Number(form.reorderLevel),
       unitCostCents: Math.round(Number(form.unitCost) * 100),
@@ -134,7 +163,7 @@ export function ItemEditDialog({ item, onClose }: { item: Item; onClose: () => v
           <form className="form-grid item-edit-form" onSubmit={(event) => void submit(event).catch(() => {})}>
             <label><span>{terms.Item} code</span><InputControl required maxLength={80} value={form.sku} onValueChange={(value) => change('sku', value)} /></label>
             <label><span>Name</span><InputControl required maxLength={160} value={form.name} onValueChange={(value) => change('name', value)} /></label>
-            <label><span>Category</span><InputControl required maxLength={100} value={form.category} onValueChange={(value) => change('category', value)} /></label>
+            <CategoryField categories={categories} value={form.category} onValueChange={(value) => change('category', value)} />
             <label><span>Unit</span><InputControl required maxLength={40} value={form.unit} onValueChange={(value) => change('unit', value)} /></label>
             <label><span>Reorder level</span><InputControl type="number" min="0" required value={form.reorderLevel} onValueChange={(value) => change('reorderLevel', value)} /></label>
             <label><span>Unit cost</span><InputControl type="number" min="0" step="0.01" required value={form.unitCost} onValueChange={(value) => change('unitCost', value)} /></label>

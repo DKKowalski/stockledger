@@ -7,6 +7,13 @@ async function signIntoDemo(page: Page) {
   await expect(page.getByText('You are viewing a read-only demo.')).toBeVisible();
 }
 
+async function navigateInApp(page: Page, path: string) {
+  await page.evaluate((target) => {
+    window.history.pushState({}, '', target);
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  }, path);
+}
+
 test('opens the login page from the public landing page', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('link', { name: 'Sign in', exact: true }).first().click();
@@ -139,7 +146,26 @@ test('rejects changes made from the public demo', async ({ page }) => {
   await page.getByRole('button', { name: 'Save changes' }).click();
   await expect(page.getByRole('button', { name: 'Save changes' })).toBeHidden();
   expect(Object.keys(sent).sort()).toEqual(['allowNegativeStock', 'defaultLocationId', 'defaultReorderLevel', 'defaultUnit', 'hybridPricingEnabled', 'nextSkuNumber', 'requireAdjustmentReason', 'requirePurchaseSource', 'skuPrefix']);
-  expect(sent.hybridPricingEnabled).toBe(false);
+  expect(sent.hybridPricingEnabled).toBe(!settings.hybridPricingEnabled);
+
+  // Retyping an item that exists points to a top-up instead of creating a second item.
+  // In-app navigation keeps the demo session from refreshing on every page.
+  await navigateInApp(page, '/items');
+  const existing = (await page.locator('.catalog-row:not(:has(.is-archived)) .catalog-name b').first().textContent())!;
+  await page.getByRole('button', { name: /^Add item/ }).click();
+  await expect(page.getByRole('combobox', { name: 'Category' })).toBeVisible();
+  await page.getByLabel('Name', { exact: true }).fill(` ${existing.toUpperCase()} `);
+  await expect(page.getByText(`You already have ${existing}`)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Add item', exact: true })).toBeDisabled();
+  await page.getByRole('button', { name: `Add stock to ${existing}` }).click();
+  await expect(page).toHaveURL(/\/movements\?item=/);
+  await expect(page.getByRole('combobox', { name: 'Item', exact: true })).toContainText(existing);
+
+  // Appearance is a device choice kept in this browser.
+  await navigateInApp(page, '/account');
+  await page.getByText('One colour', { exact: true }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-cards', 'single');
+  expect(await page.evaluate(() => localStorage.getItem('stockledger.appearance.v1'))).toBe('{"accent":"violet","cards":"single"}');
 });
 
 test('contains wide data tables within the mobile viewport', async ({ page }) => {

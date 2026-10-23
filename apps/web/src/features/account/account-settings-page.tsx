@@ -10,6 +10,7 @@ import { StockLedgerMark } from '../../components/stockledger-mark';
 import { InputControl } from '../../components/ui/input-control';
 import { UserAvatar } from '../../components/user-avatar';
 import { roleLabel } from '../../lib/presentation';
+import { AppearancePanel } from './appearance-panel';
 
 export function AccountSettingsPage() {
   const { user, updateProfile, changePassword, signOut } = useAuth();
@@ -104,6 +105,8 @@ export function AccountSettingsPage() {
         </Panel> : <Panel title="Sign-in security" subtitle="Your administrator manages password recovery." className="spaced">
           <div className="managed-security-note"><ShieldCheck size={22} /><div><h3>Need a new password?</h3><p>Ask your administrator to send a secure reset link to {user.email}. The link expires after 30 minutes.</p></div></div>
         </Panel>}
+
+        <AppearancePanel />
       </div>
     </div>
   </>;

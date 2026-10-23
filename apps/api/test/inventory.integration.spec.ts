@@ -645,7 +645,7 @@ describe('inventory transactions with PostgreSQL', () => {
   it('creates readable unique item codes when an owner does not supply them', async () => {
     const f = await fixture();
     const manuallyAdded = await service.createItem(f.admin.id, f.company.id, {
-      name: 'Test item', category: 'Test', unit: 'pcs', unitCostCents: 100,
+      name: 'Manual item', category: 'Test', unit: 'pcs', unitCostCents: 100,
       reorderLevel: 0, openingStock: 1, locationId: f.warehouse.id,
     });
     expect(manuallyAdded.sku).toBe('SKU-0001');
@@ -653,8 +653,8 @@ describe('inventory transactions with PostgreSQL', () => {
     await service.importItems(f.admin.id, f.company.id, {
       locationId: f.warehouse.id,
       rows: [
-        { name: 'Fresh tomatoes', category: 'Produce', unit: 'crate', reorderLevel: 2, unitCostCents: 500, openingStock: 4 },
-        { name: 'Fresh tomatoes', category: 'Produce', unit: 'basket', reorderLevel: 1, unitCostCents: 300, openingStock: 2 },
+        { name: 'Fresh tomatoes crate', category: 'Produce', unit: 'crate', reorderLevel: 2, unitCostCents: 500, openingStock: 4 },
+        { name: 'Fresh tomatoes basket', category: 'Produce', unit: 'basket', reorderLevel: 1, unitCostCents: 300, openingStock: 2 },
       ],
     });
     const items = await db.orm.public.InventoryItem.where({ companyId: f.company.id }).all();
@@ -722,9 +722,38 @@ describe('inventory transactions with PostgreSQL', () => {
 
     const [first, second] = await Promise.all([
       service.createItem(f.admin.id, f.company.id, body),
-      otherService.createItem(f.admin.id, f.company.id, body),
+      otherService.createItem(f.admin.id, f.company.id, { ...body, name: 'Cooking oil 5L' }),
     ]);
     expect(new Set([first.sku, second.sku])).toEqual(new Set(['SKU-0001', 'SKU-0002']));
+  });
+
+  it('keeps one active item per name so a top-up does not split stock', async () => {
+    const f = await fixture();
+    const item = { category: 'Test', unit: 'pcs', unitCostCents: 100, reorderLevel: 0, openingStock: 1, locationId: f.warehouse.id };
+    await expect(service.createItem(f.admin.id, f.company.id, { ...item, name: '  test   ITEM ' }))
+      .rejects.toThrow('Test item already exists (TEST-ITEM). To add more of it, record a purchase.');
+    await expect(service.importItems(f.admin.id, f.company.id, {
+      locationId: f.warehouse.id,
+      rows: [{ name: 'Test item', category: 'Test', unit: 'pcs', reorderLevel: 0, unitCostCents: 10, openingStock: 1 }],
+    })).rejects.toBeInstanceOf(ConflictException);
+    await expect(service.importItems(f.admin.id, f.company.id, {
+      locationId: f.warehouse.id,
+      rows: [
+        { name: 'Rice', category: 'Test', unit: 'bag', reorderLevel: 0, unitCostCents: 10, openingStock: 1 },
+        { name: 'rice', category: 'Test', unit: 'bag', reorderLevel: 0, unitCostCents: 10, openingStock: 1 },
+      ],
+    })).rejects.toThrow('Rice appears more than once in the spreadsheet');
+
+    const other = await service.createItem(f.admin.id, f.company.id, { ...item, name: 'Test item 5L' });
+    await expect(service.updateItem(f.admin.id, f.company.id, other.id, { name: 'Test Item' })).rejects.toBeInstanceOf(ConflictException);
+    await service.updateItem(f.admin.id, f.company.id, other.id, { name: 'test item 5l', category: 'Renamed' });
+
+    // An archived item no longer blocks its name, but bringing it back would make a pair.
+    await service.createMovement(f.admin.id, f.company.id, { itemId: other.id, locationId: f.warehouse.id, type: Type.DAMAGE, quantity: 1, movementDate, note: 'Gone' });
+    await service.updateItem(f.admin.id, f.company.id, other.id, { isActive: false });
+    const replacement = await service.createItem(f.admin.id, f.company.id, { ...item, name: 'Test item 5L' });
+    await expect(service.updateItem(f.admin.id, f.company.id, other.id, { isActive: true })).rejects.toBeInstanceOf(ConflictException);
+    expect(replacement.name).toBe('Test item 5L');
   });
 
   it('rejects duplicate spreadsheet SKUs before writing any rows', async () => {

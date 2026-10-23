@@ -1,7 +1,7 @@
 import { HybridOperationsPanels } from './hybrid-operations-panels';
 import { Trash2 } from 'lucide-react';
 import { useEffect, useState, type FormEvent } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { api } from '../../api';
 import { useInventoryStore } from '../../app/inventory-store';
@@ -24,8 +24,10 @@ export function MovementsPage() {
   const saveAction = useAsyncActionState();
   const [filter, setFilter] = useState<'all' | MovementType>('all');
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  // Items can link here with ?item= to record a purchase for that item.
+  const [searchParams] = useSearchParams();
   const [form, setForm] = useState({
-    itemId: '',
+    itemId: searchParams.get('item') ?? '',
     locationId: '',
     destinationLocationId: '',
     type: 'purchase' as MovementType,

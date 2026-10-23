@@ -35,6 +35,11 @@ type Actor = {
 const RECENT_MOVEMENTS = 50;
 const RETURNABLE_SALES = 200;
 
+function sameItemName(left: string, right: string) {
+  const key = (name: string) => name.trim().replace(/\s+/g, ' ').toLowerCase();
+  return key(left) === key(right);
+}
+
 type AuditJson = string | number | boolean | null | readonly AuditJson[] | { readonly [key: string]: AuditJson };
 
 @Injectable()
@@ -133,6 +138,7 @@ export class InventoryService {
       const locationId = body.locationId ?? company.defaultLocationId;
       if (!locationId) throw new BadRequestException('Choose an opening location or set a default in Inventory settings');
       this.knownLocation(scope.locations, locationId);
+      this.assertNewItemName(scope.items, body.name);
       const requestedSku = body.sku?.trim().toUpperCase();
       const usedSkus = new Set(scope.items.map((item) => item.sku.toUpperCase()));
       if (requestedSku && usedSkus.has(requestedSku)) throw new ConflictException(`Item code ${requestedSku} already exists`);
@@ -186,6 +192,9 @@ export class InventoryService {
       const existingSkus = new Set(scope.items.map((item) => item.sku.toUpperCase()));
       const existing = normalized.find((row) => row.sku && existingSkus.has(row.sku));
       if (existing?.sku) throw new ConflictException(`Item code ${existing.sku} already exists`);
+      const repeatedName = normalized.map((row) => normalized.find((candidate) => sameItemName(candidate.name, row.name))!).find((first, index) => first !== normalized[index]);
+      if (repeatedName) throw new ConflictException(`${repeatedName.name.trim()} appears more than once in the spreadsheet. Put its stock on one row.`);
+      for (const row of normalized) this.assertNewItemName(scope.items, row.name);
       const usedSkus = new Set(existingSkus);
       let nextSkuNumber = company.nextSkuNumber;
       const rows = normalized.map((row) => {
@@ -255,6 +264,10 @@ export class InventoryService {
       if (sku && sku !== item.sku) {
         const duplicate = await tx.orm.public.InventoryItem.first({ companyId, sku: sku as Varchar<40> });
         if (duplicate) throw new ConflictException(`Item code ${sku} already exists`);
+      }
+      const renamed = body.name !== undefined && !sameItemName(body.name, item.name);
+      if (renamed || (body.isActive === true && !item.isActive)) {
+        this.assertNewItemName(await tx.orm.public.InventoryItem.where({ companyId }).all(), body.name ?? item.name, itemId);
       }
       if (body.isActive === false && item.isActive) {
         const scope = await this.scope(tx, companyId, itemId);
@@ -671,6 +684,13 @@ export class InventoryService {
       companyId: user.companyId,
       locationId: user.locationId,
     };
+  }
+
+  // A second active item with the same name splits one product's stock in two, which is
+  // usually a top-up entered as a new item. Different sizes need names that tell them apart.
+  private assertNewItemName(items: readonly { id: string; name: string; sku: string; isActive: boolean }[], name: string, exceptId?: string) {
+    const match = items.find((item) => item.isActive && item.id !== exceptId && sameItemName(item.name, name));
+    if (match) throw new ConflictException(`${match.name} already exists (${match.sku}). To add more of it, record a purchase. If this is a different product, add something that tells them apart, such as the size.`);
   }
 
   private async scope(tx: PrismaTransaction, companyId: string, itemId?: string) {

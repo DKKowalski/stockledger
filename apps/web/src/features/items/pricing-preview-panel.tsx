@@ -16,6 +16,11 @@ function cents(text: string) {
   return Number(amount);
 }
 
+// The summary reads prices while the owner is still typing, so a half-typed price is skipped, not thrown.
+function typedCents(text: string) {
+  try { return cents(text); } catch { return null; }
+}
+
 function editorForm(version: PricingVersion | null, unit: string) {
   return {
     version: version?.version ?? 0, previewEnabled: version?.previewEnabled ?? false,
@@ -134,8 +139,8 @@ type EditorForm = ReturnType<typeof editorForm>;
 function DealSummary({ form, unit, retailCents, money }: { form: EditorForm; unit: string; retailCents: number; money: (cents: number) => string }) {
   const size = form.packageEnabled ? Number(form.packageSize) : null;
   const steps = form.tiers
-    .map((tier) => ({ minimum: Number(tier.minimum), cents: tier.price === '' ? NaN : cents(tier.price) }))
-    .filter((step) => Number.isInteger(step.minimum) && step.minimum > 1 && Number.isFinite(step.cents))
+    .flatMap((tier) => { const price = typedCents(tier.price); return price == null ? [] : [{ minimum: Number(tier.minimum), cents: price }]; })
+    .filter((step) => Number.isInteger(step.minimum) && step.minimum > 1)
     .sort((left, right) => left.minimum - right.minimum);
   const looseLimit = size && Number.isInteger(size) && size > 1 ? size - 1 : null;
   const range = (from: number, to: number | null) => to === null ? `${from} or more` : from === to ? `${from}` : `${from}–${to}`;
@@ -144,7 +149,7 @@ function DealSummary({ form, unit, retailCents, money }: { form: EditorForm; uni
     const to = next ? next.minimum - 1 : looseLimit;
     return { label: `Buy ${range(step.minimum, to)}`, price: `${money(step.cents)} per ${unit}` };
   });
-  const packageCents = form.packageEnabled && form.packagePrice !== '' ? cents(form.packagePrice) : null;
+  const packageCents = form.packageEnabled ? typedCents(form.packagePrice) : null;
   return <div className="pricing-summary" aria-label="This deal in plain words">
     <h3>What customers pay</h3>
     <ul>
