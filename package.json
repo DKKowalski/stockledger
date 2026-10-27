@@ -6,7 +6,7 @@
     "apps/*"
   ],
   "engines": {
-    "node": ">=24 <27"
+    "node": ">=24.22.1 <27"
   },
   "scripts": {
     "api:dev": "npm run start:dev --workspace=apps/api",
