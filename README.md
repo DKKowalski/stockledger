@@ -135,9 +135,9 @@ Render checks `/health/ready`, which verifies that the API can query PostgreSQL.
 
 ### Waking the free API
 
-The Render Free API sleeps after a period without traffic. The web app sends a request to the lightweight `/health` endpoint as soon as someone opens the site, so the API is usually awake by the time they sign in. The first request after a long idle period can still take about a minute.
+The Render Free API sleeps after a period without traffic, and the first request after a long idle period can take about a minute while it starts.
 
-There is no scheduled keep-awake ping. Pinging around the clock uses nearly all of a Render workspace's 750 free instance hours each month. Use a paid Render API instance when StockLedger needs supported, continuously available production hosting.
+The app does not ping the API to keep it awake. Pinging around the clock uses nearly all of a Render workspace's 750 free instance hours each month. Use a paid Render API instance when StockLedger needs supported, continuously available production hosting.
 
 StockLedger owns the transactional sending domain. Individual businesses do not need to connect their own domains. Until a StockLedger domain is verified, an administrator can create a staff account with a copyable invitation link, or create a copyable password-reset link from the Team page. Each new link invalidates the previous link of the same type and should be shared through a private channel.
 

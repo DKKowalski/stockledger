@@ -2,7 +2,6 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { App } from './App';
-import { wakeApi } from './api';
 import { applyAppearance, readAppearance } from './lib/appearance';
 import { AuthProvider } from './auth';
 import { StockLedgerToaster } from './components/ui/stockledger-toaster';
@@ -12,7 +11,6 @@ import './monitoring';
 import 'sonner/dist/styles.css';
 import './styles.css';
 
-wakeApi();
 applyAppearance(readAppearance());
 
 createRoot(document.getElementById('root')!).render(
