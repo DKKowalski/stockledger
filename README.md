@@ -133,11 +133,11 @@ For error reporting, create separate Sentry projects for the NestJS API and Reac
 
 Render checks `/health/ready`, which verifies that the API can query PostgreSQL. `/health` is a cheaper process-liveness endpoint. An external uptime provider can monitor the web URL and `/health/ready` later if alerts outside Render are needed.
 
-### GitHub Actions wake request
+### Waking the free API
 
-The `Keep API awake` workflow sends a request to the lightweight `/health` endpoint every ten minutes. It runs from the default branch and is offset from the start of each hour, when scheduled GitHub Actions traffic is typically highest. It can also be triggered manually from the repository's Actions page. If the API URL changes, update `.github/workflows/keep-api-awake.yml`.
+The Render Free API sleeps after a period without traffic. The web app sends a request to the lightweight `/health` endpoint as soon as someone opens the site, so the API is usually awake by the time they sign in. The first request after a long idle period can still take about a minute.
 
-This reduces idle cold starts on the current Render Free API service, but GitHub can delay scheduled workflows and it does not provide an availability guarantee. GitHub automatically disables schedules in public repositories after 60 days without repository activity; re-enable the workflow from the Actions page if that happens. It consumes Render Free instance hours, and Render can still restart free services. The Render static frontend does not need a wake request. Use a paid Render API instance when StockLedger needs supported, continuously available production hosting.
+There is no scheduled keep-awake ping. Pinging around the clock uses nearly all of a Render workspace's 750 free instance hours each month. Use a paid Render API instance when StockLedger needs supported, continuously available production hosting.
 
 StockLedger owns the transactional sending domain. Individual businesses do not need to connect their own domains. Until a StockLedger domain is verified, an administrator can create a staff account with a copyable invitation link, or create a copyable password-reset link from the Team page. Each new link invalidates the previous link of the same type and should be shared through a private channel.
 
