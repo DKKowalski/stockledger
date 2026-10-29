@@ -20,7 +20,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: WEB_ORIGIN
-        value: https://stockledger-dkk-web.onrender.com
+        value: https://stockledger-dkk-web-iflw.onrender.com
       - key: DATABASE_URL
         sync: false
       - key: DIRECT_DATABASE_URL
@@ -61,7 +61,7 @@ services:
       - key: NODE_VERSION
         value: 24.22.1
       - key: VITE_API_URL
-        value: https://stockledger-dkk-api.onrender.com
+        value: https://stockledger-dkk-api-5qwn.onrender.com
       - key: VITE_SENTRY_DSN
         sync: false
       - key: VITE_SUPPORT_EMAIL

@@ -30,4 +30,4 @@ jobs:
           --retry-all-errors
           --header 'Accept: application/json'
           --user-agent 'stockledger-github-wake/1.0'
-          https://stockledger-dkk-api.onrender.com/health
+          https://stockledger-dkk-api-5qwn.onrender.com/health
