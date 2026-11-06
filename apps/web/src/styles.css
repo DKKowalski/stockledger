@@ -2088,7 +2088,6 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px soli
   .top-nav { position: static; transform: none; margin-left: auto; }
   .nav-link, .nav-link.active { width: auto; padding-inline: 9px; }
   .nav-link span, .nav-link.active span { max-width: none; margin-left: 6px; opacity: 1; }
-  .topbar-user-copy { display: none; }
 }
 @media (max-width: 760px) {
   .menu-button, .notification-trigger { min-width: 44px; min-height: 44px; }
