@@ -1,16 +1,18 @@
 import { InventoryDateRangeFilter } from '../../components/inventory-date-range-filter';
 import { ArrowLeftRight, ArrowUpDown, ArrowUpRight, CalendarDays, Check, ChevronRight, PackageX, ShoppingBag, TrendingUp, TriangleAlert, Warehouse } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useInventoryStore } from '../../app/inventory-store';
 import { useCompanySettings } from '../../app/company-settings-store';
 import { EmptyState, Kpi, LocationFilter, PageHeader, PageState, Panel } from '../../components/inventory-ui';
 import { LedgerSyncIcon } from '../../components/ledger-sync-icon';
 import { movementMeta } from '../../lib/presentation';
-import type { Movement, Position, Snapshot } from '../../types';
+import type { Movement, Position, Snapshot, Profitability } from '../../types';
 import { OwnerSetupChecklist } from '../onboarding/owner-setup-checklist';
 import { DealsAttendantNotice, DealsWhatsNew } from '../../components/deals-tour';
 import { useAuth } from '../../auth-context';
+import { api } from '../../api';
+import { companyDay } from '../../lib/date-range';
 
 export function OperationsDashboardPage() {
   const { snapshot, refresh, loading } = useInventoryStore();
@@ -80,8 +82,11 @@ function DashboardBody({ title, accent, actions, positions, movements, summary, 
   setup?: ReactNode;
 }) {
   const { money, calendarDate, terms } = useCompanySettings();
+  const { user } = useAuth();
+  const owner = user?.role === 'administrator';
   return <>
-    <PageHeader title={title} accent={accent} actions={actions} />
+    <PageHeader title={title} accent={accent} actions={owner ? undefined : actions} />
+    {owner && <><OwnerTodayMoney /><div className="actions dashboard-controls">{actions}</div></>}
     {setup}
     <section className="kpi-grid">
       <Kpi icon={Warehouse} label="Closing stock" value={summary.closingUnits.toLocaleString()} note={`${money(summary.stockValueCents)} at cost`} />
@@ -101,6 +106,32 @@ function DashboardBody({ title, accent, actions, positions, movements, summary, 
       <Panel title="Attention needed" subtitle={`${terms.Items} at or below reorder level`}><LowStock positions={positions} /></Panel>
     </section>
   </>;
+}
+
+function OwnerTodayMoney() {
+  const { user, accessToken } = useAuth();
+  const { snapshot, locationId } = useInventoryStore();
+  const { settings, money, calendarDate } = useCompanySettings();
+  const today = companyDay(settings?.timeZone);
+  const [answer, setAnswer] = useState<{ scope: string; report: Profitability } | null>(null);
+  const [failed, setFailed] = useState(false);
+  const scope = `${today}:${locationId ?? ''}`;
+  const generatedAt = snapshot?.generatedAt;
+  useEffect(() => {
+    if (user?.role !== 'administrator' || !accessToken || !settings) return;
+    let active = true;
+    void api.profitability(accessToken, { days: 1, from: today, to: today, ...(locationId ? { locationId } : {}) })
+      .then(report => { if (active) { setAnswer({ scope, report }); setFailed(false); } })
+      .catch(() => { if (active) { setAnswer(null); setFailed(true); } });
+    return () => { active = false; };
+  }, [user?.role, accessToken, settings, today, locationId, scope, generatedAt]);
+  if (user?.role !== 'administrator') return null;
+  const summary = answer?.scope === scope ? answer.report.summary : null;
+  return <section className="panel today-money" aria-label="Today's recorded money">
+    <div><h2>Today’s money</h2><p>{calendarDate(today)} · {snapshot?.locations.find(place => place.id === locationId)?.name ?? 'All places'}</p></div>
+    {summary ? <><dl><div><dt>Recorded net sales</dt><dd>{money(summary.netSalesCents)}</dd></div><div><dt>Gross profit</dt><dd>{money(summary.grossProfitCents)}</dd></div></dl><p>Sales after discounts and returns. Gross profit excludes expenses and sales without a known cost; this is not cash collected.{summary.costCoveragePercent < 100 && ` Cost coverage: ${summary.costCoveragePercent}%.`}</p></> : <p role="status">{failed ? 'Today’s money could not load.' : 'Loading today’s money…'}</p>}
+    <NavLink className="text-button" to="/profitability">Open Profit<ChevronRight size={15} /></NavLink>
+  </section>;
 }
 
 function StockLevels({ positions }: { positions: Position[] }) {

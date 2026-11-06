@@ -1977,3 +1977,31 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px soli
   .finance-month-summary th, .finance-month-summary td { white-space: normal; overflow-wrap: anywhere; }
   .health-chart-row { grid-template-columns: minmax(130px, 1fr) auto; gap: 10px; }
 }
+
+.finance-answer { padding: 20px 24px; margin-bottom: 16px; border-color: var(--violet); }
+.finance-answer-period { color: var(--ink-soft); font-size: 14px; }
+.finance-answer h2 { margin-top: 14px; font-size: 16px; font-weight: 750; }
+.finance-answer-net { display: block; margin-top: 4px; font: 700 28px/1.2 var(--font-number); overflow-wrap: anywhere; }
+.finance-answer dl, .today-money dl { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin: 20px 0 14px; }
+.finance-answer dt, .today-money dt { color: var(--muted); font-size: 13px; }
+.finance-answer dd, .today-money dd { margin: 4px 0 0; font: 700 18px/1.3 var(--font-number); overflow-wrap: anywhere; }
+.finance-answer > p:not(:first-child), .today-money p { color: var(--ink-soft); font-size: 13px; line-height: 1.5; }
+.finance-answer .finance-answer-warning { margin-top: 12px; color: var(--warning-ink); }
+.finance-answer .finance-answer-comparison { margin-top: 10px; }
+.finance-report-actions { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 18px; }
+.finance-more { position: relative; }
+.finance-more summary { cursor: pointer; list-style: none; }
+.finance-more summary::-webkit-details-marker { display: none; }
+.finance-more > div { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 8px; }
+.today-money { padding: 20px 24px; margin-bottom: 18px; border-color: var(--violet); }
+.today-money h2 { font-size: 20px; font-weight: 750; }
+.today-money dl { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.today-money dd { font-size: 24px; }
+.today-money .text-button { display: inline-flex; align-items: center; gap: 5px; margin-top: 12px; color: var(--violet-dark); font-weight: 650; }
+.dashboard-controls { margin-bottom: 18px; justify-content: flex-end; }
+@media (max-width: 760px) {
+  .finance-answer, .today-money { padding: 16px; }
+  .finance-answer dl { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+  .finance-answer dd { font-size: 16px; }
+  .finance-more > div { justify-content: flex-end; max-width: 170px; }
+}

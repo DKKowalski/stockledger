@@ -126,6 +126,7 @@ test('exports the view on screen and offers a print layout without the app chrom
   await page.route('**/finance/export?**', route => { exported = route.request().url(); return route.fulfill({ headers: { 'Content-Type': 'text/csv', 'Content-Disposition': 'attachment; filename="finance.csv"' }, body: 'Company\r\n' }); });
   await page.goto('/finance');
   await page.getByRole('tab', { name: 'Yearly' }).click();
+  await page.getByText('More report actions', { exact: true }).click();
   await page.getByRole('button', { name: 'Export CSV' }).click();
   await expect.poll(() => exported).toContain('view=year');
   expect(exported).not.toContain('month=');
@@ -329,3 +330,57 @@ test('retains a failed Finance entry and clears it only after a successful retry
   await expect(page.getByLabel('Entry amount')).toHaveValue('');
   await expect(page.getByLabel('Entry note')).toHaveValue('');
 });
+
+for (const width of [360, 390, 1440]) {
+  test(`Finance leads with its actual period result at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await session(page, { report: runningYear(10000) });
+    await page.goto('/finance');
+    const answer = page.getByRole('region', { name: 'Actual money summary' });
+    await expect(answer).toContainText('November 2026 · All places · To 6 Nov 2026');
+    await expect(answer.locator('.finance-answer-net')).toContainText('30.00');
+    await expect(answer.locator('.finance-answer-net')).toBeInViewport();
+    await expect(answer).toContainText('Net sales');
+    await expect(answer).toContainText('Cost of stock sold');
+    await expect(answer).toContainText('Expenses');
+    await expect(answer).toContainText('Other revenue');
+    await expect(answer).toContainText('Actual means recorded results');
+    expect((await answer.boundingBox())!.y).toBeLessThan((await page.locator('.finance-toolbar').boundingBox())!.y);
+    await expect(page.getByRole('button', { name: 'Export CSV' })).toBeHidden();
+    if (width !== 360) await uiuxEvidence(page, 'ux02-finance-answer');
+    await page.getByRole('tab', { name: 'All months', exact: true }).click();
+    await expect(answer.locator('.finance-answer-net')).toContainText('330.00');
+    await page.getByRole('tab', { name: 'Yearly', exact: true }).click();
+    await expect(answer.locator('.finance-answer-net')).toContainText('330.00');
+    await page.getByRole('tab', { name: 'Month', exact: true }).click();
+    await page.getByRole('combobox', { name: 'Finance month', exact: true }).click();
+    await page.getByRole('option', { name: 'December', exact: true }).click();
+    await expect(answer.locator('.finance-answer-net')).toHaveText('—');
+    await expect(answer).toContainText('This period has not started');
+    await page.emulateMedia({ media: 'print' });
+    await expect(answer).toBeHidden();
+    await expect(page.locator('.finance-statement')).toBeVisible();
+  });
+}
+
+for (const width of [390, 1440]) {
+  test(`owner Overview shows today's existing Profit figures above controls at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await session(page, { report: runningYear(10000) });
+    let requested = '';
+    await page.route('**/inventory/profitability?**', route => {
+      requested = route.request().url();
+      return route.fulfill({ json: { summary: { netSalesCents: 7250, grossProfitCents: 3100, costCoveragePercent: 75 }, trend: [], lines: [] } });
+    });
+    await page.goto('/');
+    const answer = page.getByRole('region', { name: "Today's recorded money" });
+    await expect(answer).toContainText('72.50');
+    await expect(answer).toContainText('31.00');
+    await expect(answer).toContainText('Cost coverage: 75%');
+    await expect(answer).toContainText('not cash collected');
+    expect(new URL(requested).searchParams.get('from')).toBe('2026-11-06');
+    expect(new URL(requested).searchParams.get('to')).toBe('2026-11-06');
+    await expect(answer.locator('dd').first()).toBeInViewport();
+    await uiuxEvidence(page, 'ux02-overview-today');
+  });
+}
