@@ -21,7 +21,7 @@ export function OperationsReportsPage() {
   const { snapshot } = useInventoryStore();
   const { terms } = useCompanySettings();
   const [params, setParams] = useSearchParams();
-  const tab: ReportTab = params.get('tab') in labels ? params.get('tab') as ReportTab : 'current';
+  const tab: ReportTab = (params.get('tab') ?? '') in labels ? params.get('tab') as ReportTab : 'current';
   const setTab = (next: ReportTab) => setParams({ tab: next });
   const itemId = params.get('item');
   const placeId = params.get('place');
