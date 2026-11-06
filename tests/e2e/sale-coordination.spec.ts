@@ -70,7 +70,9 @@ test('retail tabs serialize acknowledgement before another sale can use the pend
   let releaseResponse!: () => void;
   const responseGate = new Promise<void>(resolve => { releaseResponse = resolve; });
   const keys: string[] = [];
+  let winningTab = -1;
   await context.route('**/inventory/movements', async route => {
+    winningTab = pages.indexOf(route.request().frame().page());
     keys.push(route.request().postDataJSON().idempotencyKey);
     await responseGate;
     await route.fulfill({ status: 201, json: { id: 'retail-movement' } });
@@ -82,16 +84,29 @@ test('retail tabs serialize acknowledgement before another sale can use the pend
     await expect.poll(() => keys.length).toBe(1);
     await expect.poll(async () => (await pages[0]!.evaluate(() => navigator.locks.query())).pending?.filter(lock => lock.name === lockName).length).toBe(1);
   } finally { releaseResponse(); }
-  await expect(pages[0]!.getByRole('status').filter({ hasText: 'Sale recorded once' })).toBeVisible();
+  // Promise.all does not determine which tab acquires the browser lock first.
+  // Require the actual sender to succeed and the other tab to finish explicitly.
+  expect(winningTab).toBeGreaterThanOrEqual(0);
+  const winner = pages[winningTab]!;
+  const loser = pages[1 - winningTab]!;
+  await expect(winner.getByRole('status').filter({ hasText: 'Sale recorded once' })).toBeVisible();
+  await expect(loser.getByRole('alert')).toHaveText('Another tab recorded a sale. Reload and review your entries before starting the next sale.');
+  await expect(loser.getByRole('button', { name: 'Sell', exact: true })).toBeDisabled();
+  await expect(loser.getByRole('button', { name: 'Review entries', exact: true })).toBeEnabled();
+  for (const page of pages) {
+    await expect(page.getByRole('button', { name: /Recording|Retry same sale/ })).toHaveCount(0);
+    await expect(page.getByRole('status').filter({ hasText: 'The last sale needs confirmation' })).toHaveCount(0);
+  }
   await expect.poll(async () => (await pages[0]!.evaluate(() => navigator.locks.query())).pending?.filter(lock => lock.name === lockName).length).toBe(0);
   expect(keys).toHaveLength(1);
   expect(await pages[0]!.evaluate(key => localStorage.getItem(key), lockName)).toBeNull();
-  await pages[0]!.getByRole('combobox', { name: 'Item', exact: true }).click();
-  await pages[0]!.getByRole('option', { name: 'Test product', exact: true }).click();
-  await pages[0]!.getByLabel('Quantity', { exact: true }).fill('2');
-  await pages[0]!.getByRole('button', { name: 'Sell', exact: true }).click();
+  await winner.getByRole('combobox', { name: 'Item', exact: true }).click();
+  await winner.getByRole('option', { name: 'Test product', exact: true }).click();
+  await winner.getByLabel('Quantity', { exact: true }).fill('2');
+  await winner.getByRole('button', { name: 'Sell', exact: true }).click();
   await expect.poll(() => keys.length).toBe(2);
   expect(keys[1]).not.toBe(keys[0]);
+  await expect(winner.getByRole('status').filter({ hasText: 'Sale recorded once' })).toBeVisible();
 });
 
 
