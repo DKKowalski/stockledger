@@ -18,10 +18,10 @@ export function LowStockNotifications() {
       <Menu.Positioner className="notification-positioner" align="end" side="bottom" sideOffset={8}>
         <Menu.Popup className="notification-popup">
           <div className="notification-heading"><div><b>Stock alerts</b><span>{lowStock.length ? alertSummary : 'Everything looks healthy'}</span></div><Bell size={17} /></div>
-          {lowStock.length ? <div className="notification-list">{lowStock.slice(0, 6).map((position) => <Menu.Item className="notification-item" key={`${position.location.id}:${position.item.id}`} onClick={() => navigate('/reports')}>
+          {lowStock.length ? <div className="notification-list">{lowStock.slice(0, 6).map((position) => <Menu.Item className="notification-item" key={`${position.location.id}:${position.item.id}`} onClick={() => navigate(`/reports?tab=low&item=${encodeURIComponent(position.item.id)}&place=${encodeURIComponent(position.location.id)}`)}>
             <span className="notification-item-icon"><PackageSearch size={16} /></span><span><b>{position.item.name}</b><small>{position.closing} {position.item.unit} at {position.location.name} · reorder at {position.item.reorderLevel}</small></span>
           </Menu.Item>)}</div> : <div className="notification-empty"><CheckCircle2 size={22} /><span>No low-stock items</span></div>}
-          {lowStock.length > 6 && <Menu.Item className="notification-view-all" onClick={() => navigate('/reports')}>View all {lowStock.length} alerts</Menu.Item>}
+          {lowStock.length > 6 && <Menu.Item className="notification-view-all" onClick={() => navigate('/reports?tab=low')}>View all {lowStock.length} alerts</Menu.Item>}
         </Menu.Popup>
       </Menu.Positioner>
     </Menu.Portal>

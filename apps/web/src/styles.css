@@ -2062,3 +2062,5 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px soli
 .budget-save-bar strong { display: block; font: 600 24px var(--font-number); }
 .budget-months { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-block: 14px; }
 .budget-months label { display: flex; gap: 8px; }
+
+.alert-context { margin-bottom: 18px; padding: 20px; display: grid; gap: 12px; }

@@ -1,5 +1,6 @@
 import { InventoryDateRangeFilter } from '../../components/inventory-date-range-filter';
 import { useState } from 'react';
+import { NavLink, useSearchParams } from 'react-router-dom';
 import { useInventoryStore } from '../../app/inventory-store';
 import { useCompanySettings } from '../../app/company-settings-store';
 import { EmptyState, LocationFilter, PageHeader, PageState, Panel, PhoneStockRows, StockTable } from '../../components/inventory-ui';
@@ -19,15 +20,20 @@ const labels: Record<ReportTab, string> = {
 export function OperationsReportsPage() {
   const { snapshot } = useInventoryStore();
   const { terms } = useCompanySettings();
-  const [tab, setTab] = useState<ReportTab>('current');
+  const [params, setParams] = useSearchParams();
+  const tab: ReportTab = params.get('tab') in labels ? params.get('tab') as ReportTab : 'current';
+  const setTab = (next: ReportTab) => setParams({ tab: next });
+  const itemId = params.get('item');
+  const placeId = params.get('place');
   const positions = snapshot?.positions ?? [];
-  const rows = filterRows(positions, tab);
+  const rows = filterRows(positions, tab).filter(position => (!itemId || position.item.id === itemId) && (!placeId || position.location.id === placeId));
 
   return <PageState>
     <PageHeader title="Reports" actions={<><LocationFilter /><InventoryDateRangeFilter /></>} />
     <ReportTabs tab={tab} setTab={setTab} positions={positions} />
-    <Panel title={labels[tab]} subtitle={tab === 'current' ? 'Closing stock includes every receipt and deduction recorded in the ledger, whatever period is selected.' : periodHint}>
-      {rows.length ? tab === 'current' ? <StockTable positions={rows} /> : <OperationsVelocityTable positions={rows} /> : <EmptyState text={`No ${terms.items} in this report.`} />}
+    {(itemId || placeId) && <section className="panel alert-context" aria-label="Selected stock alert"><p><b>{rows[0]?.item.name ?? snapshot?.items.find(item => item.id === itemId)?.name ?? 'Selected item'}</b> · {snapshot?.locations.find(place => place.id === placeId)?.name ?? 'Selected place'}</p><p>Showing the stock line from your alert.</p><div className="actions"><NavLink className="button" to={`/movements?item=${encodeURIComponent(itemId ?? '')}&place=${encodeURIComponent(placeId ?? '')}`}>Receive stock</NavLink><NavLink className="button secondary" to={`/movements?type=transfer&item=${encodeURIComponent(itemId ?? '')}&destination=${encodeURIComponent(placeId ?? '')}`}>Move stock here</NavLink><button className="button secondary" onClick={() => setParams({ tab: 'low' })}>View all low stock</button></div></section>}
+    <Panel title={labels[tab]} subtitle={tab === 'low' ? 'At or below reorder level, using current stock at each place.' : tab === 'current' ? 'Closing stock includes every receipt and deduction recorded in the ledger, whatever period is selected.' : periodHint}>
+      {rows.length ? tab === 'current' || tab === 'low' ? <StockTable positions={rows} /> : <OperationsVelocityTable positions={rows} /> : <EmptyState text={`No ${terms.items} in this report.`} />}
     </Panel>
   </PageState>;
 }
