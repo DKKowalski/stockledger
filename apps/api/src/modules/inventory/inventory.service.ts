@@ -1,3 +1,4 @@
+import { dateRange } from '../../common/date-range.js';
 import { assertLegacyItem, valuationPools } from './valuation-ledger.js';
 import {
   BadRequestException,
@@ -46,11 +47,13 @@ type AuditJson = string | number | boolean | null | readonly AuditJson[] | { rea
 export class InventoryService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async snapshot(userId: string, companyId: string, days = 30, locationId?: string) {
+  async snapshot(userId: string, companyId: string, days = 30, locationId?: string, query: { from?: string; to?: string } = {}) {
     return this.prisma.withCompany(companyId, async (tx) => {
       const actor = await this.actor(tx, companyId, userId);
       const scope = await this.scope(tx, companyId);
       const selected = this.visibleLocation(actor, scope.locations, locationId);
+      const company = await tx.orm.public.Company.first({ id: companyId });
+      const range = dateRange(query, days, company?.timeZone);
       const pools = await valuationPools(tx,companyId);
       const snapshot = buildSnapshot(
         scope.items.map(item => pools.has(item.id) ? {...item,preciseCosting:true} : item),
@@ -61,6 +64,7 @@ export class InventoryService {
         selected,
         new Date(),
         pools,
+        range ?? undefined,
       );
       // The full history is paged through movementLedger; the snapshot carries only recent activity.
       const recent = { ...snapshot, movements: snapshot.movements.slice(0, RECENT_MOVEMENTS) };
@@ -75,8 +79,9 @@ export class InventoryService {
       this.assertInventoryManager(actor);
       const scope = await this.scope(tx, companyId);
       const locationId = this.visibleLocation(actor, scope.locations, query.locationId);
+      const range = dateRange(query);
       const matching = buildSnapshot(scope.items, scope.locations, scope.stocks, scope.movements, 30, locationId).movements
-        .filter((movement) => (!query.type || movement.type === query.type) && (!query.itemId || movement.itemId === query.itemId));
+        .filter((movement) => (!range || (movement.movementDate >= range.from && movement.movementDate <= range.to)) && (!query.type || movement.type === query.type) && (!query.itemId || movement.itemId === query.itemId));
       return {
         movements: matching.slice(query.offset, query.offset + query.limit),
         total: matching.length,
@@ -451,20 +456,29 @@ export class InventoryService {
       if (query.itemId && !scope.items.some((item) => item.id === query.itemId)) {
         throw new NotFoundException('Inventory item not found');
       }
-      const discounts = await tx.query(this.prisma.client.raw.sql`
-        SELECT s.location_id AS "locationId", l.item_id AS "itemId", s.movement_date::text AS "movementDate", l.automatic_discount_cents AS "discountCents"
-        FROM public.sale_lines l
-        JOIN public.sales s ON s.company_id = l.company_id AND s.id = l.sale_id
-        WHERE l.company_id = ${companyId}::uuid AND l.automatic_discount_cents > 0
-      `.returnsRow({ locationId: 'pg/uuid@1', itemId: 'pg/uuid@1', movementDate: 'pg/text@1', discountCents: 'pg/int4@1' }).build());
+      const company = await tx.orm.public.Company.first({ id: companyId });
+      const range = dateRange(query, query.days, company?.timeZone);
+      const { discounts } = await this.profitabilitySource(tx, companyId, scope);
       return buildProfitability(scope.items, scope.locations, scope.movements, {
         days: query.days,
+        ...range,
         locationId,
         locationType: query.locationType ?? null,
         itemId: query.itemId ?? null,
         category: query.category?.trim() || null,
       }, new Date(), discounts);
     });
+  }
+
+  async profitabilitySource(tx: PrismaTransaction, companyId: string, source?: Awaited<ReturnType<InventoryService['scope']>>) {
+    const scope = source ?? await this.scope(tx, companyId);
+    const discounts = await tx.query(this.prisma.client.raw.sql`
+        SELECT s.location_id AS "locationId", l.item_id AS "itemId", s.movement_date::text AS "movementDate", l.automatic_discount_cents AS "discountCents"
+        FROM public.sale_lines l
+        JOIN public.sales s ON s.company_id = l.company_id AND s.id = l.sale_id
+        WHERE l.company_id = ${companyId}::uuid AND l.automatic_discount_cents > 0
+      `.returnsRow({ locationId: 'pg/uuid@1', itemId: 'pg/uuid@1', movementDate: 'pg/text@1', discountCents: 'pg/int4@1' }).build());
+    return { ...scope, discounts };
   }
 
   async createMovement(userId: string, companyId: string, body: CreateMovementDto) {

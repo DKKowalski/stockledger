@@ -1,3 +1,4 @@
+import { companyDay } from '../../lib/date-range';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { api, ApiError } from '../../api';
 import { useAuth } from '../../auth-context';
@@ -79,7 +80,7 @@ export function Checkout({ enabled }: { enabled: boolean }) {
       const preview = await api.quotePricingPreview(accessToken, [{ itemId, quantity: Number(quantity) }]);
       const line = preview.lines[0];
       if (!line || selected.item.sellingPriceCents == null) throw new Error('Ask an administrator to set a selling price for this item.');
-      const movementDate = new Intl.DateTimeFormat('en-CA', { timeZone: settings?.timeZone ?? 'Africa/Accra', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+      const movementDate = companyDay(settings?.timeZone);
       setCompleted(null);
       const nextQuote = await api.saleQuote(accessToken, { movementDate, lines: [{ itemId, quantity: Number(quantity), expectedVersion: line.configurationVersion ?? line.pricingVersion ?? 0, expectedRetailPriceCents: selected.item.sellingPriceCents }] });
       if (generation !== (localStorage.getItem(generationKey(user)) ?? '')) throw new Error('Another sale request changed this checkout. Review a new quote.');

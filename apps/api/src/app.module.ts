@@ -3,6 +3,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { minutes, ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { CoreModule } from './core/core.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
+import { FinanceModule } from './modules/finance/finance.module.js';
 import { InventoryModule } from './modules/inventory/inventory.module.js';
 import { OnboardingModule } from './modules/onboarding/onboarding.module.js';
 import { SettingsModule } from './modules/settings/settings.module.js';
@@ -15,6 +16,7 @@ import { PrismaModule } from './prisma/prisma.module.js';
     PrismaModule,
     AuthModule,
     InventoryModule,
+    FinanceModule,
     OnboardingModule,
     SettingsModule,
   ],

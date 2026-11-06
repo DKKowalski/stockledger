@@ -1,3 +1,4 @@
+import { companyDay } from '../../lib/date-range';
 import { ClipboardCheck } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { api } from '../../api';
@@ -16,7 +17,7 @@ export function StockCountsPage() {
   const { money, calendarDate, settings, terms } = useCompanySettings();
   const countAction = useAsyncActionState();
   const [counts, setCounts] = useState<StockCount[] | null>(null);
-  const [form, setForm] = useState({ itemId: '', locationId: '', countedQuantity: '', countedAt: new Date().toISOString().slice(0, 10), note: '' });
+  const [form, setForm] = useState({ itemId: '', locationId: '', countedQuantity: '', countedAt: companyDay(settings?.timeZone), note: '' });
   const items = snapshot?.items.filter((item) => item.isActive) ?? [];
   const places = snapshot?.locations ?? [];
   const expected = useMemo(() => snapshot?.positions.find((position) => position.item.id === form.itemId && position.location.id === form.locationId)?.closing ?? null, [snapshot, form.itemId, form.locationId]);

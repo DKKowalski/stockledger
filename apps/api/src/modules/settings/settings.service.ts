@@ -1,3 +1,4 @@
+import { timestampBounds, dateRange } from '../../common/date-range.js';
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import type { Varchar } from '@prisma/orm-postgres/target/codec-types';
 import * as argon2 from 'argon2';
@@ -55,13 +56,17 @@ export class SettingsService {
     });
   }
 
-  async activity(userId: string, companyId: string) {
+  async activity(userId: string, companyId: string, query: { from?: string; to?: string } = {}) {
     return this.prisma.withCompany(companyId, async (tx) => {
       const actor = await this.account(tx, companyId, userId);
       if (actor.role !== 'administrator') throw new ForbiddenException('Only an administrator can view business activity');
 
-      const events = await tx.orm.public.AuditEvent
-        .where({ companyId })
+      const range = dateRange(query);
+      const company = range ? await tx.orm.public.Company.first({ id: companyId }) : null;
+      const bounds = range ? timestampBounds(range, company?.timeZone) : null;
+      const eventQuery = tx.orm.public.AuditEvent.where({ companyId });
+      const scopedEvents = bounds ? eventQuery.where(event => event.createdAt.gte(bounds.from)).where(event => event.createdAt.lt(bounds.toExclusive)) : eventQuery;
+      const events = await scopedEvents
         .include('actor', (users) => users.select('id', 'fullName', 'email'))
         .orderBy([(event) => event.createdAt.desc(), (event) => event.id.desc()])
         .limit(100)
@@ -188,6 +193,9 @@ export class SettingsService {
       await tx.query(this.prisma.client.raw.sql`
         SELECT set_config('app.workspace_deletion_company_id', ${companyId}, true) AS company_id
       `.returnsRow({ company_id: 'pg/text@1' }).build());
+      await tx.execute(this.prisma.client.raw.sql`DELETE FROM public.finance_entries WHERE company_id = ${companyId}::uuid`.affectedCount().build());
+      await tx.execute(this.prisma.client.raw.sql`DELETE FROM public.finance_budgets WHERE company_id = ${companyId}::uuid`.affectedCount().build());
+      await tx.execute(this.prisma.client.raw.sql`DELETE FROM public.finance_categories WHERE company_id = ${companyId}::uuid`.affectedCount().build());
       await tx.execute(this.prisma.client.raw.sql`
         DELETE FROM public.inventory_valuation_entries WHERE company_id = ${companyId}::uuid
       `.affectedCount().build());

@@ -11,4 +11,8 @@ describe('toCsv', () => {
     expect(toCsv(['SKU', 'Quantity'], [['=IMPORTXML("bad")', -4]]))
       .toBe('\uFEFFSKU,Quantity\r\n"\'=IMPORTXML(""bad"")",-4\r\n');
   });
+
+  it('leaves plain negative amounts numeric but still neutralizes dash-led text', () => {
+    expect(toCsv(['Amount', 'Note'], [['-12.50', '-2+3']])).toBe("\uFEFFAmount,Note\r\n-12.50,'-2+3\r\n");
+  });
 });

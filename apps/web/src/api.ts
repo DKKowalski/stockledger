@@ -1,3 +1,5 @@
+import type { FinanceBudgetInput, FinanceEntry, FinanceEntryInput, FinanceReport } from './features/finance/finance-types';
+import type { DateRangeValue } from './lib/date-range';
 import type { ReturnSource,StockState } from './features/movements/hybrid-operations-panels';
 import type { OperationRecord } from './features/movements/durable-operation';
 import type { ExactCostState, ExactCostInput, ExactCostRequest } from './types';
@@ -7,7 +9,7 @@ import type { SaleQuoteInput, SaleQuote, CompletedSale } from './types';
 import type { PricingPreviewConfiguration, PricingPreviewInput, PricingQuote } from './types';
 import type { CostReview, CostReviewInput } from './types';
 
-export type DataExportType = 'workspace' | 'workspace-v2' | 'workspace-v3' | 'workspace-v4' | 'workspace-v5' | 'inventory' | 'movements' | 'activity';
+export type DataExportType = 'workspace' | 'workspace-v2' | 'workspace-v3' | 'workspace-v4' | 'workspace-v5' | 'workspace-v6' | 'inventory' | 'movements' | 'activity';
 
 const base = (import.meta.env.VITE_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 
@@ -59,6 +61,13 @@ async function download(path: string, accessToken: string) {
 }
 
 export const api = {
+  finance: (token: string, year: number) => request<FinanceReport>(`/finance?year=${year}`, undefined, token),
+  financeExport: (token: string, year: number, view: string, month: string) => download(`/finance/export?${new URLSearchParams({ year: String(year), view, ...(view === 'month' ? { month } : {}) })}`, token),
+  financeEntries: (token: string, range: { from?: string; to?: string }) => request<FinanceEntry[]>(`/finance/entries?${new URLSearchParams(range)}`, undefined, token),
+  saveFinanceCategory: (token: string, body: { name: string; isActive: boolean }, id?: string) => request(`/finance/categories${id ? `/${id}` : ''}`, { method: id ? 'PATCH' : 'POST', body: JSON.stringify(body) }, token),
+  saveFinanceEntry: (token: string, body: FinanceEntryInput, id?: string) => request(`/finance/entries${id ? `/${id}` : ''}`, { method: id ? 'PATCH' : 'POST', body: JSON.stringify(body) }, token),
+  deleteFinanceEntry: (token: string, id: string) => request(`/finance/entries/${id}`, { method: 'DELETE' }, token),
+  saveFinanceBudget: (token: string, body: FinanceBudgetInput) => request('/finance/budgets', { method: 'POST', body: JSON.stringify(body) }, token),
   returnSources:(token:string)=>request<{available:boolean;sources:Array<{id:string;type:'grouped'|'legacy';date:string;reference:string}>}>('/inventory/sale-returns',undefined,token),
   returnSource:(token:string,type:string,id:string)=>request<ReturnSource>(`/inventory/sale-returns/sources/${type}/${id}`,undefined,token),
   prepareReturn:(token:string,key:string,input:Record<string,unknown>)=>request<OperationRecord>('/inventory/sale-returns/requests',{method:'POST',body:JSON.stringify({requestKey:key,input})},token),
@@ -137,13 +146,13 @@ export const api = {
     request<CompanySettings>('/settings/inventory', { method: 'PATCH', body: JSON.stringify(pick(body, inventorySettingKeys)) }, accessToken),
   updateTerminologySettings: (accessToken: string, body: TerminologySettings) =>
     request<CompanySettings>('/settings/terminology', { method: 'PATCH', body: JSON.stringify(pick(body, terminologySettingKeys)) }, accessToken),
-  activity: (accessToken: string) => request<ActivityEvent[]>('/settings/activity', undefined, accessToken),
+  activity: (accessToken: string, range: { from?: string; to?: string } = {}) => request<ActivityEvent[]>(`/settings/activity?${new URLSearchParams(range)}`, undefined, accessToken),
   dataSummary: (accessToken: string) => request<DataSummary>('/settings/data-summary', undefined, accessToken),
-  exportData: (accessToken: string, type: DataExportType) => download(`/settings/exports/${type}`, accessToken),
+  exportData: (accessToken: string, type: DataExportType, range: { from?: string; to?: string } = {}) => download(`/settings/exports/${type}?${new URLSearchParams(range)}`, accessToken),
   deleteWorkspace: (accessToken: string, body: { currentPassword: string; confirmation: string }) =>
     request<{ deleted: true }>('/settings/account', { method: 'DELETE', body: JSON.stringify(body) }, accessToken),
-  snapshot: (accessToken: string, days: number, locationId?: string | null) =>
-    request<Snapshot>(`/inventory/snapshot?days=${days}${locationId ? `&locationId=${locationId}` : ''}`, undefined, accessToken),
+  snapshot: (accessToken: string, days: number, locationId?: string | null, range: Partial<DateRangeValue> = {}) =>
+    request<Snapshot>(`/inventory/snapshot?days=${days}${locationId ? `&locationId=${locationId}` : ''}${range.from && range.to ? `&from=${range.from}&to=${range.to}` : ''}`, undefined, accessToken),
   addLocation: (accessToken: string, body: { name: string; type: LocationType }) =>
     request<Place>('/inventory/locations', { method: 'POST', body: JSON.stringify(body) }, accessToken),
   addItem: (accessToken: string, body: Record<string, string | number>) =>
@@ -156,8 +165,8 @@ export const api = {
     request(`/inventory/items/${itemId}/selling-price`, { method: 'PATCH', body: JSON.stringify({ sellingPriceCents }) }, accessToken),
   addMovement: (accessToken: string, body: { itemId: string; locationId: string; destinationLocationId?: string; type: MovementType; quantity: number; movementDate: string; reference?: string; note?: string; expectedUnitPriceCents?: number; unitCostCents?: number; supplierId?: string; relatedMovementId?: string }) =>
     request('/inventory/movements', { method: 'POST', body: JSON.stringify(body) }, accessToken),
-  movementLedger: (accessToken: string, query: { type?: MovementType; itemId?: string; offset: number; limit: number }) =>
-    request<MovementLedger>(`/inventory/movements?${new URLSearchParams({ ...(query.type ? { type: query.type } : {}), ...(query.itemId ? { itemId: query.itemId } : {}), offset: String(query.offset), limit: String(query.limit) })}`, undefined, accessToken),
+  movementLedger: (accessToken: string, query: { from?: string; to?: string; type?: MovementType; itemId?: string; offset: number; limit: number }) =>
+    request<MovementLedger>(`/inventory/movements?${new URLSearchParams({ ...(query.from && query.to ? { from: query.from, to: query.to } : {}), ...(query.type ? { type: query.type } : {}), ...(query.itemId ? { itemId: query.itemId } : {}), offset: String(query.offset), limit: String(query.limit) })}`, undefined, accessToken),
   returnableSales: (accessToken: string) => request<ReturnableSale[]>('/inventory/movements/returnable-sales', undefined, accessToken),
   deleteMovement: (accessToken: string, id: string) =>
     request(`/inventory/movements/${id}`, { method: 'DELETE' }, accessToken),
@@ -171,6 +180,7 @@ export const api = {
     request<StockCount>('/inventory/stock-counts', { method: 'POST', body: JSON.stringify(body) }, accessToken),
   profitability: (accessToken: string, filters: ProfitabilityFilters) => {
     const params = new URLSearchParams({ days: String(filters.days) });
+    if (filters.from && filters.to) { params.set('from', filters.from); params.set('to', filters.to); }
     if (filters.locationType) params.set('locationType', filters.locationType);
     if (filters.locationId) params.set('locationId', filters.locationId);
     if (filters.category) params.set('category', filters.category);

@@ -1,3 +1,4 @@
+import { InventoryDateRangeFilter } from '../../components/inventory-date-range-filter';
 import { ArrowLeftRight, ArrowUpDown, ArrowUpRight, CalendarDays, Check, ChevronRight, PackageX, ShoppingBag, TrendingUp, TriangleAlert, Warehouse } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import type { ReactNode } from 'react';
@@ -17,10 +18,9 @@ export function OperationsDashboardPage() {
   return <PageState>{snapshot && <DashboardBody
     title="Inventory"
     accent="overview"
-    actions={<><LocationFilter /><InventorySyncButton loading={loading} refresh={refresh} /><NavLink className="button" to="/movements">Record movement<ArrowUpRight size={16} /></NavLink></>}
+    actions={<><InventoryDateRangeFilter /><LocationFilter /><InventorySyncButton loading={loading} refresh={refresh} /><NavLink className="button" to="/movements">Record movement<ArrowUpRight size={16} /></NavLink></>}
     positions={snapshot.positions}
-    movements={snapshot.movements}
-    periodDays={snapshot.periodDays}
+    movements={snapshot.periodMovements}
     summary={snapshot.summary}
     setup={<>{user?.role === 'administrator' && <DealsWhatsNew />}<OwnerSetupChecklist /></>}
   />}</PageState>;
@@ -35,16 +35,16 @@ export function ShopDashboardPage() {
   const revenue = sales.reduce((total, sale) => total + (sale.saleTotalCents ?? 0), 0);
   const unitsSold = sales.reduce((total, sale) => total + sale.quantity, 0);
   return <PageState>
-    <PageHeader title={shop?.name ?? `Your ${terms.shop}`} actions={<><InventorySyncButton loading={loading} refresh={refresh} /><NavLink className="button" to="/sell">Sell<ArrowUpRight size={16} /></NavLink></>} />
+    <PageHeader title={shop?.name ?? `Your ${terms.shop}`} actions={<><InventoryDateRangeFilter /><InventorySyncButton loading={loading} refresh={refresh} /><NavLink className="button" to="/sell">Sell<ArrowUpRight size={16} /></NavLink></>} />
     <DealsAttendantNotice />
     <section className="kpi-grid">
       <Kpi icon={Warehouse} label="Stock on hand" value={snapshot.summary.closingUnits.toLocaleString()} note={`${snapshot.positions.length} stocked ${terms.item} lines`} />
-      <Kpi icon={ShoppingBag} label="Units sold" value={unitsSold.toLocaleString()} note={`During the last ${snapshot.periodDays} days`} tone="success" />
+      <Kpi icon={ShoppingBag} label="Units sold" value={unitsSold.toLocaleString()} note="During the selected period" tone="success" />
       <Kpi icon={TrendingUp} label="Recorded revenue" value={money(revenue)} note="Sales with recorded prices" amount />
       <Kpi icon={TriangleAlert} label={`Low stock ${terms.items}`} value={String(snapshot.summary.lowStockItems)} note="At or below reorder level" tone="warning" />
     </section>
     <section className="dashboard-grid">
-      <Panel title="Recent sales" className="movement-panel">
+      <Panel title="Sales in this period" className="movement-panel">
         {sales.length ? <div className="movement-list">{sales.slice(0, 6).map((sale) => <div className="movement-row" key={sale.id}>
           <span className="movement-icon out"><ShoppingBag size={15} /></span>
           <div><b>{sale.item?.name ?? `Deleted ${terms.item}`}</b><small>{calendarDate(sale.movementDate)} · {sale.saleTotalCents == null ? 'Price not recorded' : money(sale.saleTotalCents)}</small></div>
@@ -70,13 +70,12 @@ function InventorySyncButton({ loading, refresh }: { loading: boolean; refresh: 
   </button>;
 }
 
-function DashboardBody({ title, accent, actions, positions, movements, periodDays, summary, setup }: {
+function DashboardBody({ title, accent, actions, positions, movements, summary, setup }: {
   title: string;
   accent?: string;
   actions: ReactNode;
   positions: Position[];
   movements: Movement[];
-  periodDays: number;
   summary: Snapshot['summary'];
   setup?: ReactNode;
 }) {
@@ -88,11 +87,11 @@ function DashboardBody({ title, accent, actions, positions, movements, periodDay
       <Kpi icon={Warehouse} label="Closing stock" value={summary.closingUnits.toLocaleString()} note={`${money(summary.stockValueCents)} at cost`} />
       <Kpi icon={TriangleAlert} label={`Low stock ${terms.items}`} value={String(summary.lowStockItems)} note="At or below reorder level" tone="warning" />
       <Kpi icon={PackageX} label="Damaged units" value={summary.damagedUnits.toLocaleString()} note="Written off to date" tone="danger" />
-      <Kpi icon={TrendingUp} label="Dead stock lines" value={String(summary.deadStockLines)} note={`No sale or transfer out in ${periodDays} days`} tone="success" />
+      <Kpi icon={TrendingUp} label="Dead stock lines" value={String(summary.deadStockLines)} note="No sale or transfer out in the selected period" tone="success" />
     </section>
     <section className="insights-grid"><StockLevels positions={positions} /><StockHealth positions={positions} /></section>
     <section className="dashboard-grid">
-      <Panel title="Recent movements" className="movement-panel">
+      <Panel title="Movements in this period" className="movement-panel">
         {movements.length ? <div className="movement-list">{movements.slice(0, 6).map((movement) => <div className="movement-row" key={movement.id}>
           <span className={`movement-icon ${movement.sign === 1 ? 'in' : 'out'}`}><ArrowLeftRight size={15} /></span>
           <div><b>{movement.item?.name ?? `Deleted ${terms.item}`}</b><small>{movementMeta[movement.type].label} · {calendarDate(movement.movementDate)}</small></div>

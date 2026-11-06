@@ -27,7 +27,8 @@ StockLedger is a warehouse inventory dashboard built as a separate project from 
 - Catalog editing and safe item archiving, with duplicate item-code protection
 - In-app low-stock alerts derived from live balances at each place
 - Owner-only profitability reporting for net sales, cost of goods sold, gross profit, margin, and inventory losses
-- Current, low, fast, slow and dead-stock reports for 7, 30 or 90 days
+- Current, low, fast, slow and dead-stock reports for 7, 30 or 90 days, or any custom dates
+- Owner-only budget vs actual profit and loss statements by month and year, with CSV export and a print view
 - Transactional stock checks that prevent simultaneous outbound movements from taking stock below zero
 - Responsive React UI with loading, empty and error states
 - CSV exports, owner-confirmed workspace deletion, and public privacy and terms pages
@@ -83,6 +84,14 @@ Box and quantity deals are off by default. An owner turns them on under **Settin
 Administrators can set a selling price when adding an item or under **Items → Selling prices**. The price applies across the company's shops. Items without a price cannot be sold; an explicit zero price is supported. Attendants see the unit price and total before submitting. The API records the current catalog price and rejects stale displayed prices with `409 Conflict` so the attendant can refresh and review it.
 
 Historical sales retain their recorded unit price even after the catalog changes. Sales recorded before pricing was introduced show **Not recorded** for price and total. The migration leaves existing item prices unset instead of treating purchase cost as a selling price. Amounts use integer cents and display two decimal places. Currency is configurable per company and defaults to GHS.
+
+## Finance
+
+Owners open **Finance** for a Budget vs Actual Profit and Loss statement: one month, all months of a year, or the year. Year figures are the twelve months added together.
+
+Actuals come from the same logic as **Profit**, by recorded business date. For any period, net sales plus other revenue equals total revenue, and gross profit there plus other revenue equals gross profit here. Inventory losses are shown separately on Profit and count as an expense here. Sales with no cost snapshot stay in revenue but are removed from gross profit on their own line, and the page warns about them.
+
+Owners enter operating expenses, other revenue, expense categories and monthly budgets on the same page. Variance is always favourable to profit: positive is good and red is bad. A zero budget shows a dash for the percentage.
 
 ## Tests
 

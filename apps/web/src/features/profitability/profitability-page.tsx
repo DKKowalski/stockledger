@@ -1,3 +1,5 @@
+import { DateRangePicker } from '../../components/ui/date-range-picker';
+import type { DateRangeValue } from '../../lib/date-range';
 import { BadgePercent, Building2, CircleDollarSign, PackageX, Percent, ReceiptText, SlidersHorizontal, Store, TrendingUp, Warehouse as WarehouseIcon } from 'lucide-react';
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { ApiError, api } from '../../api';
@@ -9,13 +11,13 @@ import { safeErrorMessage } from '../../lib/user-facing-error';
 import type { LocationType, Profitability } from '../../types';
 
 type LocationScope = '' | LocationType;
-type ProfitPeriod = 7 | 30 | 90;
 
 export function ProfitabilityPage() {
   const { accessToken, signOut } = useAuth();
   const { snapshot } = useInventoryStore();
   const { money, calendarDate, terms, settings } = useCompanySettings();
-  const [days, setDays] = useState<ProfitPeriod>(30);
+  const [range, setRange] = useState<DateRangeValue>({ days: 30 });
+  const days = range.days ?? 30;
   const [locationType, setLocationType] = useState<LocationScope>('');
   const [locationId, setLocationId] = useState('');
   const [category, setCategory] = useState('');
@@ -42,6 +44,7 @@ export function ProfitabilityPage() {
     let cancelled = false;
     void api.profitability(accessToken, {
       days,
+      from: range.from, to: range.to,
       ...(locationType ? { locationType } : {}),
       ...(locationId ? { locationId } : {}),
       ...(category ? { category } : {}),
@@ -53,7 +56,7 @@ export function ProfitabilityPage() {
       else if (!cancelled) setError(safeErrorMessage(caught, 'Could not load profitability. Try again.'));
     });
     return () => { cancelled = true; };
-  }, [accessToken, category, days, itemId, locationId, locationType, signOut]);
+  }, [accessToken, category, days, range, itemId, locationId, locationType, signOut]);
 
   const hasDiscounts = Boolean(report?.lines.some((line) => line.discountCents > 0));
   const maxTrend = useMemo(() => Math.max(...(report?.trend.flatMap((point) => [Math.abs(point.netSalesCents), Math.abs(point.grossProfitCents)]) ?? [1]), 1), [report]);
@@ -64,7 +67,7 @@ export function ProfitabilityPage() {
     <section className="panel profit-filter-panel" aria-label="Profitability filters">
       <div className="profit-filter-heading"><span><SlidersHorizontal size={16} />Report filters</span><small>Showing {scopeLabel} · {productLabel}</small></div>
       <div className="profit-filter-grid">
-        <label><span>Period</span><SelectControl aria-label="Profit period" value={String(days)} onValueChange={(value) => setDays(Number(value) as ProfitPeriod)} options={[{ value: '7', label: 'Last 7 days' }, { value: '30', label: 'Last 30 days' }, { value: '90', label: 'Last 90 days' }]} /></label>
+        <DateRangePicker label="Profit period" visibleLabel="Period" value={range} onChange={setRange} />
         <label><span>Location type</span><SelectControl aria-label="Location type" value={locationType} onValueChange={(value) => { setLocationType(value as LocationScope); setLocationId(''); }} options={[{ value: '', label: <><Building2 size={14} />All locations</> }, { value: 'shop', label: <><Store size={14} />{terms.Shops}</> }, { value: 'warehouse', label: <><WarehouseIcon size={14} />{terms.Warehouses}</> }]} /></label>
         <label><span>Place</span><SelectControl aria-label="Place" value={locationId} onValueChange={setLocationId} options={[{ value: '', label: locationType === 'shop' ? `All ${terms.shops}` : locationType === 'warehouse' ? `All ${terms.warehouses}` : 'All places' }, ...locations.map((location) => ({ value: location.id, label: location.name }))]} /></label>
         <label><span>Category</span><SelectControl aria-label="Category" value={category} onValueChange={(value) => { setCategory(value); setItemId(''); }} options={[{ value: '', label: 'All categories' }, ...categories.map((value) => ({ value, label: value }))]} /></label>
@@ -83,7 +86,7 @@ export function ProfitabilityPage() {
       </section>
       {(summary.discountsGivenCents > 0 || settings?.hybridPricingEnabled) && <div className="profit-discount-strip" data-tour="profit-discounts"><BadgePercent size={19} /><div><b>Discounts given: {money(summary.discountsGivenCents)}</b><span>{summary.discountsGivenCents > 0 ? `Sales before discounts: ${money(summary.fullPriceSalesCents)}. The sales and profit above are after discounts.` : 'No discounts in this period.'}</span></div></div>}
       <section className="profit-layout">
-        <Panel title="Sales and gross profit" subtitle={`${scopeLabel} over the last ${days} days`} className="profit-trend-panel">
+        <Panel title="Sales and gross profit" subtitle={report ? `${scopeLabel} · ${calendarDate(report.startDate)} to ${calendarDate(report.endDate)}` : scopeLabel} className="profit-trend-panel">
           {report?.trend.length ? <div className="profit-chart"><div className="profit-chart-legend"><span><i className="sales" />Net sales</span><span><i className="profit" />Gross profit</span></div><div className="profit-chart-bars">{report.trend.map((point) => {
             const salesScale = Math.max(Math.abs(point.netSalesCents) / maxTrend, .03);
             const profitScale = Math.max(Math.abs(point.grossProfitCents) / maxTrend, .03);

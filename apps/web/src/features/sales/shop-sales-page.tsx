@@ -1,3 +1,5 @@
+import { companyDay } from '../../lib/date-range';
+import { InventoryDateRangeFilter } from '../../components/inventory-date-range-filter';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Checkout, hasPendingSale } from './checkout';
 import { api } from '../../api';
@@ -34,7 +36,7 @@ export function ShopSalesPage() {
 function RetailSalePage() {
   const { accessToken, user } = useAuth();
   const { snapshot, mutate, busy } = useInventoryStore();
-  const { money, calendarDate, terms } = useCompanySettings();
+  const { money, calendarDate, terms, settings } = useCompanySettings();
   const saleAction = useAsyncActionState();
   const [form, setForm] = useState({ itemId: '', quantity: '' });
   const shop = snapshot?.locations.find((place) => place.id === user?.locationId) ?? snapshot?.locations[0];
@@ -42,7 +44,7 @@ function RetailSalePage() {
   const selected = stocked.find((position) => position.item.id === form.itemId);
   const unitPriceCents = selected?.item.sellingPriceCents;
   const totalCents = unitPriceCents == null || !form.quantity ? null : unitPriceCents * Number(form.quantity);
-  const sales = snapshot?.movements.filter((movement) => movement.type === 'sale') ?? [];
+  const sales = snapshot?.periodMovements.filter((movement) => movement.type === 'sale') ?? [];
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -50,7 +52,7 @@ function RetailSalePage() {
     const quantity = Number(form.quantity);
     await saleAction.run(() => mutate(() => api.addMovement(accessToken, {
       itemId: selected.item.id, locationId: user.locationId!, type: 'sale', quantity,
-      expectedUnitPriceCents: unitPriceCents, movementDate: new Date().toISOString().slice(0, 10),
+      expectedUnitPriceCents: unitPriceCents, movementDate: companyDay(settings?.timeZone),
     }), `Sold ${quantity} ${selected.item.unit} of ${selected.item.name}.`));
     setForm({ itemId: '', quantity: '' });
   };
@@ -67,7 +69,8 @@ function RetailSalePage() {
         {selected && unitPriceCents == null && <p className="price-hint" role="status">Ask an administrator to set a selling price for this {terms.item}.</p>}
       </form> : <EmptyState text={`Nothing to sell yet. Stock arrives when someone transfers it to this ${terms.shop}.`} />}
     </Panel>
-    <Panel title={`Recent sales (${sales.length})`} className="spaced">
+    <Panel title={`Sales in selected period (${sales.length})`} className="spaced">
+      <div className="sales-period-filter"><InventoryDateRangeFilter /></div>
       {sales.length ? <div className="table-wrap"><table><thead><tr><th>Date</th><th>{terms.Item}</th><th className="num">Qty</th><th className="num">Unit price</th><th className="num">Total</th></tr></thead><tbody>{sales.map((sale) => <tr key={sale.id}><td>{calendarDate(sale.movementDate)}</td><td><b>{sale.item?.name ?? `Deleted ${terms.item}`}</b><small>{sale.item?.sku}</small></td><td className="num negative">−{sale.quantity}</td><td className="num">{sale.unitPriceCents == null ? 'Not recorded' : money(sale.unitPriceCents)}</td><td className="num">{sale.saleTotalCents == null ? 'Not recorded' : money(sale.saleTotalCents)}</td></tr>)}</tbody></table></div> : <EmptyState text={`No sales recorded at this ${terms.shop} yet.`} />}
     </Panel>
   </PageState>;

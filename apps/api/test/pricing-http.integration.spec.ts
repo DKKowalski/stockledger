@@ -122,4 +122,23 @@ describe('pricing preview HTTP contract and existing sales workflow', () => {
     expect(profit.status).toBe(200);
     expect(profit.body.summary).toMatchObject({ netSalesCents: 1500, cogsCents: 1000, grossProfitCents: 500, unitsSold: 2, unitsReturned: 1 });
   });
+
+  it('validates date ranges at the HTTP boundary and keeps finance owner-only', async () => {
+    for (const path of ['/inventory/snapshot', '/inventory/movements', '/inventory/profitability', '/settings/activity', '/settings/exports/movements', '/finance/entries']) {
+      expect((await request(`${path}?from=2026-03-02&to=2026-03-01`, adminToken)).status, path).toBe(400);
+      expect((await request(`${path}?from=2026-02-30&to=2026-03-01`, adminToken)).status, path).toBe(400);
+      expect((await request(`${path}?from=2026-03-01`, adminToken)).status, path).toBe(400);
+    }
+    expect((await request('/inventory/snapshot?from=2026-03-01&to=2026-03-01', adminToken)).status).toBe(200);
+    expect((await request('/finance?year=1999', adminToken)).status).toBe(400);
+    expect((await request('/finance?year=2026', attendantToken)).status).toBe(403);
+    expect((await request('/finance/entries', attendantToken)).status).toBe(403);
+    expect((await request('/finance/budgets', attendantToken, 'POST', { month: '2026-01-01', lines: [] })).status).toBe(403);
+    expect((await request('/finance?year=2026')).status).toBe(401);
+    const report = await request('/finance?year=2026', adminToken);
+    expect(report.status).toBe(200);
+    expect(report.body.company).toMatchObject({ name: 'HTTP pricing fixture' });
+    expect((await request('/finance/entries', adminToken, 'POST', { kind: 'other_revenue', entryDate: '2026-02-30', amountCents: 100 })).status).toBe(400);
+    expect((await request('/finance/entries', adminToken, 'POST', { kind: 'other_revenue', entryDate: '2026-02-28', amountCents: 10.5 })).status).toBe(400);
+  });
 });

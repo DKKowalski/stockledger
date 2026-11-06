@@ -1,3 +1,5 @@
+import { DateRangePicker } from '../../components/ui/date-range-picker';
+import { companyDay, rangeQuery, type DateRangeValue } from '../../lib/date-range';
 import { HybridOperationsPanels } from './hybrid-operations-panels';
 import { Trash2 } from 'lucide-react';
 import { useEffect, useState, type FormEvent } from 'react';
@@ -22,6 +24,7 @@ export function MovementsPage() {
   const { snapshot, mutate, busy } = useInventoryStore();
   const { money, calendarDate, settings, terms } = useCompanySettings();
   const saveAction = useAsyncActionState();
+  const [range, setRange] = useState<DateRangeValue>({ days: null });
   const [filter, setFilter] = useState<'all' | MovementType>('all');
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   // Items can link here with ?item= to record a purchase for that item.
@@ -32,7 +35,7 @@ export function MovementsPage() {
     destinationLocationId: '',
     type: 'purchase' as MovementType,
     quantity: '',
-    movementDate: new Date().toISOString().slice(0, 10),
+    movementDate: companyDay(settings?.timeZone),
     reference: '',
     note: '',
     unitCost: '',
@@ -58,20 +61,20 @@ export function MovementsPage() {
   useEffect(() => {
     if (!accessToken) return;
     let active = true;
-    void api.movementLedger(accessToken, { type: filter === 'all' ? undefined : filter, offset: 0, limit: LEDGER_PAGE })
+    void api.movementLedger(accessToken, { ...rangeQuery(range, settings?.timeZone), type: filter === 'all' ? undefined : filter, offset: 0, limit: LEDGER_PAGE })
       .then((page) => { if (active) setLedger({ rows: page.movements, total: page.total }); })
       .catch(() => { if (active) toast.error('Could not load the movement ledger'); });
     void api.returnableSales(accessToken)
       .then((next) => { if (active) setSales(next); })
       .catch(() => { if (active) setSales([]); });
     return () => { active = false; };
-  }, [accessToken, filter, generatedAt]);
+  }, [accessToken, filter, generatedAt, range, settings?.timeZone]);
 
   const loadMore = async () => {
     if (!accessToken || !ledger) return;
     setLoadingMore(true);
     try {
-      const page = await api.movementLedger(accessToken, { type: filter === 'all' ? undefined : filter, offset: ledger.rows.length, limit: LEDGER_PAGE });
+      const page = await api.movementLedger(accessToken, { ...rangeQuery(range, settings?.timeZone), type: filter === 'all' ? undefined : filter, offset: ledger.rows.length, limit: LEDGER_PAGE });
       setLedger((current) => current && { rows: [...current.rows, ...page.movements], total: page.total });
     } catch {
       toast.error('Could not load more movements');
@@ -120,7 +123,7 @@ export function MovementsPage() {
     </Panel>
     <HybridOperationsPanels />
     <Panel title={`Movement ledger (${ledger?.total ?? 0})`} className="spaced">
-      <div className="filter-row"><label><span className="sr-only">Filter movement type</span><SelectControl aria-label="Filter movement type" value={filter} onValueChange={(value) => setFilter(value as typeof filter)} options={[{ value: 'all', label: 'All movement types' }, ...Object.entries(movementMeta).map(([value, meta]) => ({ value, label: meta.label }))]} /></label></div>
+      <div className="filter-row"><DateRangePicker allowAll value={range} onChange={setRange} /><label><span className="sr-only">Filter movement type</span><SelectControl aria-label="Filter movement type" value={filter} onValueChange={(value) => setFilter(value as typeof filter)} options={[{ value: 'all', label: 'All movement types' }, ...Object.entries(movementMeta).map(([value, meta]) => ({ value, label: meta.label }))]} /></label></div>
       {rows.length ? <div className="table-wrap"><table><thead><tr><th>Date</th><th>Item</th><th>Type</th><th>Place</th><th>Reference</th><th className="num">Qty</th><th className="num">Unit cost</th><th className="num">Sale total</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>{rows.map((movement) => <tr key={movement.id}><td>{calendarDate(movement.movementDate)}</td><td><b>{movement.item?.name ?? 'Deleted item'}</b><small>{movement.note}</small></td><td>{movementMeta[movement.type].label}</td><td>{movement.destination ? `${movement.location?.name ?? 'Unknown'} → ${movement.destination.name}` : movement.location?.name ?? 'Unknown'}</td><td>{movement.reference || suppliers.find((supplier) => supplier.id === movement.supplierId)?.name || '—'}</td><td className={`num ${movement.sign === 1 ? 'positive' : 'negative'}`}>{movement.sign === 1 ? '+' : '−'}{movement.quantity}</td><td className="num">{movement.unitCostCents == null ? '—' : money(movement.unitCostCents)}</td><td className="num">{movement.saleTotalCents == null ? '—' : money(movement.saleTotalCents)}</td><td className="num">{movement.saleId ? <span className="account-owner-label">Reversal required</span> : movement.stockCountId ? <span className="account-owner-label">Counted</span> : <button className="icon-button" aria-label="Delete movement" disabled={busy} onClick={() => accessToken && void mutate(() => api.deleteMovement(accessToken, movement.id), 'The stock movement was removed.')}><Trash2 size={16} /></button>}</td></tr>)}</tbody></table></div> : ledger ? <EmptyState text="No movements match this filter." /> : <div className="empty"><p>Loading movements</p></div>}
       {ledger && rows.length < ledger.total && <div className="ledger-more"><button className="button secondary" disabled={loadingMore} onClick={() => void loadMore()} type="button">{loadingMore ? 'Loading' : `Show more (${ledger.total - rows.length} left)`}</button></div>}
     </Panel>

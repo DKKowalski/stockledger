@@ -1,4 +1,5 @@
-import { ArrowLeftRight, ChartColumn, CircleDollarSign, LayoutDashboard, MapPin, Package, ShoppingBag, Users } from 'lucide-react';
+import { FinancePage } from '../features/finance/finance-page';
+import { ArrowLeftRight, ChartColumn, CircleDollarSign, Landmark, LayoutDashboard, MapPin, Package, ShoppingBag, Users } from 'lucide-react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { useAuth } from '../auth-context';
 import { AccountSettingsPage } from '../features/account/account-settings-page';
@@ -27,6 +28,7 @@ const administratorNavigation = [
   ['/movements', 'Movements', ArrowLeftRight, 'movement'],
   ['/reports', 'Reports', ChartColumn, 'reports'],
   ['/profitability', 'Profit', CircleDollarSign, 'reports'],
+  ['/finance', 'Finance', Landmark, 'reports'],
   ['/places', 'Places', MapPin, 'places'],
   ['/team', 'Team', Users, 'team'],
 ] as const satisfies readonly NavigationItem[];
@@ -66,6 +68,7 @@ function AdministratorWorkspace() {
     <Route path="movements" element={<MovementsPage />} />
     <Route path="reports" element={<OperationsReportsPage />} />
     <Route path="profitability" element={<ProfitabilityPage />} />
+    <Route path="finance" element={<FinancePage />} />
     <Route path="stock-counts" element={<StockCountsPage />} />
     <Route path="suppliers" element={<SuppliersPage />} />
     <Route path="places" element={<PlacesPage />} />

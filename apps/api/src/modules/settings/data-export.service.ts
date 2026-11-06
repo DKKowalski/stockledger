@@ -1,3 +1,4 @@
+import { timestampBounds, dateRange } from '../../common/date-range.js';
 import { valuationPools } from '../inventory/valuation-ledger.js';
 import { ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import type { Varchar } from '@prisma/orm-postgres/target/codec-types';
@@ -10,7 +11,7 @@ import { DataExportType, type DataExport } from './data-export.types.js';
 export class DataExportService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(userId: string, companyId: string, type: DataExportType): Promise<DataExport> {
+  async create(userId: string, companyId: string, type: DataExportType, query: { from?: string; to?: string } = {}): Promise<DataExport> {
     return this.prisma.withCompany(companyId, async (tx) => {
       const actor = await tx.orm.public.User.first({ id: userId, companyId });
       if (!actor || actor.isActive === false) throw new UnauthorizedException('Account is not available');
@@ -19,6 +20,7 @@ export class DataExportService {
       const company = await tx.orm.public.Company.first({ id: companyId });
       if (!company) throw new UnauthorizedException('Business no longer exists');
 
+      const range = dateRange(query);
       const generatedAt = new Date();
       let content: string;
       let rowCount: number;
@@ -30,15 +32,15 @@ export class DataExportService {
         content = result.csv;
         rowCount = result.rowCount;
       } else if (type === DataExportType.MOVEMENTS) {
-        const result = await this.movements(tx, companyId, company.currency);
+        const result = await this.movements(tx, companyId, company.currency, range);
         content = result.csv;
         rowCount = result.rowCount;
       } else if (type === DataExportType.ACTIVITY) {
-        const result = await this.activity(tx, companyId);
+        const result = await this.activity(tx, companyId, range, company.timeZone);
         content = result.csv;
         rowCount = result.rowCount;
       } else {
-        const result = await this.workspace(tx, companyId, generatedAt, type !== DataExportType.WORKSPACE, [DataExportType.WORKSPACE_V3,DataExportType.WORKSPACE_V4,DataExportType.WORKSPACE_V5].includes(type), type === DataExportType.WORKSPACE_V4 || type === DataExportType.WORKSPACE_V5, type === DataExportType.WORKSPACE_V5);
+        const result = await this.workspace(tx, companyId, generatedAt, type !== DataExportType.WORKSPACE, [DataExportType.WORKSPACE_V3,DataExportType.WORKSPACE_V4,DataExportType.WORKSPACE_V5,DataExportType.WORKSPACE_V6].includes(type), type === DataExportType.WORKSPACE_V4 || type === DataExportType.WORKSPACE_V5 || type === DataExportType.WORKSPACE_V6, type === DataExportType.WORKSPACE_V5 || type === DataExportType.WORKSPACE_V6, type === DataExportType.WORKSPACE_V6);
         content = result.content;
         rowCount = result.rowCount;
         contentType = 'application/json; charset=utf-8';
@@ -51,15 +53,15 @@ export class DataExportService {
         action: 'data.exported' as Varchar<80>,
         entityType: 'company' as Varchar<80>,
         entityId: companyId,
-        metadata: { type, rowCount },
+        metadata: { type, rowCount, from: range?.from ?? null, to: range?.to ?? null },
       });
 
       return {
-        filename: `stockledger-${type}-${generatedAt.toISOString().slice(0, 10)}.${extension}`,
+        filename: `stockledger-${type}-${range && (type === DataExportType.MOVEMENTS || type === DataExportType.ACTIVITY) ? `${range.from}-to-${range.to}` : generatedAt.toISOString().slice(0, 10)}.${extension}`,
         content,
         contentType,
       };
-    }, { consistentSnapshot: [DataExportType.WORKSPACE_V3,DataExportType.WORKSPACE_V4,DataExportType.WORKSPACE_V5,DataExportType.INVENTORY].includes(type) });
+    }, { consistentSnapshot: [DataExportType.WORKSPACE_V3,DataExportType.WORKSPACE_V4,DataExportType.WORKSPACE_V5,DataExportType.WORKSPACE_V6,DataExportType.INVENTORY].includes(type) });
   }
 
   private async inventory(tx: PrismaTransaction, companyId: string, currency: string, now: Date) {
@@ -120,7 +122,7 @@ export class DataExportService {
     };
   }
 
-  private async movements(tx: PrismaTransaction, companyId: string, currency: string) {
+  private async movements(tx: PrismaTransaction, companyId: string, currency: string, range: { from: string; to: string } | null = null) {
     const [items, locations, movements] = await Promise.all([
       tx.orm.public.InventoryItem.where({ companyId }).all(),
       tx.orm.public.Location.where({ companyId }).all(),
@@ -128,7 +130,7 @@ export class DataExportService {
     ]);
     const itemById = new Map(items.map((item) => [item.id, item]));
     const locationById = new Map(locations.map((location) => [location.id, location]));
-    const sorted = [...movements].sort((left, right) => (
+    const sorted = movements.filter(movement => !range || (movement.movementDate >= range.from && movement.movementDate <= range.to)).sort((left, right) => (
       right.movementDate.localeCompare(left.movementDate) || right.createdAt.localeCompare(left.createdAt)
     ));
     const rows: CsvValue[][] = sorted.map((movement) => {
@@ -163,9 +165,11 @@ export class DataExportService {
     };
   }
 
-  private async activity(tx: PrismaTransaction, companyId: string) {
-    const events = await tx.orm.public.AuditEvent
-      .where({ companyId })
+  private async activity(tx: PrismaTransaction, companyId: string, range: { from: string; to: string } | null = null, timeZone = 'UTC') {
+    const bounds = range ? timestampBounds(range, timeZone) : null;
+    const eventQuery = tx.orm.public.AuditEvent.where({ companyId });
+    const scopedEvents = bounds ? eventQuery.where(event => event.createdAt.gte(bounds.from)).where(event => event.createdAt.lt(bounds.toExclusive)) : eventQuery;
+    const events = await scopedEvents
       .include('actor', (users) => users.select('fullName', 'email'))
       .orderBy([(event) => event.createdAt.desc(), (event) => event.id.desc()])
       .all();
@@ -184,7 +188,7 @@ export class DataExportService {
     };
   }
 
-  private async workspace(tx: PrismaTransaction, companyId: string, generatedAt: Date, includePricing = false, includeSales = false, includeValuation = false, includeReturns = false) {
+  private async workspace(tx: PrismaTransaction, companyId: string, generatedAt: Date, includePricing = false, includeSales = false, includeValuation = false, includeReturns = false, includeFinance = false) {
     const [company, locations, users, items, stocks, movements, suppliers, stockCounts, activity] = await Promise.all([
       tx.orm.public.Company.first({ id: companyId }),
       tx.orm.public.Location.where({ companyId }).all(),
@@ -213,9 +217,14 @@ export class DataExportService {
       saleReturns:await tx.orm.public.SaleReturn.where({companyId}).all(),
       saleReturnAllocations:await tx.orm.public.SaleReturnAllocation.where({companyId}).all(),
     } : {};
+    const finance = includeFinance ? {
+      financeCategories: await tx.orm.public.FinanceCategory.where({ companyId }).all(),
+      financeEntries: await tx.orm.public.FinanceEntry.where({ companyId }).all(),
+      financeBudgets: await tx.orm.public.FinanceBudget.where({ companyId }).all(),
+    } : {};
     return {
-      rowCount: Object.values(returns).reduce((sum,rows)=>sum+rows.length,0) + Object.values(valuation).reduce((sum,rows)=>sum+rows.length,0) + Object.values(collections).reduce((total, rows) => total + rows.length, 0) + (pricing.itemPricingVersions?.length ?? 0) + Object.values(sales).reduce((total, rows) => total + rows.length, 0),
-      content: JSON.stringify({ format: includeReturns ? 'stockledger-workspace-v5' : includeValuation ? 'stockledger-workspace-v4' : includeSales ? 'stockledger-workspace-v3' : includePricing ? 'stockledger-workspace-v2' : 'stockledger-workspace-v1', exportedAt: generatedAt.toISOString(), company, ...collections, ...pricing, ...sales, ...valuation, ...returns }, null, 2),
+      rowCount: Object.values(finance).reduce((sum, rows) => sum + rows.length, 0) + Object.values(returns).reduce((sum,rows)=>sum+rows.length,0) + Object.values(valuation).reduce((sum,rows)=>sum+rows.length,0) + Object.values(collections).reduce((total, rows) => total + rows.length, 0) + (pricing.itemPricingVersions?.length ?? 0) + Object.values(sales).reduce((total, rows) => total + rows.length, 0),
+      content: JSON.stringify({ format: includeFinance ? 'stockledger-workspace-v6' : includeReturns ? 'stockledger-workspace-v5' : includeValuation ? 'stockledger-workspace-v4' : includeSales ? 'stockledger-workspace-v3' : includePricing ? 'stockledger-workspace-v2' : 'stockledger-workspace-v1', exportedAt: generatedAt.toISOString(), company, ...collections, ...pricing, ...sales, ...valuation, ...returns, ...finance }, null, 2),
     };
   }
 }

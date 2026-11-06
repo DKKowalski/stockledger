@@ -8,5 +8,5 @@ import { SaleCompletionService } from './sale-completion.service.js';
 import { PricingPreviewService } from './pricing-preview.service.js';
 import { CostReadinessService } from './cost-readiness.service.js';
 
-@Module({ imports: [AuthModule], controllers: [InventoryController], providers: [InventoryService, PricingPreviewService, SaleCompletionService, CostReadinessService, ValuationService, SaleReturnService] })
+@Module({ imports: [AuthModule], controllers: [InventoryController], providers: [InventoryService, PricingPreviewService, SaleCompletionService, CostReadinessService, ValuationService, SaleReturnService], exports: [InventoryService] })
 export class InventoryModule {}

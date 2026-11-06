@@ -1,0 +1,9 @@
+export type FinanceLine = { key: string; label: string; section: string; budgetCents: number; actualCents: number; varianceCents: number; variancePercent: number | null; editable: boolean };
+export type FinanceProfitability = { netSalesCents: number; grossProfitCents: number; inventoryLossCents: number; unitsSold: number; uncostedSaleUnits: number };
+export type FinancePeriod = { from: string; to: string; hasBudget: boolean; costCoveragePercent: number; profitability: FinanceProfitability; lines: FinanceLine[] };
+export type FinanceMonth = FinancePeriod & { month: string };
+export type FinanceCategory = { id: string; name: string; isActive: boolean };
+export type FinanceEntry = { id: string; kind: 'expense' | 'other_revenue'; categoryId: string | null; entryDate: string; amountCents: number; note: string };
+export type FinanceReport = { year: number; company: { name: string; currency: string; timeZone: string }; categories: FinanceCategory[]; months: FinanceMonth[]; yearly: FinancePeriod };
+export type FinanceEntryInput = Omit<FinanceEntry, 'id' | 'categoryId'> & { categoryId?: string };
+export type FinanceBudgetInput = { month: string; copyToYear: boolean; lines: Array<{ lineKey: string; amountCents: number }> };

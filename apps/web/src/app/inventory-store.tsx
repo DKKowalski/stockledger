@@ -1,3 +1,4 @@
+import type { DateRangeValue } from '../lib/date-range';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { ApiError, api } from '../api';
@@ -10,8 +11,9 @@ type InventoryStore = {
   loading: boolean;
   busy: boolean;
   error: string | null;
+  dateRange: DateRangeValue;
+  setDateRange: (value: DateRangeValue) => void;
   days: number;
-  setDays: (days: number) => void;
   locationId: string | null;
   setLocationId: (locationId: string | null) => void;
   refresh: () => Promise<void>;
@@ -34,7 +36,8 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [days, setDays] = useState(30);
+  const [dateRange, setDateRange] = useState<DateRangeValue>({ days: 30 });
+  const days = dateRange.days ?? 30;
   const [locationId, setLocationId] = useState<string | null>(user?.role === 'shop_attendant' ? user.locationId : null);
 
   if (!accessToken) throw new Error('InventoryProvider requires an authenticated session');
@@ -48,17 +51,17 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     setError(null);
     try {
-      setSnapshot(await api.snapshot(accessToken, days, locationId));
+      setSnapshot(await api.snapshot(accessToken, days, locationId, dateRange));
     } catch (caught) {
       handleError(caught, 'Could not load inventory');
     } finally {
       setLoading(false);
     }
-  }, [accessToken, days, locationId, handleError]);
+  }, [accessToken, days, locationId, dateRange, handleError]);
 
   useEffect(() => {
     let cancelled = false;
-    void api.snapshot(accessToken, days, locationId)
+    void api.snapshot(accessToken, days, locationId, dateRange)
       .then((nextSnapshot) => {
         if (!cancelled) {
           setSnapshot(nextSnapshot);
@@ -72,7 +75,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
         if (!cancelled) setLoading(false);
       });
     return () => { cancelled = true; };
-  }, [accessToken, days, locationId, handleError]);
+  }, [accessToken, days, locationId, dateRange, handleError]);
 
   const mutate = useCallback(async (action: () => Promise<unknown>, successMessage: string) => {
     setBusy(true);
@@ -81,7 +84,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
       await action();
       toast.success('Inventory updated', { description: successMessage });
       try {
-        setSnapshot(await api.snapshot(accessToken, days, locationId));
+        setSnapshot(await api.snapshot(accessToken, days, locationId, dateRange));
       } catch (refreshError) {
         // The write already succeeded. Resolve so forms reset instead of inviting a duplicate submission.
         setError('Your change was saved, but inventory could not refresh. Refresh before recording another change.');
@@ -99,11 +102,11 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
     } finally {
       setBusy(false);
     }
-  }, [accessToken, days, locationId, signOut]);
+  }, [accessToken, days, locationId, dateRange, signOut]);
 
   const store = useMemo(
-    () => ({ snapshot, loading, busy, error, days, setDays, locationId, setLocationId, refresh, mutate }),
-    [snapshot, loading, busy, error, days, locationId, refresh, mutate],
+    () => ({ snapshot, loading, busy, error, dateRange, setDateRange, days, locationId, setLocationId, refresh, mutate }),
+    [snapshot, loading, busy, error, dateRange, days, locationId, refresh, mutate],
   );
 
   return <InventoryStoreContext.Provider value={store}>{children}</InventoryStoreContext.Provider>;

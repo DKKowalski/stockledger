@@ -1,3 +1,4 @@
+import { DEFAULT_FINANCE_CATEGORIES } from '../modules/finance/finance-calculations.js';
 import 'dotenv/config';
 import type { Varchar } from '@prisma/orm-postgres/target/codec-types';
 import * as argon2 from 'argon2';
@@ -182,6 +183,56 @@ async function seed() {
           packagePriceCents: item.pricing.package?.priceCents ?? null,
           bulkTiers: item.pricing.bulkTiers.map((tier) => ({ ...tier })),
           createdByUserId: ADMIN_ID,
+        });
+      }
+    }
+
+    const financeCategories: Array<{ id: string; name: string }> = [];
+    for (const [index, categoryName] of DEFAULT_FINANCE_CATEGORIES.entries()) {
+      const name = varchar<80>(categoryName);
+      const category = await tx.orm.public.FinanceCategory.upsert({
+        create: { id: id('93', index + 1), companyId: COMPANY_ID, name, isActive: true },
+        update: { isActive: true },
+        conflictOn: { companyId: COMPANY_ID, name },
+      });
+      financeCategories.push(category);
+    }
+    const categoryId = (name: string) => financeCategories.find((category) => category.name === name)!.id;
+    // Records cover the months around the demo's sales; nothing is dated after this month.
+    const financeMonths = [2, 1, 0].map((monthsAgo) => {
+      const value = new Date(`${day(0).slice(0, 7)}-01T00:00:00Z`);
+      value.setUTCMonth(value.getUTCMonth() - monthsAgo);
+      return value.toISOString().slice(0, 10);
+    });
+    for (const year of new Set(financeMonths.map((month) => Number(month.slice(0, 4))))) {
+      for (let month = 1; month <= 12; month++) {
+        const monthDate = `${year}-${String(month).padStart(2, '0')}-01`;
+        const lines: Array<[string, number]> = [
+          ['sales', 1_200_000], ['other_revenue', 12_000], ['discounts', 8_000], ['returns', 5_000], ['cogs', 900_000], ['inventory_loss', 3_000],
+          ...financeCategories.map((category): [string, number] => [`expense:${category.id}`, category.name === 'Rent or Lease' ? 35_000 : category.name === 'Utilities' ? 12_000 : 2_000]),
+        ];
+        for (const [index, [key, amountCents]] of lines.entries()) {
+          const lineKey = varchar<80>(key);
+          await tx.orm.public.FinanceBudget.upsert({
+            create: { id: id('94', year * 10_000 + month * 100 + index), companyId: COMPANY_ID, month: monthDate, lineKey, amountCents },
+            update: { amountCents },
+            conflictOn: { companyId: COMPANY_ID, month: monthDate, lineKey },
+          });
+        }
+      }
+    }
+    for (const month of financeMonths) {
+      const monthNumber = Number(month.slice(5, 7));
+      const entries = [
+        { kind: 'other_revenue', categoryId: null, amountCents: 15_000, note: 'Delivery income' },
+        { kind: 'expense', categoryId: categoryId('Rent or Lease'), amountCents: 35_000, note: 'Monthly shop rent' },
+        { kind: 'expense', categoryId: categoryId('Utilities'), amountCents: 10_500 + monthNumber * 100, note: 'Electricity and water' },
+      ];
+      for (const [index, entry] of entries.entries()) {
+        const values = { ...entry, kind: varchar<20>(entry.kind), note: varchar<500>(entry.note), entryDate: month };
+        await tx.orm.public.FinanceEntry.upsert({
+          create: { id: id('95', Number(month.slice(0, 4)) * 1000 + monthNumber * 10 + index), companyId: COMPANY_ID, createdByUserId: ADMIN_ID, ...values },
+          update: values,
         });
       }
     }

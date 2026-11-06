@@ -1,3 +1,5 @@
+import { DateRangePicker } from '../../components/ui/date-range-picker';
+import { rangeQuery, type DateRangeValue } from '../../lib/date-range';
 import { ArrowLeftRight, Database, Download, FileClock, Package, ShieldCheck, Trash2, Upload, type LucideIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
@@ -19,10 +21,10 @@ const exports: Array<{
   icon: LucideIcon;
 }> = [
   {
-    type: 'workspace-v5',
+    type: 'workspace-v6',
     title: 'Complete workspace',
     description: 'A portable archive of the business and all of its records.',
-    detail: 'Includes settings, places, team accounts, inventory, movements, suppliers, counts, pricing previews, grouped sales, exact-cost records, returns, and activity history. Passwords and session tokens are excluded.',
+    detail: 'Includes settings, places, team accounts, inventory, movements, suppliers, counts, pricing previews, grouped sales, exact-cost records, returns, finance entries, budgets, categories, and activity history. Passwords and session tokens are excluded.',
     format: 'JSON',
     icon: Database,
   },
@@ -55,6 +57,7 @@ const exports: Array<{
 export function DataExportsPage() {
   const { accessToken, user, signOut } = useAuth();
   const { settings, dateTime } = useCompanySettings();
+  const [range, setRange] = useState<DateRangeValue>({ days: null });
   const [downloading, setDownloading] = useState<DataExportType | null>(null);
   const [summary, setSummary] = useState<DataSummary | null>(null);
   const [summaryError, setSummaryError] = useState<string | null>(null);
@@ -81,7 +84,7 @@ export function DataExportsPage() {
     if (!accessToken || downloading) return;
     setDownloading(type);
     try {
-      const file = await api.exportData(accessToken, type);
+      const file = await api.exportData(accessToken, type, type === 'movements' || type === 'activity' ? rangeQuery(range, settings?.timeZone) : {});
       saveFile(file.blob, file.filename);
       toast.success('Data export ready', { description: `${file.filename} has been downloaded.` });
       void api.dataSummary(accessToken).then(setSummary).catch(() => undefined);
@@ -113,6 +116,7 @@ export function DataExportsPage() {
     <PageHeader title="Data controls" />
     <SettingsNavigation />
     {summaryError && <div className="form-error settings-page-error" role="alert">{summaryError}</div>}
+    <Panel title="Export period" subtitle="Applies to movement ledger and activity CSV files. Inventory balances are current; complete workspace archives include all dates."><DateRangePicker allowAll value={range} onChange={setRange} /></Panel>
     <div className="data-export-grid">
       {exports.map(({ type, title, description, detail, format, icon: Icon }) => <article className="panel data-export-card" key={type}>
         <div className="data-export-card-top">

@@ -1,3 +1,4 @@
+import { FinanceService } from '../src/modules/finance/finance.service.js';
 import { randomUUID } from 'node:crypto';
 import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import postgres from '@prisma/orm-postgres/runtime';
@@ -480,10 +481,10 @@ describe('inventory transactions with PostgreSQL', () => {
       relatedMovementId: sale.id, movementDate,
     });
     const report = await service.profitability(f.admin.id, f.company.id, {
-      days: 30, locationType: 'shop', locationId: f.shop.id,
+      days: 30, from: movementDate, to: movementDate, locationType: 'shop', locationId: f.shop.id,
     });
     const warehouseReport = await service.profitability(f.admin.id, f.company.id, {
-      days: 30, locationType: 'warehouse', locationId: f.warehouse.id,
+      days: 30, from: movementDate, to: movementDate, locationType: 'warehouse', locationId: f.warehouse.id,
     });
 
     expect(returned).toMatchObject({ relatedMovementId: sale.id, unitPriceCents: 175, unitCostCents: 100 });
@@ -491,7 +492,7 @@ describe('inventory transactions with PostgreSQL', () => {
     expect(warehouseReport.summary).toMatchObject({ netSalesCents: 0, grossProfitCents: 0 });
     expect(warehouseReport.lines).toEqual([]);
     await expect(service.profitability(f.admin.id, f.company.id, {
-      days: 30, locationType: 'warehouse', locationId: f.shop.id,
+      days: 30, from: movementDate, to: movementDate, locationType: 'warehouse', locationId: f.shop.id,
     })).rejects.toBeInstanceOf(BadRequestException);
     await expect(service.createMovement(f.admin.id, f.company.id, {
       itemId: f.item.id, locationId: f.shop.id, type: Type.RETURN_IN, quantity: 3,
@@ -1027,6 +1028,11 @@ describe('inventory transactions with PostgreSQL', () => {
       expiresAt: '2099-01-01T00:00:00.000Z',
     });
 
+    const finance = new FinanceService(tenantPrisma(db), service);
+    const categoryId = (await finance.report(f.admin.id, f.company.id, { year: 2026 })).categories[0]!.id;
+    await finance.saveEntry(f.admin.id, f.company.id, { kind: 'expense', categoryId, entryDate: '2026-01-01', amountCents: 100, note: 'Delete me' });
+    await finance.saveBudget(f.admin.id, f.company.id, { month: '2026-01-01', lines: [{ lineKey: `expense:${categoryId}`, amountCents: 100 }] });
+
     const runtimeSettings = new SettingsService({
       client: db,
       withCompany: <T>(companyId: string, work: (tx: TestTransaction) => Promise<T>) => asApplicationRole(companyId, work),
@@ -1047,6 +1053,9 @@ describe('inventory transactions with PostgreSQL', () => {
     expect(await db.orm.public.StockCount.where({ companyId: f.company.id }).all()).toEqual([]);
     expect(await db.orm.public.RefreshSession.where({ companyId: f.company.id }).all()).toEqual([]);
     expect(await db.orm.public.AuditEvent.where({ companyId: f.company.id }).all()).toEqual([]);
+    expect(await db.orm.public.FinanceEntry.where({ companyId: f.company.id }).all()).toEqual([]);
+    expect(await db.orm.public.FinanceBudget.where({ companyId: f.company.id }).all()).toEqual([]);
+    expect(await db.orm.public.FinanceCategory.where({ companyId: f.company.id }).all()).toEqual([]);
     expect(await db.orm.public.Company.first({ id: other.company.id })).not.toBeNull();
   });
 });
@@ -1175,5 +1184,121 @@ describe('paged movement ledger with PostgreSQL', () => {
     }
     const returnable = await service.returnableSales(f.admin.id, f.company.id);
     expect(returnable.map((sale) => [sale.id, sale.returnableQuantity])).toEqual([[partly.id, 1]]);
+  });
+});
+
+
+describe('finance persistence and tenant isolation', () => {
+  const finance = new FinanceService(tenantPrisma(db), service);
+  it('persists budgets and entries, copies a year and reconciles actuals with profitability', async () => {
+    const f = await fixture(5);
+    await transfer(f, 5);
+    const sale = await service.createMovement(f.attendant.id, f.company.id, { itemId: f.item.id, locationId: f.shop.id, type: Type.SALE, quantity: 3, movementDate: '2026-09-30' });
+    await service.createMovement(f.admin.id, f.company.id, { itemId: f.item.id, locationId: f.shop.id, type: Type.RETURN_IN, quantity: 1, relatedMovementId: sale.id, movementDate: '2026-10-01' });
+    const initial = await finance.report(f.admin.id, f.company.id, { year: 2026 });
+    expect(initial.yearly.hasBudget).toBe(false);
+    const category = initial.categories[0]!;
+    await finance.saveBudget(f.admin.id, f.company.id, { month: '2026-09-01', copyToYear: true, lines: [{ lineKey: 'sales', amountCents: 500 }, { lineKey: `expense:${category.id}`, amountCents: 50 }] });
+    const entry = await finance.saveEntry(f.admin.id, f.company.id, { kind: 'expense', categoryId: category.id, entryDate: '2026-09-30', amountCents: 25, note: 'Receipt 1' });
+    expect((await finance.entries(f.admin.id, f.company.id, { from: '2026-09-30', to: '2026-09-30' })).map(row => row.id)).toEqual([entry!.id]);
+    expect(await finance.entries(f.admin.id, f.company.id, { from: '2026-10-01', to: '2026-10-31' })).toEqual([]);
+    await finance.saveCategory(f.admin.id, f.company.id, { name: 'Vehicle', isActive: false }, category.id);
+    const report = await finance.report(f.admin.id, f.company.id, { year: 2026 });
+    expect(report.yearly.lines.find(row => row.key === 'sales')?.budgetCents).toBe(6000);
+    expect(report.yearly.lines.find(row => row.key === `expense:${category.id}`)).toMatchObject({ actualCents: 25, budgetCents: 600, label: 'Vehicle (archived)' });
+    for (const month of report.months) {
+      const profit = await service.profitability(f.admin.id, f.company.id, { days: 30, from: month.from, to: month.to });
+      expect(month.lines.find(row => row.key === 'revenue')?.actualCents).toBe(profit.summary.netSalesCents);
+      expect(month.lines.find(row => row.key === 'cogs')?.actualCents).toBe(profit.summary.cogsCents);
+      expect(month.lines.find(row => row.key === 'gross_profit')?.actualCents).toBe(profit.summary.grossProfitCents);
+    }
+    expect(report.months[8]!.lines.find(row => row.key === 'revenue')?.actualCents).toBe(525);
+    expect(report.months[9]!.lines.find(row => row.key === 'returns')?.actualCents).toBe(-175);
+    expect((await finance.export(f.admin.id, f.company.id, { year: 2026, view: 'month', month: '2026-09' })).content).toContain('2026-09-30');
+    await finance.deleteEntry(f.admin.id, f.company.id, entry!.id);
+    expect(await finance.entries(f.admin.id, f.company.id, { from: '2026-09-01', to: '2026-09-30' })).toHaveLength(0);
+    const events = await db.orm.public.AuditEvent.where({ companyId: f.company.id }).all();
+    expect(events.map(event => event.action)).toEqual(expect.arrayContaining(['finance.budget_saved', 'finance.entry_saved', 'finance.entry_deleted', 'finance.category_saved', 'finance.exported']));
+  });
+  it('rejects foreign category and entry ids, denies attendants, and isolates rows with runtime RLS', async () => {
+    const a = await fixture(); const b = await fixture();
+    const report = await finance.report(a.admin.id, a.company.id, { year: 2026 });
+    const category = report.categories[0]!;
+    const entry = await finance.saveEntry(a.admin.id, a.company.id, { kind: 'expense', categoryId: category.id, entryDate: '2026-01-01', amountCents: 100, note: 'A only' });
+    await expect(finance.saveEntry(b.admin.id, b.company.id, { kind: 'expense', categoryId: category.id, entryDate: '2026-01-01', amountCents: 1, note: '' })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(finance.deleteEntry(b.admin.id, b.company.id, entry!.id)).rejects.toBeInstanceOf(NotFoundException);
+    await expect(finance.report(a.attendant.id, a.company.id, { year: 2026 })).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(finance.saveBudget(a.attendant.id, a.company.id, { month: '2026-01-01', lines: [] })).rejects.toBeInstanceOf(ForbiddenException);
+    await asApplicationRole(b.company.id, async tx => {
+      expect(await tx.orm.public.FinanceEntry.where({ companyId: a.company.id }).all()).toEqual([]);
+      expect(await tx.orm.public.FinanceCategory.where({ companyId: a.company.id }).all()).toEqual([]);
+    });
+    await expect(asApplicationRole(b.company.id, tx => tx.orm.public.FinanceEntry.create({ companyId: a.company.id, createdByUserId: a.admin.id, kind: varchar<20>('other_revenue'), categoryId: null, entryDate: '2026-01-01', amountCents: 10, note: varchar<500>('forbidden') }))).rejects.toThrow();
+    const archive = JSON.parse((await exportsService.create(a.admin.id, a.company.id, DataExportType.WORKSPACE_V6)).content);
+    expect(archive.format).toBe('stockledger-workspace-v6');
+    expect(archive.financeEntries).toHaveLength(1);
+    expect(archive.financeCategories).toHaveLength(report.categories.length);
+  });
+  it('creates default categories exactly once when two first loads race, and never on later reads', async () => {
+    const f = await fixture();
+    const [first, second] = await Promise.all([finance.report(f.admin.id, f.company.id, { year: 2026 }), finance.report(f.admin.id, f.company.id, { year: 2026 })]);
+    expect(first.categories).toHaveLength(10);
+    expect(second.categories.map(row => row.id).sort()).toEqual(first.categories.map(row => row.id).sort());
+    expect(await db.orm.public.FinanceCategory.where({ companyId: f.company.id }).all()).toHaveLength(10);
+  });
+  it('reads, writes and deletes through the restricted runtime role', async () => {
+    const f = await fixture();
+    const runtime = { client: db, withCompany: <T>(companyId: string, work: (tx: TestTransaction) => Promise<T>) => asApplicationRole(companyId, work) } as PrismaService;
+    const restricted = new FinanceService(runtime, new InventoryService(runtime));
+    const report = await restricted.report(f.admin.id, f.company.id, { year: 2026 });
+    const key = `expense:${report.categories[0]!.id}`;
+    await restricted.saveBudget(f.admin.id, f.company.id, { month: '2026-01-01', copyToYear: true, lines: [{ lineKey: key, amountCents: 700 }] });
+    await restricted.saveBudget(f.admin.id, f.company.id, { month: '2026-02-01', lines: [{ lineKey: key, amountCents: 900 }] });
+    const entry = await restricted.saveEntry(f.admin.id, f.company.id, { kind: 'other_revenue', entryDate: '2026-01-02', amountCents: 300 });
+    await restricted.saveEntry(f.admin.id, f.company.id, { kind: 'other_revenue', entryDate: '2026-01-03', amountCents: 400 }, entry!.id);
+    const saved = await restricted.report(f.admin.id, f.company.id, { year: 2026 });
+    expect(saved.yearly.lines.find(row => row.key === key)?.budgetCents).toBe(700 * 11 + 900);
+    expect(saved.months[0]!.lines.find(row => row.key === 'other_revenue')?.actualCents).toBe(400);
+    expect((await restricted.export(f.admin.id, f.company.id, { year: 2026, view: 'year' })).content).toContain('Budget');
+    await restricted.deleteEntry(f.admin.id, f.company.id, entry!.id);
+  });
+  it('keeps budgets and reports separate across companies and years', async () => {
+    const a = await fixture(); const b = await fixture();
+    const key = `expense:${(await finance.report(a.admin.id, a.company.id, { year: 2026 })).categories[0]!.id}`;
+    await finance.saveBudget(a.admin.id, a.company.id, { month: '2026-01-01', lines: [{ lineKey: key, amountCents: 500 }] });
+    await expect(finance.saveBudget(b.admin.id, b.company.id, { month: '2026-01-01', lines: [{ lineKey: key, amountCents: 500 }] })).rejects.toBeInstanceOf(BadRequestException);
+    expect((await finance.report(b.admin.id, b.company.id, { year: 2026 })).yearly.hasBudget).toBe(false);
+    expect((await finance.report(a.admin.id, a.company.id, { year: 2025 })).yearly.hasBudget).toBe(false);
+  });
+  it('applies custom ranges to the snapshot, movement ledger, profitability and movement export, including the end date', async () => {
+    const f = await fixture(5);
+    await transfer(f, 5);
+    await service.createMovement(f.attendant.id, f.company.id, { itemId: f.item.id, locationId: f.shop.id, type: Type.SALE, quantity: 1, movementDate: '2026-10-31' });
+    await service.createMovement(f.attendant.id, f.company.id, { itemId: f.item.id, locationId: f.shop.id, type: Type.SALE, quantity: 2, movementDate: '2026-11-01' });
+    const range = { from: '2026-10-01', to: '2026-10-31' };
+    const snapshot = await service.snapshot(f.admin.id, f.company.id, 30, undefined, range);
+    expect(snapshot.periodMovements.filter(row => row.type === Type.SALE).map(row => row.quantity)).toEqual([1]);
+    expect(snapshot).toMatchObject({ periodStart: range.from, periodEnd: range.to });
+    expect(snapshot.positions.find(row => row.location.id === f.shop.id)?.outLastPeriod).toBe(1);
+    expect((await service.movementLedger(f.admin.id, f.company.id, { ...range, type: Type.SALE, offset: 0, limit: 10 })).total).toBe(1);
+    expect((await service.profitability(f.admin.id, f.company.id, { days: 30, ...range })).summary.unitsSold).toBe(1);
+    const csv = await exportsService.create(f.admin.id, f.company.id, DataExportType.MOVEMENTS, range);
+    expect(csv.content).toContain('2026-10-31');
+    expect(csv.content).not.toContain('2026-11-01');
+    expect(csv.filename).toContain('2026-10-01-to-2026-10-31');
+    await expect(service.snapshot(f.admin.id, f.company.id, 30, undefined, { from: '2026-11-01', to: '2026-10-01' })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(exportsService.create(f.admin.id, f.company.id, DataExportType.ACTIVITY, { from: '2026-11-01' })).rejects.toBeInstanceOf(BadRequestException);
+  });
+  it('filters timestamps before the activity limit and includes 23:30 on the final company day', async () => {
+    const f = await fixture();
+    await db.orm.public.Company.where({ id: f.company.id }).update({ timeZone: varchar<64>('America/New_York') });
+    for (const [createdAt, action] of [['2026-03-09T03:30:00Z', 'finance.entry_saved'], ['2026-03-09T04:00:00Z', 'finance.entry_deleted']] as const) {
+      await db.orm.public.AuditEvent.create({ companyId: f.company.id, actorUserId: f.admin.id, action: varchar<80>(action), entityType: varchar<80>('finance'), entityId: f.company.id, metadata: {}, createdAt });
+    }
+    const events = await new SettingsService(tenantPrisma(db)).activity(f.admin.id, f.company.id, { from: '2026-03-08', to: '2026-03-08' });
+    expect(events.map(event => event.action)).toEqual(['finance.entry_saved']);
+    const csv = await exportsService.create(f.admin.id, f.company.id, DataExportType.ACTIVITY, { from: '2026-03-08', to: '2026-03-08' });
+    expect(csv.content).toContain('finance.entry_saved');
+    expect(csv.content).not.toContain('finance.entry_deleted');
   });
 });

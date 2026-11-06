@@ -1,8 +1,9 @@
+import { DateRangeDto } from '../../../common/date-range.js';
 import { Type } from 'class-transformer';
 import { IsEnum, IsInt, IsOptional, IsUUID, Max, Min } from 'class-validator';
 import { StockMovementType } from '../inventory.types.js';
 
-export class MovementLedgerQueryDto {
+export class MovementLedgerQueryDto extends DateRangeDto {
   @IsOptional()
   @IsEnum(StockMovementType)
   type?: StockMovementType;

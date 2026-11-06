@@ -1,9 +1,11 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { api } from '../../api';
 import { useAuth } from '../../auth-context';
+import { useCompanySettings } from '../../app/company-settings-store';
 import { useInventoryStore } from '../../app/inventory-store';
 import { Panel, SelectControl } from '../../components/inventory-ui';
 import { InputControl } from '../../components/ui/input-control';
+import { companyDay } from '../../lib/date-range';
 import { formatMoney } from '../../lib/presentation';
 import { safeErrorMessage } from '../../lib/user-facing-error';
 import type { Currency, ExactCostState } from '../../types';
@@ -75,6 +77,7 @@ function checkedMoney(value: string) {
 }
 function CustomerReturns() {
   const { accessToken } = useAuth();
+  const { settings } = useCompanySettings();
   const { snapshot } = useInventoryStore();
   const operation = useDurableOperation('return');
   const [sources, setSources] = useState<
@@ -88,7 +91,7 @@ function CustomerReturns() {
     [mode, setMode] = useState<'return' | 'reversal'>('return'),
     [reference, setReference] = useState(''),
     [reason, setReason] = useState(''),
-    [date, setDate] = useState(new Date().toISOString().slice(0, 10)),
+    [date, setDate] = useState(companyDay(settings?.timeZone)),
     [confirmed, setConfirmed] = useState(false),
     [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -383,6 +386,7 @@ function CustomerReturns() {
 }
 function StockOperations() {
   const { accessToken } = useAuth();
+  const { settings } = useCompanySettings();
   const { snapshot } = useInventoryStore();
   const pending = useDurableOperation('stock');
   const [itemId, setItemId] = useState(''),
@@ -397,7 +401,7 @@ function StockOperations() {
     [free, setFree] = useState(false),
     [reference, setReference] = useState(''),
     [reason, setReason] = useState(''),
-    [date, setDate] = useState(new Date().toISOString().slice(0, 10)),
+    [date, setDate] = useState(companyDay(settings?.timeZone)),
     [confirmed, setConfirmed] = useState(false),
     [error, setError] = useState<string | null>(null);
   useEffect(() => {

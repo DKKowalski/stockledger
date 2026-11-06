@@ -1,7 +1,8 @@
+import { DateRangeDto } from '../../../common/date-range.js';
 import { Type } from 'class-transformer';
 import { IsIn, IsInt, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 
-export class ProfitabilityQueryDto {
+export class ProfitabilityQueryDto extends DateRangeDto {
   @Type(() => Number)
   @IsInt()
   @IsIn([7, 30, 90])

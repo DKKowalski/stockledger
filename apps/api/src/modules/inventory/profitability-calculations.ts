@@ -22,6 +22,8 @@ export type SaleDiscount = { locationId: string; itemId: string; movementDate: s
 
 export type ProfitabilityFilters = {
   days: number;
+  from?: string;
+  to?: string;
   locationId: string | null;
   locationType: LocationRecord['type'] | null;
   itemId: string | null;
@@ -39,13 +41,14 @@ export function buildProfitability(
   const { days, locationId, locationType, itemId, category } = filters;
   const periodStart = new Date(now);
   periodStart.setUTCDate(periodStart.getUTCDate() - days);
-  const startDate = periodStart.toISOString().slice(0, 10);
+  const startDate = filters.from ?? periodStart.toISOString().slice(0, 10);
+  const endDate = filters.to ?? now.toISOString().slice(0, 10);
   const itemById = new Map(items.map((item) => [item.id, item]));
   const locationById = new Map(locations.map((location) => [location.id, location]));
   const inScope = (entry: { movementDate: string; locationId: string; itemId: string }) => {
     const item = itemById.get(entry.itemId);
     const location = locationById.get(entry.locationId);
-    return entry.movementDate >= startDate
+    return entry.movementDate >= startDate && entry.movementDate <= endDate
       && (!locationId || entry.locationId === locationId)
       && (!locationType || location?.type === locationType)
       && (!itemId || entry.itemId === itemId)
@@ -137,7 +140,7 @@ export function buildProfitability(
   return {
     periodDays: days,
     startDate,
-    endDate: now.toISOString().slice(0, 10),
+    endDate,
     locationId,
     locationType,
     itemId,
@@ -153,6 +156,7 @@ export function buildProfitability(
       inventoryLossCents,
       costCoveragePercent: totalSaleUnits > 0 ? Math.round(((totalSaleUnits - uncostedSaleUnits) / totalSaleUnits) * 10_000) / 100 : 100,
       unitsSold: totalSaleUnits,
+      uncostedSaleUnits,
       unitsReturned: presentedLines.reduce((total, line) => total + line.unitsReturned, 0),
     },
     lines: presentedLines,

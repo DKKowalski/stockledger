@@ -68,10 +68,12 @@ export function buildSnapshot(
   locationId: string | null = null,
   now = new Date(),
   pools: ReadonlyMap<string, ValuePool> = new Map(),
+  range?: { from: string; to: string },
 ) {
   const periodStart = new Date(now);
   periodStart.setUTCDate(periodStart.getUTCDate() - days);
-  const startDate = periodStart.toISOString().slice(0, 10);
+  const startDate = range?.from ?? periodStart.toISOString().slice(0, 10);
+  const endDate = range?.to ?? now.toISOString().slice(0, 10);
   const visibleLocations = locationId
     ? locations.filter((location) => location.id === locationId)
     : locations;
@@ -132,7 +134,7 @@ export function buildSnapshot(
       closing,
       valueCents: closing * item.unitCostCents,
       outLastPeriod: outbound
-        .filter((movement) => movement.movementDate >= startDate)
+        .filter((movement) => movement.movementDate >= startDate && movement.movementDate <= endDate)
         .reduce((total, movement) => total + movement.quantity, 0),
       lastOutDate: outbound.map((movement) => movement.movementDate).sort().at(-1) ?? null,
       isLowStock: active && closing <= item.reorderLevel,
@@ -189,6 +191,8 @@ export function buildSnapshot(
   return {
     items,
     periodDays: days,
+    periodStart: startDate,
+    periodEnd: endDate,
     generatedAt: now.toISOString(),
     locationId,
     locations,
@@ -201,7 +205,7 @@ export function buildSnapshot(
     },
     positions,
     movements: presentedMovements,
-    periodMovements: presentedMovements.filter((movement) => movement.movementDate >= startDate),
+    periodMovements: presentedMovements.filter((movement) => movement.movementDate >= startDate && movement.movementDate <= endDate),
   };
 }
 

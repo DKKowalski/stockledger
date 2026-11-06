@@ -1,3 +1,5 @@
+import { DateRangePicker } from '../../components/ui/date-range-picker';
+import { rangeQuery, type DateRangeValue } from '../../lib/date-range';
 import { Activity, Building2, CircleDollarSign, Download, KeyRound, Package, ShieldCheck, UserRoundCog } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ApiError, api } from '../../api';
@@ -34,6 +36,11 @@ const activityCopy: Record<string, { title: string; description: (event: Activit
   'company.hybrid_pricing_switched_off': { title: 'Box and quantity deals switched off', description: () => 'Shops went back to charging one price per unit.' },
   'company.terminology_updated': { title: 'Workspace words updated', description: () => 'The labels used for locations and inventory records were updated.' },
   'company.ownership_transferred': { title: 'Ownership transferred', description: () => 'Administrator control was transferred to another team member.' },
+  'finance.category_saved': { title: 'Finance category saved', description: event => `${textValue(event.metadata.name, 'Expense category')} was ${event.metadata.isActive === false ? 'archived' : 'saved'}.` },
+  'finance.entry_saved': { title: 'Finance entry saved', description: () => 'An expense or other revenue entry was saved.' },
+  'finance.entry_deleted': { title: 'Finance entry deleted', description: () => 'An expense or other revenue entry was removed.' },
+  'finance.budget_saved': { title: 'Monthly budget saved', description: event => event.metadata.copyToYear ? 'A monthly budget was copied across the year.' : 'A monthly budget was saved.' },
+  'finance.exported': { title: 'Finance report exported', description: () => 'A budget vs actual statement was downloaded.' },
   'data.exported': { title: 'Business data exported', description: (event) => `${exportName(event.metadata.type)} was downloaded.` },
   'inventory.items_imported': { title: 'Inventory imported', description: (event) => `${numberValue(event.metadata.imported)} items were added from a spreadsheet.` },
   'inventory.selling_price_changed': { title: 'Selling price changed', description: () => 'An administrator updated an item selling price.' },
@@ -50,7 +57,8 @@ const activityCopy: Record<string, { title: string; description: (event: Activit
 
 export function ActivityLogPage() {
   const { accessToken, signOut } = useAuth();
-  const { dateTime } = useCompanySettings();
+  const { dateTime, settings } = useCompanySettings();
+  const [range, setRange] = useState<DateRangeValue>({ days: null });
   const [events, setEvents] = useState<ActivityEvent[] | null>(null);
   const [category, setCategory] = useState<ActivityCategory>('all');
   const [error, setError] = useState<string | null>(null);
@@ -59,12 +67,12 @@ export function ActivityLogPage() {
     if (!accessToken) return;
     setError(null);
     try {
-      setEvents(await api.activity(accessToken));
+      setEvents(await api.activity(accessToken, rangeQuery(range, settings?.timeZone)));
     } catch (caught) {
       if (caught instanceof ApiError && caught.status === 401) signOut();
       else setError(caught instanceof Error ? caught.message : 'Could not load business activity');
     }
-  }, [accessToken, signOut]);
+  }, [accessToken, signOut, range, settings]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => void load(), 0);
@@ -74,12 +82,12 @@ export function ActivityLogPage() {
   const filtered = useMemo(() => events?.filter((event) => category === 'all' || eventCategory(event.action) === category) ?? [], [category, events]);
 
   return <>
-    <PageHeader title="Activity log" actions={<SelectControl aria-label="Activity category" value={category} onValueChange={(value) => setCategory(value as ActivityCategory)} options={[
+    <PageHeader title="Activity log" actions={<><DateRangePicker allowAll value={range} onChange={setRange} /><SelectControl aria-label="Activity category" value={category} onValueChange={(value) => setCategory(value as ActivityCategory)} options={[
       { value: 'all', label: 'All activity' },
       { value: 'account', label: 'Accounts and security' },
       { value: 'inventory', label: 'Inventory' },
       { value: 'business', label: 'Business settings' },
-    ]} />} />
+    ]} /></>} />
     <SettingsNavigation />
     {error && <div className="form-error settings-page-error" role="alert">{error}<button className="text-button" type="button" onClick={() => void load()}>Try again</button></div>}
     <Panel title={`Recent activity (${filtered.length})`} subtitle="The latest 100 recorded events are shown.">
@@ -102,12 +110,13 @@ function ActivityRow({ event, dateTime }: { event: ActivityEvent; dateTime: (val
 
 function eventCategory(action: string): Exclude<ActivityCategory, 'all'> {
   if (action.startsWith('inventory.')) return 'inventory';
-  if (action.startsWith('company.') || action.startsWith('data.')) return 'business';
+  if (action.startsWith('company.') || action.startsWith('data.') || action.startsWith('finance.')) return 'business';
   return 'account';
 }
 
 function ActivityIcon({ action, category }: { action: string; category: Exclude<ActivityCategory, 'all'> }) {
   if (action === 'data.exported') return <Download size={17} />;
+  if (action.startsWith('finance.')) return <CircleDollarSign size={17} />;
   if (category === 'business') return <Building2 size={17} />;
   if (category === 'inventory') return action.includes('price') ? <CircleDollarSign size={17} /> : <Package size={17} />;
   if (action.includes('password')) return <KeyRound size={17} />;

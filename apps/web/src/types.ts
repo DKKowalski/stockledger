@@ -139,6 +139,7 @@ export type Profitability = {
 };
 
 export type ProfitabilityFilters = {
+  from?: string; to?: string;
   days: number;
   locationType?: LocationType;
   locationId?: string;

@@ -30,6 +30,14 @@ export const movementMeta: Record<MovementType, { label: string; hint: string }>
   adjustment_out: { label: 'Count adjustment out', hint: 'Stock removed after a physical count' },
 };
 
+// Exact decimal-to-cents conversion; a float multiply would lose a cent on values like 1.15.
+export function parseMoneyCents(value: string) {
+  const match = /^(\d+)(?:\.(\d{1,2}))?$/.exec(value.trim());
+  if (!match) return null;
+  const cents = Number(match[1]) * 100 + Number((match[2] ?? '').padEnd(2, '0'));
+  return Number.isSafeInteger(cents) && cents <= 2147483647 ? cents : null;
+}
+
 export const formatMoney = (cents: number, currency: Currency) =>
   new Intl.NumberFormat(currencyLocale[currency], {
     style: 'currency',

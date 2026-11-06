@@ -169,7 +169,7 @@ export class InventoryController {
 
   @Get('snapshot')
   snapshot(@Req() request: AuthenticatedRequest, @Query() query: SnapshotQueryDto) {
-    return this.inventory.snapshot(request.user.sub, request.user.companyId, query.days, query.locationId);
+    return this.inventory.snapshot(request.user.sub, request.user.companyId, query.days, query.locationId, query);
   }
 
   @Post('locations')

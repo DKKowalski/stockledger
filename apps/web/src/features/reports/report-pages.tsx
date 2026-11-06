@@ -1,7 +1,8 @@
+import { InventoryDateRangeFilter } from '../../components/inventory-date-range-filter';
 import { useState } from 'react';
 import { useInventoryStore } from '../../app/inventory-store';
 import { useCompanySettings } from '../../app/company-settings-store';
-import { EmptyState, LocationFilter, PageHeader, PageState, Panel, SelectControl, StockTable } from '../../components/inventory-ui';
+import { EmptyState, LocationFilter, PageHeader, PageState, Panel, StockTable } from '../../components/inventory-ui';
 import { MotionTabs } from '../../components/ui/motion-tabs';
 import type { Position } from '../../types';
 
@@ -16,48 +17,41 @@ const labels: Record<ReportTab, string> = {
 };
 
 export function OperationsReportsPage() {
-  const { snapshot, days, setDays } = useInventoryStore();
+  const { snapshot } = useInventoryStore();
   const { terms } = useCompanySettings();
   const [tab, setTab] = useState<ReportTab>('current');
   const positions = snapshot?.positions ?? [];
   const rows = filterRows(positions, tab);
 
   return <PageState>
-    <PageHeader title="Reports" actions={<><LocationFilter /><PeriodFilter days={days} setDays={setDays} /></>} />
+    <PageHeader title="Reports" actions={<><LocationFilter /><InventoryDateRangeFilter /></>} />
     <ReportTabs tab={tab} setTab={setTab} positions={positions} />
-    <Panel title={labels[tab]} subtitle={tab === 'current' ? 'Closing stock includes every receipt and deduction recorded in the ledger.' : undefined}>
+    <Panel title={labels[tab]} subtitle={tab === 'current' ? 'Closing stock includes every receipt and deduction recorded in the ledger, whatever period is selected.' : periodHint}>
       {rows.length ? tab === 'current' ? <StockTable positions={rows} /> : <OperationsVelocityTable positions={rows} /> : <EmptyState text={`No ${terms.items} in this report.`} />}
     </Panel>
   </PageState>;
 }
 
 export function ShopReportsPage() {
-  const { snapshot, days, setDays } = useInventoryStore();
+  const { snapshot } = useInventoryStore();
   const { terms } = useCompanySettings();
   const [tab, setTab] = useState<ReportTab>('current');
   const positions = snapshot?.positions ?? [];
   const rows = filterRows(positions, tab);
 
   return <PageState>
-    <PageHeader title={`${terms.Shop} reports`} actions={<PeriodFilter days={days} setDays={setDays} />} />
+    <PageHeader title={`${terms.Shop} reports`} actions={<InventoryDateRangeFilter />} />
     <ReportTabs tab={tab} setTab={setTab} positions={positions} />
-    <Panel title={labels[tab]} subtitle={tab === 'current' ? 'Opening stock, units in, units out, and what remains on the shelf.' : undefined}>
+    <Panel title={labels[tab]} subtitle={tab === 'current' ? 'Opening stock, units in, units out, and what remains on the shelf, whatever period is selected.' : periodHint}>
       {rows.length ? <ShopReportTable positions={rows} current={tab === 'current'} /> : <EmptyState text={`No ${terms.items} in this report.`} />}
     </Panel>
   </PageState>;
 }
 
+const periodHint = 'Based on units sold or transferred out during the selected period.';
+
 function filterRows(positions: Position[], tab: ReportTab) {
   return positions.filter((position) => tab === 'current' || (tab === 'low' ? position.isLowStock : position.velocity === tab));
-}
-
-function PeriodFilter({ days, setDays }: { days: number; setDays: (days: number) => void }) {
-  return <SelectControl
-    aria-label="Reporting period"
-    onValueChange={(value) => setDays(Number(value))}
-    options={[{ value: '7', label: 'Last 7 days' }, { value: '30', label: 'Last 30 days' }, { value: '90', label: 'Last 90 days' }]}
-    value={String(days)}
-  />;
 }
 
 function ReportTabs({ tab, setTab, positions }: { tab: ReportTab; setTab: (tab: ReportTab) => void; positions: Position[] }) {

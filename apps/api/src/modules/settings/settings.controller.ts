@@ -1,4 +1,5 @@
-import { Body, Controller, Delete, Get, Header, Patch, Req, UseGuards } from '@nestjs/common';
+import { DateRangeDto } from '../../common/date-range.js';
+import { Body, Controller, Delete, Get, Header, Patch, Query, Req, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard.js';
 import type { AuthenticatedRequest } from '../auth/auth.types.js';
 import { UpdateCompanySettingsDto } from './dto/update-company-settings.dto.js';
@@ -18,8 +19,8 @@ export class SettingsController {
   }
 
   @Get('activity')
-  activity(@Req() request: AuthenticatedRequest) {
-    return this.settings.activity(request.user.sub, request.user.companyId);
+  activity(@Req() request: AuthenticatedRequest, @Query() query: DateRangeDto) {
+    return this.settings.activity(request.user.sub, request.user.companyId, query);
   }
 
   @Get('data-summary')

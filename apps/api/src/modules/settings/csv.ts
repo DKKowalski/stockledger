@@ -11,6 +11,7 @@ function csvCell(value: CsvValue) {
 
   // Spreadsheet programs can execute cells beginning with these characters as
   // formulas. User-controlled names, notes, and references must remain text.
-  const safe = /^[\t\r ]*[=+\-@]/.test(value) ? `'${value}` : value;
+  // A plain negative amount cannot run as a formula and must stay numeric.
+  const safe = /^[\t\r ]*[=+\-@]/.test(value) && !/^-\d+(\.\d+)?$/.test(value) ? `'${value}` : value;
   return /[",\r\n]/.test(safe) ? `"${safe.replaceAll('"', '""')}"` : safe;
 }
