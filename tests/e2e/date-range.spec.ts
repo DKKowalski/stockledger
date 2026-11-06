@@ -177,7 +177,9 @@ test('required empty dates block submission; optional dates clear, submit and re
     const source = await fetch('/src/components/ui/date-picker.tsx').then(response => response.text());
     const reactUrl = source.match(/from "(\/node_modules\/\.vite\/deps\/react\.js[^"]*)"/)![1]!;
     const { default: React } = await load(reactUrl);
-    const { default: { createRoot } } = await load(`/node_modules/.vite/deps/react-dom_client.js${new URL(reactUrl, location.href).search}`);
+    const mainSource = await fetch('/src/main.tsx').then(response => response.text());
+    const clientUrl = mainSource.match(/from "(\/node_modules\/\.vite\/deps\/react-dom_client\.js[^"]*)"/)![1]!;
+    const { default: { createRoot } } = await load(clientUrl);
     const { AuthContext } = await load('/src/auth-context.ts');
     const { CompanySettingsProvider } = await load('/src/app/company-settings-store.tsx');
     const { DatePicker } = await load('/src/components/ui/date-picker.tsx');
