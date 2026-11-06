@@ -172,22 +172,17 @@ test('contains wide data tables within the mobile viewport', async ({ page }) =>
   await page.setViewportSize({ width: 390, height: 844 });
   await signIntoDemo(page);
 
-  for (const path of ['/movements', '/team']) {
+  for (const [path, heading] of [['/movements', 'Stock movements'], ['/team', 'Team']] as const) {
     await page.evaluate((nextPath) => {
       window.history.pushState({}, '', nextPath);
       window.dispatchEvent(new PopStateEvent('popstate'));
     }, path);
     await expect(page).toHaveURL(path);
-    await expect(page.locator('.table-wrap').first()).toBeVisible();
-
-    const dimensions = await page.evaluate(() => ({
-      documentWidth: document.documentElement.scrollWidth,
-      viewportWidth: window.innerWidth,
-      hasScrollableTable: [...document.querySelectorAll<HTMLElement>('.table-wrap')]
-        .some((table) => table.scrollWidth > table.clientWidth),
-    }));
-    expect(dimensions.documentWidth).toBeLessThanOrEqual(dimensions.viewportWidth);
-    expect(dimensions.hasScrollableTable).toBe(true);
+    // The previous page's table can still be on screen here, so wait for this page and its rows.
+    await expect(page.getByRole('heading', { level: 1, name: heading })).toBeVisible();
+    await expect.poll(() => page.evaluate(() => [...document.querySelectorAll<HTMLElement>('.table-wrap')]
+      .some((table) => table.scrollWidth > table.clientWidth))).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth));
   }
 });
 
