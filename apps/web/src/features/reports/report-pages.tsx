@@ -1,5 +1,4 @@
 import { InventoryDateRangeFilter } from '../../components/inventory-date-range-filter';
-import { useState } from 'react';
 import { NavLink, useSearchParams } from 'react-router-dom';
 import { useInventoryStore } from '../../app/inventory-store';
 import { useCompanySettings } from '../../app/company-settings-store';
@@ -41,15 +40,20 @@ export function OperationsReportsPage() {
 export function ShopReportsPage() {
   const { snapshot } = useInventoryStore();
   const { terms } = useCompanySettings();
-  const [tab, setTab] = useState<ReportTab>('current');
+  const [params, setParams] = useSearchParams();
+  const tab: ReportTab = Object.hasOwn(labels, params.get('tab') ?? '') ? params.get('tab') as ReportTab : 'current';
+  const setTab = (next: ReportTab) => setParams({ tab: next });
+  const itemId = params.get('item');
+  const placeId = params.get('place');
   const positions = snapshot?.positions ?? [];
-  const rows = filterRows(positions, tab);
+  const rows = filterRows(positions, tab).filter(position => (!itemId || position.item.id === itemId) && (!placeId || position.location.id === placeId));
 
   return <PageState>
     <PageHeader title={`${terms.Shop} reports`} actions={<InventoryDateRangeFilter />} />
     <ReportTabs tab={tab} setTab={setTab} positions={positions} />
-    <Panel title={labels[tab]} subtitle={tab === 'current' ? 'Opening stock, units in, units out, and what remains on the shelf, whatever period is selected.' : periodHint}>
-      {rows.length ? <ShopReportTable positions={rows} current={tab === 'current'} /> : <EmptyState text={`No ${terms.items} in this report.`} />}
+    {(itemId || placeId) && <section className="panel alert-context" aria-label="Selected stock alert"><p><b>{snapshot?.items.find(item => item.id === itemId)?.name ?? 'Selected item'}</b> · {snapshot?.locations.find(place => place.id === placeId)?.name ?? 'Your shop'}</p><p>Showing the stock line from your alert.</p><button className="button secondary" onClick={() => setParams({ tab: 'low' })}>View all low stock</button></section>}
+    <Panel title={labels[tab]} subtitle={tab === 'low' ? 'At or below reorder level, using current stock at your shop.' : tab === 'current' ? 'Opening stock, units in, units out, and what remains on the shelf, whatever period is selected.' : periodHint}>
+      {rows.length ? <ShopReportTable positions={rows} current={tab === 'current' || tab === 'low'} /> : <EmptyState text={`No ${terms.items} in this report.`} />}
     </Panel>
   </PageState>;
 }

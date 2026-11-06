@@ -153,3 +153,17 @@ test('an item with no opening stock has no health verdict and still needs its fi
   await expect(page.locator('.health-panel')).toContainText('Stock health will appear after you add stock.');
   await expect(page.getByText('All levels look good', { exact: true })).toHaveCount(0);
 });
+
+
+test('attendant alerts keep the stock line scoped without offering manager actions', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await mediumSession(page, false, 'shop_attendant');
+  await page.goto('/');
+  await page.getByRole('button', { name: '1 low-stock alert', exact: true }).click();
+  await page.getByRole('menuitem', { name: /Milo Family/ }).click();
+  await expect(page).toHaveURL('/reports?tab=low&item=target&place=shop');
+  await expect(page.getByRole('tab', { name: 'Low stock (1)' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('region', { name: 'Selected stock alert' })).toContainText('Milo Family Tin 400g · Main shop');
+  await expect(page.locator('.phone-stock-available')).toBeInViewport();
+  await expect(page.getByRole('link', { name: 'Receive stock', exact: true })).toHaveCount(0);
+});
