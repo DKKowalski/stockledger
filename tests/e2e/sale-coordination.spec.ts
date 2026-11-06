@@ -12,7 +12,9 @@ async function prepared(context: BrowserContext, suspendStorageEvents = false, r
   const snapshot = { items: [item], locations: [shop], locationId: shopId, periodDays: 30, positions: [{ item, location: shop, closing: 30 }], movements: [], periodMovements: [], summary: { closingUnits: 30, stockValueCents: 30000, lowStockItems: 0, damagedUnits: 0, deadStockLines: 0 } };
   const line = { itemId, itemName: item.name, baseUnit: 'pcs', quantity: 15, retailPriceCents: 1500, pricingVersion: 1, priceDropQuantities: [], components: [{ category: 'box', quantity: 10, unitPriceCents: 1200, totalCents: 12000 }, { category: 'bulk', quantity: 5, unitPriceCents: 1300, totalCents: 6500 }] };
   const quote = { currency: 'GHS', totalCents: 18500, grossSalesCents: 22500, automaticDiscountCents: 4000, lines: [line] };
-  await context.route('**/auth/refresh', route => route.fulfill({ json: { accessToken: 'test-only-session', user: { id: userId, companyId, locationId: shopId, fullName: 'Tester', email: 'tester@example.invalid', role: 'shop_attendant', isActive: true, isDemo: false, setupPending: false } } }));
+  // A realistic expiry keeps focusing a tab from refreshing the mocked session mid-entry.
+  const token = `test.${Buffer.from(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 900 })).toString('base64url')}.synthetic`;
+  await context.route('**/auth/refresh', route => route.fulfill({ json: { accessToken: token, user: { id: userId, companyId, locationId: shopId, fullName: 'Tester', email: 'tester@example.invalid', role: 'shop_attendant', isActive: true, isDemo: false, setupPending: false } } }));
   await context.route('**/onboarding', route => route.fulfill({ json: { completed: true, company: { id: companyId, name: 'Test', businessType: 'mixed', inventorySource: 'paper' }, counts: { locations: 1, items: 1, movements: 1, teammates: 1 } } }));
   await context.route('**/settings', route => route.fulfill({ json: { id: companyId, name: 'Test', currency: 'GHS', timeZone: 'Africa/Accra', itemTerm: 'item', shopTerm: 'shop', warehouseTerm: 'warehouse' } }));
   await context.route('**/inventory/snapshot**', route => route.fulfill({ json: snapshot }));
@@ -103,6 +105,7 @@ test('retail tabs serialize acknowledgement before another sale can use the pend
   await winner.getByRole('combobox', { name: 'Item', exact: true }).click();
   await winner.getByRole('option', { name: 'Test product', exact: true }).click();
   await winner.getByLabel('Quantity', { exact: true }).fill('2');
+  await expect(winner.getByLabel('Quantity', { exact: true })).toHaveValue('2');
   await winner.getByRole('button', { name: 'Sell', exact: true }).click();
   await expect.poll(() => keys.length).toBe(2);
   expect(keys[1]).not.toBe(keys[0]);
