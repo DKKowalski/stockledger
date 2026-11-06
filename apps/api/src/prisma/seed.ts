@@ -204,23 +204,6 @@ async function seed() {
       value.setUTCMonth(value.getUTCMonth() - monthsAgo);
       return value.toISOString().slice(0, 10);
     });
-    for (const year of new Set(financeMonths.map((month) => Number(month.slice(0, 4))))) {
-      for (let month = 1; month <= 12; month++) {
-        const monthDate = `${year}-${String(month).padStart(2, '0')}-01`;
-        const lines: Array<[string, number]> = [
-          ['sales', 1_200_000], ['other_revenue', 12_000], ['discounts', 8_000], ['returns', 5_000], ['cogs', 900_000], ['inventory_loss', 3_000],
-          ...financeCategories.map((category): [string, number] => [`expense:${category.id}`, category.name === 'Rent or Lease' ? 35_000 : category.name === 'Utilities' ? 12_000 : 2_000]),
-        ];
-        for (const [index, [key, amountCents]] of lines.entries()) {
-          const lineKey = varchar<80>(key);
-          await tx.orm.public.FinanceBudget.upsert({
-            create: { id: id('94', year * 10_000 + month * 100 + index), companyId: COMPANY_ID, month: monthDate, lineKey, amountCents },
-            update: { amountCents },
-            conflictOn: { companyId: COMPANY_ID, month: monthDate, lineKey },
-          });
-        }
-      }
-    }
     for (const month of financeMonths) {
       const monthNumber = Number(month.slice(5, 7));
       const entries = [
@@ -245,6 +228,33 @@ async function seed() {
         relatedMovementId: null, reference: varchar<80>(reference), note: note ? varchar<500>(note) : null,
       };
       await tx.orm.public.StockMovement.upsert({ create: { id: id('61', index + 1), companyId: COMPANY_ID, ...values }, update: values });
+    }
+
+    // Budgets start at the first month with records, so earlier months are not compared with a plan.
+    const salesDates = (await tx.orm.public.StockMovement.where({ companyId: COMPANY_ID, type: 'sale' }).all()).map((movement) => movement.movementDate);
+    const entryDates = (await tx.orm.public.FinanceEntry.where({ companyId: COMPANY_ID }).all()).map((entry) => entry.entryDate);
+    const firstBudgetMonth = `${[...salesDates, ...entryDates].sort()[0]!.slice(0, 7)}-01`;
+    // Earlier seeds budgeted whole years. Only rows carrying this seed's fixed ID prefix are removed.
+    const staleBudgets = await tx.orm.public.FinanceBudget.where({ companyId: COMPANY_ID }).where((budget) => budget.month.lt(firstBudgetMonth)).all();
+    for (const budget of staleBudgets.filter((row) => row.id.startsWith('94000000-'))) {
+      await tx.orm.public.FinanceBudget.where({ companyId: COMPANY_ID, id: budget.id }).delete();
+    }
+    const lastBudgetMonth = `${day(0).slice(0, 4)}-12-01`;
+    for (const cursor = new Date(`${firstBudgetMonth}T00:00:00Z`); cursor.toISOString().slice(0, 10) <= lastBudgetMonth; cursor.setUTCMonth(cursor.getUTCMonth() + 1)) {
+      const monthDate = cursor.toISOString().slice(0, 10);
+      const [year, month] = [cursor.getUTCFullYear(), cursor.getUTCMonth() + 1];
+      const lines: Array<[string, number]> = [
+        ['sales', 1_200_000], ['other_revenue', 12_000], ['discounts', 8_000], ['returns', 5_000], ['cogs', 900_000], ['inventory_loss', 3_000],
+        ...financeCategories.map((category): [string, number] => [`expense:${category.id}`, category.name === 'Rent or Lease' ? 35_000 : category.name === 'Utilities' ? 12_000 : 2_000]),
+      ];
+      for (const [index, [key, amountCents]] of lines.entries()) {
+        const lineKey = varchar<80>(key);
+        await tx.orm.public.FinanceBudget.upsert({
+          create: { id: id('94', year * 10_000 + month * 100 + index), companyId: COMPANY_ID, month: monthDate, lineKey, amountCents },
+          update: { amountCents },
+          conflictOn: { companyId: COMPANY_ID, month: monthDate, lineKey },
+        });
+      }
     }
   });
   console.log(`Seeded the demo workspace: ${products.length} items, ${movements.length} movements.`);

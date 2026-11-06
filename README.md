@@ -91,6 +91,8 @@ Owners open **Finance** for a Budget vs Actual Profit and Loss statement: one mo
 
 Actuals come from the same logic as **Profit**, by recorded business date. For any period, net sales plus other revenue equals total revenue, and gross profit there plus other revenue equals gross profit here. Inventory losses are shown separately on Profit and count as an expense here. Sales with no cost snapshot stay in revenue but are removed from gross profit on their own line, and the page warns about them.
 
+Unfinished periods are not compared with a whole budget by accident. A future month shows its budget with a dash for actual and variance. The current month is labelled month to date and sets the full month's budget, not pro-rated, against actuals to today. The current year compares the months through this one and shows the full-year budget separately. "Today" is the company's calendar day, and records dated after it wait for their date. The CSV carries the same basis.
+
 Owners enter operating expenses, other revenue, expense categories and monthly budgets on the same page. Variance is always favourable to profit: positive is good and red is bad. A zero budget shows a dash for the percentage.
 
 ## Tests

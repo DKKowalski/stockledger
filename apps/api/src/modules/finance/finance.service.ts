@@ -4,10 +4,18 @@ import { PrismaService, type PrismaTransaction } from '../../prisma/prisma.servi
 import { calendarDay, dateRange } from '../../common/date-range.js';
 import { InventoryService } from '../inventory/inventory.service.js';
 import { toCsv } from '../settings/csv.js';
-import { buildFinanceYear, DEFAULT_FINANCE_CATEGORIES, FINANCE_LINES } from './finance-calculations.js';
+import { buildFinanceYear, DEFAULT_FINANCE_CATEGORIES, FINANCE_LINES, type FinanceStatus } from './finance-calculations.js';
 import type { FinanceCategoryDto, FinanceEntryDto, FinanceExportDto, FinanceQueryDto, SaveBudgetDto } from './finance.dto.js';
 
 const ENTRY_LIST_LIMIT = 500;
+
+// An in-progress month compares its full budget with actuals so far; a year compares elapsed months.
+function basis(period: { month: string; status: FinanceStatus }) {
+  const year = period.month.length === 4;
+  if (period.status === 'future') return 'Not started';
+  if (period.status === 'complete') return year ? 'Full year' : 'Complete month';
+  return year ? 'Year to date' : 'Month to date';
+}
 
 @Injectable()
 export class FinanceService {
@@ -45,13 +53,14 @@ export class FinanceService {
     await this.owner(tx, companyId, userId);
     const company = await tx.orm.public.Company.first({ id: companyId });
     if (!company) throw new UnauthorizedException('Business no longer exists');
-    const year = query.year ?? Number(calendarDay(new Date(), company.timeZone).slice(0, 4));
+    const now = new Date();
+    const year = query.year ?? Number(calendarDay(now, company.timeZone).slice(0, 4));
     const [from, to] = [`${year}-01-01`, `${year}-12-31`];
     const categories = await this.categories(tx, companyId);
     const source = await this.inventory.profitabilitySource(tx, companyId);
     const entries = await tx.orm.public.FinanceEntry.where({ companyId }).where(entry => entry.entryDate.gte(from)).where(entry => entry.entryDate.lte(to)).all();
     const budgets = await tx.orm.public.FinanceBudget.where({ companyId }).where(budget => budget.month.gte(from)).where(budget => budget.month.lte(to)).all();
-    return { ...buildFinanceYear(year, source, categories, entries, budgets), company: { name: company.name, currency: company.currency, timeZone: company.timeZone }, categories: categories.map(({ id, name, isActive }) => ({ id, name, isActive })) };
+    return { ...buildFinanceYear(year, source, categories, entries, budgets, now, company.timeZone), company: { name: company.name, currency: company.currency, timeZone: company.timeZone }, categories: categories.map(({ id, name, isActive }) => ({ id, name, isActive })) };
   }
 
   async report(userId: string, companyId: string, query: FinanceQueryDto) {
@@ -65,7 +74,8 @@ export class FinanceService {
       await this.owner(tx, companyId, userId);
       const entries = tx.orm.public.FinanceEntry.where({ companyId });
       const scoped = range ? entries.where(entry => entry.entryDate.gte(range.from)).where(entry => entry.entryDate.lte(range.to)) : entries;
-      return scoped.orderBy([entry => entry.entryDate.desc(), entry => entry.createdAt.desc()]).limit(ENTRY_LIST_LIMIT).all();
+      const rows = await scoped.orderBy([entry => entry.entryDate.desc(), entry => entry.createdAt.desc()]).limit(ENTRY_LIST_LIMIT + 1).all();
+      return { entries: rows.slice(0, ENTRY_LIST_LIMIT), truncated: rows.length > ENTRY_LIST_LIMIT, limit: ENTRY_LIST_LIMIT };
     });
   }
 
@@ -144,8 +154,9 @@ export class FinanceService {
       if (view === 'month' && !month) throw new BadRequestException('Choose a month in the selected year');
       const year = { ...report.yearly, month: String(report.year) };
       const periods = view === 'months' ? [...report.months, year] : view === 'month' ? [month!] : [year];
-      const amount = (cents: number) => (cents / 100).toFixed(2);
-      const content = toCsv(['Company', 'Currency', 'Period', 'From', 'To', 'Section', 'Line', 'Budget', 'Actual', 'Variance (positive is favourable)', 'Variance %'], periods.flatMap(period => period.lines.map(line => [report.company.name, report.company.currency, period.month, period.from, period.to, line.section, line.label, amount(line.budgetCents), amount(line.actualCents), amount(line.varianceCents), line.variancePercent === null ? '—' : line.variancePercent.toFixed(2)])));
+      const amount = (cents: number | null) => (cents === null ? '' : (cents / 100).toFixed(2));
+      const rows = periods.flatMap(period => period.lines.map(line => [report.company.name, report.company.currency, period.month, basis(period), period.actualsTo ?? '', period.from, period.to, line.section, line.label, amount(line.budgetCents), amount(line.actualCents), amount(line.varianceCents), line.actualCents === null ? '' : line.variancePercent === null ? '—' : line.variancePercent.toFixed(2), 'fullBudgetCents' in line ? amount(line.fullBudgetCents as number) : '']));
+      const content = toCsv(['Company', 'Currency', 'Period', 'Basis', 'Actuals through', 'From', 'To', 'Section', 'Line', 'Budget', 'Actual', 'Variance (positive is favourable)', 'Variance %', 'Full-year budget'], rows);
       await this.audit(tx, companyId, userId, 'finance.exported', 'company', companyId, { year: report.year, view, month: view === 'month' ? month!.month : null });
       return { content, filename: `stockledger-finance-${view === 'month' ? month!.month : report.year}-${view}.csv` };
     }, { consistentSnapshot: true });

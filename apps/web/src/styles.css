@@ -1748,6 +1748,12 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px soli
 .finance-statement-header > div:last-child { text-align: right; }
 .finance-statement-header small { display: block; margin-top: 5px; color: #b9b4d6; font-size: 11px; }
 .finance-statement-body { padding: 24px 28px 20px; }
+.finance-status { display: inline-block; margin-top: 8px; padding: 3px 10px; border-radius: 999px; color: var(--indigo); background: var(--lime); font-size: 11px; font-weight: 700; }
+.finance-status.future { color: #fff; background: var(--indigo-line); }
+.finance-basis { margin: 0 0 16px; padding: 11px 14px; border-left: 3px solid var(--violet); border-radius: 0 8px 8px 0; color: var(--ink-soft); background: var(--violet-soft); font-size: 13px; line-height: 1.5; }
+.finance-phone-only { display: none; }
+.finance-row-status { display: block; margin-top: 2px; color: var(--muted); font-size: 10px; font-weight: 450; }
+.finance-future-row th, .finance-future-row td { color: var(--muted); }
 .finance-table { margin-bottom: 22px; }
 .finance-table table { min-width: 620px; }
 @media (min-width: 761px) {
@@ -1817,10 +1823,28 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px soli
   .finance-head-period { display: none; }
   .finance-table th, .finance-table td { padding: 8px; font-size: 12px; }
   .finance-table tbody tr:not(.finance-section-row) th { min-width: 118px; max-width: 132px; }
-  .finance-table thead th:first-child, .finance-table tbody th { position: sticky; left: 0; z-index: 1; background: var(--card-pure); }
-  .finance-table tbody tr.finance-total th { background: var(--canvas); }
-  .finance-table tbody tr.finance-result th { background: var(--violet-soft); }
-  .finance-table thead th:first-child, .finance-table .finance-section-row th { background: var(--indigo); }
+  .finance-statement-table { margin-inline: 0; overflow: visible; }
+  .finance-statement-table table, .finance-statement-table tbody { display: block; min-width: 0; }
+  .finance-statement-table thead { display: none; }
+  .finance-statement-table tbody tr { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px 8px; padding: 9px 16px; border-top: 1px solid var(--border); }
+  .finance-statement-table tbody th, .finance-statement-table tbody td { display: block; height: auto; padding: 0; border: 0; background: none; white-space: normal; overflow-wrap: anywhere; }
+  .finance-statement-table tbody tr:not(.finance-section-row) th { grid-column: 1 / 3; min-width: 0; max-width: none; font-size: 13px; }
+  .finance-statement-table td[data-col='percent'] { grid-area: 1 / 3; align-self: center; font-size: 12px; }
+  .finance-statement-table td[data-col='budget'], .finance-statement-table td[data-col='actual'], .finance-statement-table td[data-col='variance'] { grid-row: 2; text-align: right; font-size: 11.5px; }
+  .finance-statement-table td[data-col='full'] { grid-column: 1 / -1; grid-row: 3; display: flex; justify-content: space-between; font-size: 11.5px; }
+  .finance-statement-table td[data-col]:not([data-col='percent'])::before { content: attr(data-label); display: block; color: var(--muted); font-size: 10px; font-weight: 450; }
+  .finance-statement-table td[data-col='full']::before { display: inline; }
+  .finance-statement-table tbody tr.finance-total { background: var(--canvas); }
+  .finance-statement-table tbody tr.finance-result { background: var(--violet-soft); }
+  .finance-statement-table tr.finance-section-row { display: block; padding: 8px 16px; border-top: 0; background: var(--indigo); }
+  .finance-statement-table tr.finance-section-row td { display: none; }
+  .finance-statement-table tr.finance-phone-only { display: block; }
+  .finance-basis { margin-inline: 16px; }
+  .finance-sticky thead th:first-child { background: var(--indigo); }
+  .finance-month-summary table { min-width: 0; }
+  .finance-month-summary th:nth-child(3), .finance-month-summary td:nth-child(3), .finance-month-summary th:nth-child(4), .finance-month-summary td:nth-child(4), .finance-month-summary th:nth-child(6), .finance-month-summary td:nth-child(6) { display: none; }
+  .finance-month-summary tbody tr:not(.finance-section-row) th { min-width: 88px; max-width: none; }
+  .finance-month-summary th, .finance-month-summary td { padding-inline: 6px; }
   .finance-budget-form, .finance-entry-form, .finance-category-add, .finance-category-list, .finance-entry-filter { padding-inline: 16px; }
   .finance-budget-grid { grid-template-columns: 1fr 1fr; }
   .finance-entry-form { grid-template-columns: 1fr 1fr; }
@@ -1849,6 +1873,9 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px soli
   .finance-grid-heading label, .finance-head-period { display: none; }
   .finance-table:not(.finance-sticky) table { table-layout: fixed; }
   .finance-table:not(.finance-sticky) tr > :first-child { width: 30% !important; }
+  .finance-status { padding: 0; color: #000 !important; background: none !important; }
+  .finance-basis { padding: 0 0 6px; border: 0; color: #000; background: none; font-size: 9.5px; }
+  .finance-future-row th, .finance-future-row td { color: #000; }
   .finance-month-link { color: #000; text-decoration: none; font-weight: 450; }
   .finance-table thead { display: table-header-group; }
   .finance-table tr { break-inside: avoid; }

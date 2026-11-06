@@ -1,4 +1,4 @@
-import type { FinanceBudgetInput, FinanceEntry, FinanceEntryInput, FinanceReport } from './features/finance/finance-types';
+import type { FinanceBudgetInput, FinanceEntryInput, FinanceEntryList, FinanceReport } from './features/finance/finance-types';
 import type { DateRangeValue } from './lib/date-range';
 import type { ReturnSource,StockState } from './features/movements/hybrid-operations-panels';
 import type { OperationRecord } from './features/movements/durable-operation';
@@ -63,7 +63,7 @@ async function download(path: string, accessToken: string) {
 export const api = {
   finance: (token: string, year: number) => request<FinanceReport>(`/finance?year=${year}`, undefined, token),
   financeExport: (token: string, year: number, view: string, month: string) => download(`/finance/export?${new URLSearchParams({ year: String(year), view, ...(view === 'month' ? { month } : {}) })}`, token),
-  financeEntries: (token: string, range: { from?: string; to?: string }) => request<FinanceEntry[]>(`/finance/entries?${new URLSearchParams(range)}`, undefined, token),
+  financeEntries: (token: string, range: { from?: string; to?: string }) => request<FinanceEntryList>(`/finance/entries?${new URLSearchParams(range)}`, undefined, token),
   saveFinanceCategory: (token: string, body: { name: string; isActive: boolean }, id?: string) => request(`/finance/categories${id ? `/${id}` : ''}`, { method: id ? 'PATCH' : 'POST', body: JSON.stringify(body) }, token),
   saveFinanceEntry: (token: string, body: FinanceEntryInput, id?: string) => request(`/finance/entries${id ? `/${id}` : ''}`, { method: id ? 'PATCH' : 'POST', body: JSON.stringify(body) }, token),
   deleteFinanceEntry: (token: string, id: string) => request(`/finance/entries/${id}`, { method: 'DELETE' }, token),

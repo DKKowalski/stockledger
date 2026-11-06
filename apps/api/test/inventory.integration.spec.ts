@@ -1200,14 +1200,14 @@ describe('finance persistence and tenant isolation', () => {
     const category = initial.categories[0]!;
     await finance.saveBudget(f.admin.id, f.company.id, { month: '2026-09-01', copyToYear: true, lines: [{ lineKey: 'sales', amountCents: 500 }, { lineKey: `expense:${category.id}`, amountCents: 50 }] });
     const entry = await finance.saveEntry(f.admin.id, f.company.id, { kind: 'expense', categoryId: category.id, entryDate: '2026-09-30', amountCents: 25, note: 'Receipt 1' });
-    expect((await finance.entries(f.admin.id, f.company.id, { from: '2026-09-30', to: '2026-09-30' })).map(row => row.id)).toEqual([entry!.id]);
-    expect(await finance.entries(f.admin.id, f.company.id, { from: '2026-10-01', to: '2026-10-31' })).toEqual([]);
+    expect((await finance.entries(f.admin.id, f.company.id, { from: '2026-09-30', to: '2026-09-30' })).entries.map(row => row.id)).toEqual([entry!.id]);
+    expect(await finance.entries(f.admin.id, f.company.id, { from: '2026-10-01', to: '2026-10-31' })).toMatchObject({ entries: [], truncated: false });
     await finance.saveCategory(f.admin.id, f.company.id, { name: 'Vehicle', isActive: false }, category.id);
     const report = await finance.report(f.admin.id, f.company.id, { year: 2026 });
-    expect(report.yearly.lines.find(row => row.key === 'sales')?.budgetCents).toBe(6000);
-    expect(report.yearly.lines.find(row => row.key === `expense:${category.id}`)).toMatchObject({ actualCents: 25, budgetCents: 600, label: 'Vehicle (archived)' });
-    for (const month of report.months) {
-      const profit = await service.profitability(f.admin.id, f.company.id, { days: 30, from: month.from, to: month.to });
+    expect(report.yearly.lines.find(row => row.key === 'sales')?.fullBudgetCents).toBe(6000);
+    expect(report.yearly.lines.find(row => row.key === `expense:${category.id}`)).toMatchObject({ actualCents: 25, fullBudgetCents: 600, label: 'Vehicle (archived)' });
+    for (const month of report.months.filter(period => period.actualsTo)) {
+      const profit = await service.profitability(f.admin.id, f.company.id, { days: 30, from: month.from, to: month.actualsTo! });
       expect(month.lines.find(row => row.key === 'revenue')?.actualCents).toBe(profit.summary.netSalesCents);
       expect(month.lines.find(row => row.key === 'cogs')?.actualCents).toBe(profit.summary.cogsCents);
       expect(month.lines.find(row => row.key === 'gross_profit')?.actualCents).toBe(profit.summary.grossProfitCents);
@@ -1216,7 +1216,7 @@ describe('finance persistence and tenant isolation', () => {
     expect(report.months[9]!.lines.find(row => row.key === 'returns')?.actualCents).toBe(-175);
     expect((await finance.export(f.admin.id, f.company.id, { year: 2026, view: 'month', month: '2026-09' })).content).toContain('2026-09-30');
     await finance.deleteEntry(f.admin.id, f.company.id, entry!.id);
-    expect(await finance.entries(f.admin.id, f.company.id, { from: '2026-09-01', to: '2026-09-30' })).toHaveLength(0);
+    expect((await finance.entries(f.admin.id, f.company.id, { from: '2026-09-01', to: '2026-09-30' })).entries).toHaveLength(0);
     const events = await db.orm.public.AuditEvent.where({ companyId: f.company.id }).all();
     expect(events.map(event => event.action)).toEqual(expect.arrayContaining(['finance.budget_saved', 'finance.entry_saved', 'finance.entry_deleted', 'finance.category_saved', 'finance.exported']));
   });
@@ -1257,10 +1257,19 @@ describe('finance persistence and tenant isolation', () => {
     const entry = await restricted.saveEntry(f.admin.id, f.company.id, { kind: 'other_revenue', entryDate: '2026-01-02', amountCents: 300 });
     await restricted.saveEntry(f.admin.id, f.company.id, { kind: 'other_revenue', entryDate: '2026-01-03', amountCents: 400 }, entry!.id);
     const saved = await restricted.report(f.admin.id, f.company.id, { year: 2026 });
-    expect(saved.yearly.lines.find(row => row.key === key)?.budgetCents).toBe(700 * 11 + 900);
+    expect(saved.yearly.lines.find(row => row.key === key)?.fullBudgetCents).toBe(700 * 11 + 900);
     expect(saved.months[0]!.lines.find(row => row.key === 'other_revenue')?.actualCents).toBe(400);
     expect((await restricted.export(f.admin.id, f.company.id, { year: 2026, view: 'year' })).content).toContain('Budget');
     await restricted.deleteEntry(f.admin.id, f.company.id, entry!.id);
+  });
+  it('flags a truncated entry list while the report still totals every entry', async () => {
+    const f = await fixture();
+    await finance.report(f.admin.id, f.company.id, { year: 2025 });
+    for (let index = 0; index < 501; index++) await db.orm.public.FinanceEntry.create({ companyId: f.company.id, createdByUserId: f.admin.id, kind: varchar<20>('other_revenue'), categoryId: null, entryDate: '2025-03-01', amountCents: 2, note: varchar<500>('') });
+    expect(await finance.entries(f.admin.id, f.company.id, {})).toMatchObject({ truncated: true, limit: 500 });
+    expect((await finance.entries(f.admin.id, f.company.id, {})).entries).toHaveLength(500);
+    const report = await finance.report(f.admin.id, f.company.id, { year: 2025 });
+    expect(report.months[2]!.lines.find(row => row.key === 'other_revenue')?.actualCents).toBe(1002);
   });
   it('keeps budgets and reports separate across companies and years', async () => {
     const a = await fixture(); const b = await fixture();

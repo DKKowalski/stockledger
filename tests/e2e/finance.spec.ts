@@ -4,7 +4,8 @@ import type { FinanceBudgetInput, FinanceLine, FinanceReport } from '../../apps/
 const companyId = '31000000-0000-4000-8000-000000000099';
 const shopId = '32000000-0000-4000-8000-000000000099';
 const rent = '93000000-0000-4000-8000-000000000099';
-const year = new Date().getUTCFullYear();
+const year = 2026;
+const now = new Date('2026-11-06T12:00:00Z');
 
 function line(key: string, label: string, section: string, budgetCents: number, actualCents: number, cost = false, editable = true): FinanceLine {
   const varianceCents = cost ? budgetCents - actualCents : actualCents - budgetCents;
@@ -21,20 +22,34 @@ function lines(budget: number, uncosted = 0): FinanceLine[] {
     line('expenses', 'Total Expenses', 'Expenses', budget / 10, 1500, true, false), line('net_profit', 'Net Profit / Loss', 'Result', budget * .4, 3000 - uncosted, false, false),
   ];
 }
+// As the API answers on 6 November: October finished, November running, December not started.
+function runningYear(budget: number, scale = 1): FinanceReport {
+  const base = report(budget);
+  const big = (row: FinanceLine) => line(row.key, row.label, row.section, row.budgetCents * scale, row.actualCents! * scale, row.key === 'cogs' || row.section === 'Expenses', row.editable);
+  const months = base.months.map((month, index) => {
+    const lines = month.lines.map(big);
+    if (index < 10) return { ...month, lines };
+    if (index === 10) return { ...month, lines, status: 'in_progress' as const, actualsTo: `${year}-11-06` };
+    return { ...month, status: 'future' as const, actualsTo: null, lines: lines.map(row => ({ ...row, actualCents: null, varianceCents: null, variancePercent: null })) };
+  });
+  const yearly = months[0]!.lines.map((row, index) => ({ ...line(row.key, row.label, row.section, row.budgetCents * 11, row.actualCents! * 11, row.key === 'cogs' || row.section === 'Expenses', row.editable), fullBudgetCents: row.budgetCents * 12 }));
+  return { ...base, months, yearly: { ...base.yearly, status: 'in_progress', actualsTo: `${year}-11-06`, lines: yearly } };
+}
 function report(budget: number, uncosted = 0): FinanceReport {
-  const period = { hasBudget: budget > 0, costCoveragePercent: uncosted ? 50 : 100, profitability: { netSalesCents: 10000, grossProfitCents: 4000 - uncosted, inventoryLossCents: 0, unitsSold: 4, uncostedSaleUnits: uncosted ? 2 : 0 } };
+  const period = { status: 'complete' as const, actualsTo: `${year}-12-31`, futureDatedRecords: false, hasBudget: budget > 0, costCoveragePercent: uncosted ? 50 : 100, profitability: { netSalesCents: 10000, grossProfitCents: 4000 - uncosted, inventoryLossCents: 0, unitsSold: 4, uncostedSaleUnits: uncosted ? 2 : 0 } };
   const months = Array.from({ length: 12 }, (_, index) => { const month = `${year}-${String(index + 1).padStart(2, '0')}`; return { ...period, month, from: `${month}-01`, to: `${month}-28`, lines: lines(budget, uncosted) }; });
   const sum = lines(budget, uncosted).map(row => line(row.key, row.label, row.section, row.budgetCents * 12, row.actualCents * 12, row.key === 'cogs' || row.section === 'Expenses', row.editable));
   return { year, company: { name: 'Mensah Trading', currency: 'GHS', timeZone: 'Africa/Accra' }, categories: [{ id: rent, name: 'Rent or Lease', isActive: true }], months, yearly: { ...period, from: `${year}-01-01`, to: `${year}-12-31`, lines: sum } };
 }
 async function session(page: Page, data: { report: FinanceReport }, role = 'administrator') {
+  await page.clock.setFixedTime(now);
   await page.route('http://localhost:3100/**', route => route.fulfill({ json: [] }));
   await page.route('**/auth/refresh', route => route.fulfill({ json: { accessToken: 'test.session.token', user: { id: 'test-admin', companyId, fullName: 'Test admin', email: 'test@example.invalid', role, locationId: null, isActive: true, isDemo: false, setupPending: false } } }));
   await page.route('**/onboarding', route => route.fulfill({ json: { completed: true, company: { id: companyId, name: 'Mensah Trading', businessType: 'mixed', inventorySource: 'paper' }, counts: { locations: 1, items: 1, movements: 1, teammates: 1 } } }));
-  await page.route('**/settings', route => route.fulfill({ json: { id: companyId, name: 'Mensah Trading', currency: 'GHS', timeZone: 'Africa/Accra', defaultUnit: 'pcs', defaultReorderLevel: 0, defaultLocationId: shopId, itemTerm: 'item', shopTerm: 'shop', warehouseTerm: 'warehouse' } }));
+  await page.route('**/settings', route => route.fulfill({ json: { id: companyId, name: 'Mensah Trading', currency: 'GHS', timeZone: 'Africa/Accra', dateFormat: 'day_month_year', defaultUnit: 'pcs', defaultReorderLevel: 0, defaultLocationId: shopId, itemTerm: 'item', shopTerm: 'shop', warehouseTerm: 'warehouse' } }));
   await page.route('**/inventory/snapshot**', route => route.fulfill({ json: { items: [], locations: [{ id: shopId, name: 'Shop', type: 'shop' }], positions: [], movements: [], periodMovements: [], summary: { closingUnits: 0, stockValueCents: 0, lowStockItems: 0, damagedUnits: 0, deadStockLines: 0 } } }));
   await page.route('**/finance?**', route => route.fulfill({ json: data.report }));
-  await page.route('**/finance/entries?**', route => route.fulfill({ json: [] }));
+  await page.route('**/finance/entries?**', route => route.fulfill({ json: { entries: [], truncated: false, limit: 500 } }));
 }
 const row = (page: Page, name: string) => page.getByRole('row', { name: new RegExp(`^${name}`) }).first();
 const noBrokenNumbers = async (page: Page) => expect(page.locator('.finance-statement')).not.toContainText(/NaN|Infinity|undefined/);
@@ -123,4 +138,91 @@ test('keeps finance out of reach of an inventory manager', async ({ page }) => {
   await page.goto('/finance');
   await expect(page).toHaveURL('/');
   await expect(page.getByRole('link', { name: 'Finance' })).toHaveCount(0);
+});
+
+test('labels the current month as month to date and never as ended', async ({ page }) => {
+  await session(page, { report: runningYear(10000) });
+  await page.goto('/finance');
+  await expect(page.getByText('Month to date, 1 to 6 Nov 2026')).toBeVisible();
+  await expect(page.locator('.finance-status')).toHaveText('In progress');
+  await expect(page.locator('.finance-basis')).toContainText('The budget is the full month, not pro-rated');
+  await expect(page.getByRole('columnheader', { name: 'Variance so far' }).first()).toBeVisible();
+  await expect(page.locator('.finance-statement')).not.toContainText('month ended');
+});
+
+test('shows a future month as budget only with no red and no zeros', async ({ page }) => {
+  await session(page, { report: runningYear(10000) });
+  await page.goto('/finance');
+  await page.getByRole('combobox', { name: 'Finance month' }).click();
+  await page.getByRole('option', { name: 'December', exact: true }).click();
+  await expect(page.getByText('December 2026 has not started')).toBeVisible();
+  await expect(page.locator('.finance-status')).toHaveText('Not started');
+  await expect(row(page, 'Sales Revenue').locator('td').nth(0)).toContainText('100.00');
+  for (const cell of [1, 2, 3]) await expect(row(page, 'Sales Revenue').locator('td').nth(cell)).toHaveText('—');
+  await expect(page.locator('.finance-statement .negative')).toHaveCount(0);
+});
+
+test('compares the running year with elapsed months and shows the full-year budget apart', async ({ page }) => {
+  await session(page, { report: runningYear(10000) });
+  await page.goto('/finance');
+  await page.getByRole('tab', { name: 'All months' }).click();
+  const december = page.locator('.finance-month-summary tbody tr').nth(11);
+  await expect(december).toContainText('Not started');
+  await expect(december.locator('td').nth(4)).toContainText('40.00');
+  for (const cell of [0, 1, 2, 3, 5]) await expect(december.locator('td').nth(cell)).toHaveText('—');
+  await expect(page.locator('.finance-month-summary tbody tr').nth(10)).toContainText('In progress');
+  await expect(page.getByRole('row', { name: /^2026 to date/ })).toBeVisible();
+  await expect(page.getByRole('row', { name: /^Full-year budget/ })).toContainText('480.00');
+  await page.getByRole('tab', { name: 'Yearly' }).click();
+  await expect(page.getByText('Year to date, 1 Jan to 6 Nov 2026')).toBeVisible();
+  await expect(page.getByRole('columnheader', { name: 'Full-year budget' }).first()).toBeVisible();
+  await expect(row(page, 'Sales Revenue').locator('td').nth(0)).toContainText('1,100.00');
+  await expect(row(page, 'Sales Revenue').locator('td').nth(4)).toContainText('1,200.00');
+});
+
+test('shows a finished year as a plain statement', async ({ page }) => {
+  await session(page, { report: { ...report(10000), year: 2025 } });
+  await page.goto('/finance');
+  await page.getByRole('combobox', { name: 'Finance year' }).click();
+  await page.getByRole('option', { name: '2025', exact: true }).click();
+  await page.getByRole('tab', { name: 'Yearly' }).click();
+  await expect(page.getByText('For the year ended 31 Dec 2025')).toBeVisible();
+  await expect(page.locator('.finance-basis')).toHaveCount(0);
+  await expect(page.getByRole('columnheader', { name: 'Full-year budget' })).toHaveCount(0);
+});
+
+for (const view of ['Month', 'Yearly']) {
+  test(`keeps variance on screen at phone width in the ${view} view, even with amounts in the millions`, async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await session(page, { report: runningYear(10000, 40000) });
+    await page.goto('/finance');
+    await page.getByRole('tab', { name: view, exact: true }).click();
+    await expect(row(page, 'Sales Revenue')).toBeVisible();
+    const problems = await page.evaluate(() => {
+      const found: string[] = [];
+      for (const tr of document.querySelectorAll<HTMLElement>('.finance-statement-table tr:not(.finance-section-row)')) {
+        const cells = [...tr.querySelectorAll<HTMLElement>('td[data-col]')];
+        for (const cell of cells) {
+          const box = cell.getBoundingClientRect();
+          if (box.left < 0 || box.right > innerWidth || cell.scrollWidth > cell.clientWidth + 1) found.push(`off-screen ${cell.textContent}`);
+        }
+        const inline = cells.filter(cell => ['budget', 'actual', 'variance'].includes(cell.dataset.col!)).map(cell => cell.getBoundingClientRect());
+        for (let index = 1; index < inline.length; index++) if (inline[index]!.left < inline[index - 1]!.right) found.push(`collision ${tr.textContent}`);
+      }
+      return found;
+    });
+    expect(problems).toEqual([]);
+    await expect(row(page, 'Sales Revenue').locator('td[data-col="variance"]')).toBeInViewport();
+    await expect(row(page, 'Sales Revenue').locator('td[data-col="variance"]')).toContainText('Variance so far');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    expect(await page.locator('.finance-statement-table').first().evaluate(table => table.scrollWidth <= table.clientWidth)).toBe(true);
+  });
+}
+
+test('tells the owner when the entry list is cut off and that totals are unaffected', async ({ page }) => {
+  await session(page, { report: report(10000) });
+  await page.route('**/finance/entries?**', route => route.fulfill({ json: { entries: [{ id: 'e', kind: 'other_revenue', categoryId: null, entryDate: `${year}-01-02`, amountCents: 100, note: '' }], truncated: true, limit: 500 } }));
+  await page.goto('/finance');
+  await page.getByRole('button', { name: 'Expenses and other revenue' }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Showing the latest 500 entries' })).toContainText('report totals are not affected');
 });

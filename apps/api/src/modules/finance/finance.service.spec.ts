@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FinanceService } from './finance.service.js';
 import type { PrismaService } from '../../prisma/prisma.service.js';
 import type { InventoryService } from '../inventory/inventory.service.js';
@@ -30,11 +30,13 @@ const prisma = { withCompany: vi.fn(async (_id: string, work: (client: typeof tx
 const service = new FinanceService(prisma as unknown as PrismaService, { profitabilitySource: source } as unknown as InventoryService);
 
 beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-11-06T12:00:00Z') });
   vi.clearAllMocks();
   actor.mockResolvedValue({ id: userId, companyId, role: 'administrator', isActive: true });
   categoryFirst.mockResolvedValue(categories[0]);
   entryFirst.mockResolvedValue(null);
 });
+afterEach(() => { vi.useRealTimers(); });
 describe('finance authorization and tenant scoping', () => {
   it.each(['inventory_manager', 'shop_attendant'])('denies %s report and mutation access before reading finance data', async role => {
     actor.mockResolvedValue({ id: userId, companyId, role, isActive: true });
@@ -95,21 +97,34 @@ describe('finance entries and exports', () => {
     await expect(service.saveEntry(userId, companyId, { kind: 'other_revenue', entryDate: '2026-02-30', amountCents: 1, note: '' })).rejects.toThrow('valid calendar dates');
     await expect(service.saveEntry(userId, companyId, { kind: 'other_revenue', entryDate: '1990-01-01', amountCents: 1, note: '' })).rejects.toThrow('between 2000 and 2100');
   });
+  it('says when the entry list is cut off at its limit', async () => {
+    let rows = Array.from({ length: 501 }, (_, index) => ({ id: String(index) }));
+    const chain = { where: vi.fn(() => chain), orderBy: vi.fn(() => chain), limit: vi.fn(() => chain), all: async () => rows };
+    entryWhere.mockReturnValue(chain as never);
+    const full = await service.entries(userId, companyId, {});
+    expect(full).toMatchObject({ truncated: true, limit: 500 });
+    expect(full.entries).toHaveLength(500);
+    rows = rows.slice(0, 500);
+    expect((await service.entries(userId, companyId, {})).truncated).toBe(false);
+    entryWhere.mockImplementation(() => ({ ...scoped(), update: entryUpdate, delete: vi.fn() }));
+  });
   it('rejects an entry list whose end is before its start', async () => {
     await expect(service.entries(userId, companyId, { from: '2026-02-01', to: '2026-01-01' })).rejects.toThrow('on or after start');
   });
   it('exports company, currency, period and spreadsheet-numeric negatives, with a dash for zero budgets', async () => {
     const file = await service.export(userId, companyId, { year: 2026, view: 'month', month: '2026-01' });
     expect(file.filename).toBe('stockledger-finance-2026-01-month.csv');
-    expect(file.content).toContain('Shop A,GHS,2026-01,2026-01-01,2026-01-31,Revenue,Sales Returns / Allowances,0.00,-5.00,-5.00,—');
+    expect(file.content).toContain('Shop A,GHS,2026-01,Complete month,2026-01-31,2026-01-01,2026-01-31,Revenue,Sales Returns / Allowances,0.00,-5.00,-5.00,—,');
     expect(file.content).not.toContain("'-");
     expect(audit).toHaveBeenCalledWith(expect.objectContaining({ action: 'finance.exported', companyId }));
   });
   it('adds the year total after the twelve months and rejects a month outside the year', async () => {
     const file = await service.export(userId, companyId, { year: 2026, view: 'months' });
     expect(file.filename).toBe('stockledger-finance-2026-months.csv');
-    expect(file.content).toContain('Shop A,GHS,2026-12,');
-    expect(file.content).toContain('Shop A,GHS,2026,2026-01-01,2026-12-31,');
+    expect(file.content).toContain('Shop A,GHS,2026-11,Month to date,2026-11-06,2026-11-01,2026-11-30,Revenue,Sales Revenue,0.00,0.00,0.00,—,');
+    // A future month carries its budget and nothing else; the year row has the full-year budget.
+    expect(file.content).toContain('Shop A,GHS,2026-12,Not started,,2026-12-01,2026-12-31,Revenue,Sales Revenue,0.00,,,,');
+    expect(file.content).toContain('Shop A,GHS,2026,Year to date,2026-11-06,2026-01-01,2026-12-31,Revenue,Sales Returns / Allowances,0.00,-5.00,-5.00,—,0.00');
     await expect(service.export(userId, companyId, { year: 2026, view: 'month', month: '2025-01' })).rejects.toThrow('selected year');
   });
 });

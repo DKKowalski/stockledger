@@ -12,7 +12,7 @@ import { MotionTabs } from '../../components/ui/motion-tabs';
 import { companyDay, rangeQuery, type DateRangeValue } from '../../lib/date-range';
 import { parseMoneyCents } from '../../lib/presentation';
 import { safeErrorMessage } from '../../lib/user-facing-error';
-import type { FinanceBudgetInput, FinanceCategory, FinanceEntry, FinanceEntryInput, FinanceLine, FinanceMonth, FinancePeriod, FinanceReport } from './finance-types';
+import type { FinanceBudgetInput, FinanceCategory, FinanceEntry, FinanceEntryInput, FinanceEntryList, FinanceLine, FinanceMonth, FinancePeriod, FinanceReport, FinanceStatus } from './finance-types';
 
 type View = 'month' | 'months' | 'year';
 type Editor = 'budget' | 'entries' | 'categories' | null;
@@ -22,7 +22,7 @@ const views = [{ value: 'month', label: 'Month' }, { value: 'months', label: 'Al
 const monthName = (month: string, format: 'long' | 'short' = 'long') => new Intl.DateTimeFormat(undefined, { month: format, timeZone: 'UTC' }).format(new Date(`${month}-01T12:00:00Z`));
 const lineOf = (period: FinancePeriod, key: string) => period.lines.find(line => line.key === key)!;
 const varianceTone = (cents: number) => (cents < 0 ? 'negative' : cents > 0 ? 'positive' : '');
-// The twelve-month grid drops the currency symbol to stay readable; the statement header names the currency.
+// The month tables drop the currency symbol to stay readable; the statement header names the currency.
 const plainAmount = (cents: number) => (cents / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export function FinancePage() {
@@ -63,7 +63,15 @@ export function FinancePage() {
   const period = view === 'year' ? loaded?.yearly : selectedMonth;
   const hasBudget = view === 'month' ? selectedMonth?.hasBudget : loaded?.yearly.hasBudget;
   const coverageSource = view === 'month' ? selectedMonth : loaded?.yearly;
-  const periodLabel = view === 'month' && selectedMonth ? `For the month ended ${calendarDate(selectedMonth.to)}` : `For the year ended ${calendarDate(`${year}-12-31`)}`;
+  const headerPeriod = view === 'month' ? selectedMonth : loaded?.yearly;
+  const span = (from: string, to: string) => {
+    const end = calendarDate(to);
+    if (settings?.dateFormat !== 'day_month_year') return `${calendarDate(from)} to ${end}`;
+    return `${from.slice(0, 7) === to.slice(0, 7) ? Number(from.slice(8)) : calendarDate(from).replace(/ \d{4}$/, '')} to ${end}`;
+  };
+  const periodLabel = !headerPeriod ? '' : headerPeriod.status === 'complete' ? `For the ${view === 'month' ? 'month' : 'year'} ended ${calendarDate(headerPeriod.to)}`
+    : headerPeriod.status === 'future' ? `${view === 'month' ? `${monthName(month)} ${year}` : year} has not started`
+      : `${view === 'month' ? 'Month' : 'Year'} to date, ${span(headerPeriod.from, headerPeriod.actualsTo!)}`;
 
   const exportFile = async () => {
     if (!accessToken) return;
@@ -95,13 +103,15 @@ export function FinancePage() {
         {editor === 'entries' && <EntryEditor report={loaded} revision={revision} busy={busy} readOnly={readOnly} save={(body, id) => save(() => api.saveFinanceEntry(accessToken!, body, id))} remove={id => save(() => api.deleteFinanceEntry(accessToken!, id))} />}
         {editor === 'categories' && <CategoryEditor key={revision} categories={loaded.categories} busy={busy} readOnly={readOnly} save={(body, id) => save(() => api.saveFinanceCategory(accessToken!, body, id))} />}
         {!hasBudget && editor !== 'budget' && <Notice title={`No budget set for ${view === 'month' ? monthName(month) : year}`} action={<button className="button secondary" type="button" onClick={() => setEditor('budget')}>Set budget</button>}>Your actuals are shown below. Add a monthly budget to compare them with your plan; you can copy one month across the year.</Notice>}
+        {coverageSource?.futureDatedRecords && <Notice title="Some records are dated after today">They are not in these actuals yet and will count once their date arrives.</Notice>}
         {coverageSource && coverageSource.profitability.uncostedSaleUnits > 0 && <Notice title={`${coverageSource.profitability.uncostedSaleUnits} sold units have no recorded cost or price`} action={<Link className="button secondary" to="/profitability">Open Profit</Link>}>Cost coverage is {coverageSource.costCoveragePercent}%. These sales stay out of gross profit until their cost is known, so real profit may differ.</Notice>}
       </div>
       <section className="panel finance-statement">
-        <header className="finance-statement-header"><div><p>Budget vs Actual Profit and Loss</p></div><div><h2>{loaded.company.name}</h2><p>{periodLabel}</p><small>All amounts in {loaded.company.currency}</small></div></header>
+        <header className="finance-statement-header"><div><p>Budget vs Actual Profit and Loss</p>{headerPeriod && headerPeriod.status !== 'complete' && <span className={`finance-status ${headerPeriod.status}`}>{statusLabel[headerPeriod.status]}</span>}</div><div><h2>{loaded.company.name}</h2><p>{periodLabel}</p><small>All amounts in {loaded.company.currency}</small></div></header>
         <div className="finance-statement-body">
-          {view === 'months' ? <AllMonths report={loaded} onOpen={value => { setMonthNumber(value.slice(5, 7)); setView('month'); }} /> : period && <Statement period={period} heading={view === 'month' ? `${monthName(month)} ${year}` : String(year)} hasBudget={Boolean(hasBudget)} />}
-          <p className="finance-footnote">Positive variance is favourable to profit; red is unfavourable. Percentages are relative to budget, and a dash means there is no budget to compare.{view !== 'month' && year === thisYear ? ` ${year} is still in progress, so the yearly budget covers all 12 months while actuals run to today.` : ''}</p>
+          {headerPeriod && <Basis period={headerPeriod} view={view} />}
+          {view === 'months' ? <AllMonths report={loaded} onOpen={value => { setMonthNumber(value.slice(5, 7)); setView('month'); }} /> : period && <Statement period={period} heading={view === 'month' ? `${monthName(month)} ${year}` : String(year)} kind={view === 'month' ? 'month' : 'year'} hasBudget={Boolean(hasBudget)} />}
+          <p className="finance-footnote">Positive variance is favourable to profit; red is unfavourable. Percentages are relative to budget, and a dash means there is no budget to compare.</p>
           {period && view !== 'months' && <Reconciliation period={period} />}
           {view === 'months' && <Reconciliation period={loaded.yearly} />}
         </div>
@@ -111,62 +121,93 @@ export function FinancePage() {
   </div>;
 }
 
+const statusLabel: Record<FinanceStatus, string> = { complete: 'Complete', in_progress: 'In progress', future: 'Not started' };
+
+// Says plainly what is being compared, inside the statement so it also prints.
+function Basis({ period, view }: { period: FinancePeriod; view: View }) {
+  const { calendarDate } = useCompanySettings();
+  if (period.status === 'complete') return null;
+  const through = period.actualsTo ? calendarDate(period.actualsTo) : '';
+  const lastMonth = period.actualsTo ? monthName(period.actualsTo.slice(0, 7)) : '';
+  const text = period.status === 'future' ? 'Budget only. Actuals and variance appear once this period starts.'
+    : view === 'month' ? `This month is in progress. The budget is the full month, not pro-rated, and actuals run to ${through}, so variances will move until the month ends.`
+      : `This year is in progress. Budget and actual both cover January to ${lastMonth}, using ${lastMonth}'s full budget against actuals to ${through}. The full-year budget is shown separately.`;
+  return <p className="finance-basis"><b>{statusLabel[period.status]}.</b> {text}</p>;
+}
+
 function Notice({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
   return <div className="finance-notice" role="status"><CircleAlert size={18} /><div><b>{title}</b><span>{children}</span></div>{action}</div>;
 }
 
 function Reconciliation({ period }: { period: FinancePeriod }) {
+  const { money, calendarDate } = useCompanySettings();
+  if (!period.actualsTo) return null;
+  const actual = (key: string) => lineOf(period, key).actualCents ?? 0;
+  return <p className="finance-footnote">Ties to Profit for {calendarDate(period.from)} to {calendarDate(period.actualsTo)}: net sales {money(period.profitability.netSalesCents)} + other revenue {money(actual('other_revenue'))} = total revenue {money(actual('revenue'))}; gross profit there {money(period.profitability.grossProfitCents)} + other revenue = gross profit here {money(actual('gross_profit'))}. Inventory losses appear on Profit separately and are an expense here.</p>;
+}
+
+type Columns = { budget: string; actual: string; variance: string; percent: string };
+const Dash = ({ label, col }: { label: string; col: string }) => <td className="num finance-empty" data-label={label} data-col={col}>—</td>;
+
+function Amounts({ line, hasBudget, columns, fullYear }: { line: FinanceLine; hasBudget: boolean; columns: Columns; fullYear: boolean }) {
   const { money } = useCompanySettings();
-  const other = lineOf(period, 'other_revenue').actualCents;
-  return <p className="finance-footnote">Ties to Profit for the same dates: net sales {money(period.profitability.netSalesCents)} + other revenue {money(other)} = total revenue {money(lineOf(period, 'revenue').actualCents)}; gross profit there {money(period.profitability.grossProfitCents)} + other revenue = gross profit here {money(lineOf(period, 'gross_profit').actualCents)}. Inventory losses appear on Profit separately and are an expense here.</p>;
+  const tone = varianceTone(line.varianceCents ?? 0);
+  const compared = hasBudget && line.varianceCents !== null;
+  return <>
+    {hasBudget ? <td className="num" data-label={columns.budget} data-col="budget">{money(line.budgetCents)}</td> : <Dash label={columns.budget} col="budget" />}
+    {line.actualCents === null ? <Dash label={columns.actual} col="actual" /> : <td className="num" data-label={columns.actual} data-col="actual">{money(line.actualCents)}</td>}
+    {compared ? <td className={`num ${tone}`} data-label={columns.variance} data-col="variance">{money(line.varianceCents!)}</td> : <Dash label={columns.variance} col="variance" />}
+    {compared && line.variancePercent !== null ? <td className={`num ${tone}`} data-label={columns.percent} data-col="percent">{line.variancePercent.toFixed(2)}%</td> : <Dash label={columns.percent} col="percent" />}
+    {fullYear && <td className="num" data-label="Full-year budget" data-col="full">{money(line.fullBudgetCents ?? 0)}</td>}
+  </>;
 }
 
-function Amounts({ line, hasBudget }: { line: FinanceLine; hasBudget: boolean }) {
-  const { money } = useCompanySettings();
-  if (!hasBudget) return <><td className="num finance-empty">—</td><td className="num">{money(line.actualCents)}</td><td className="num finance-empty">—</td><td className="num finance-empty">—</td></>;
-  const tone = varianceTone(line.varianceCents);
-  return <><td className="num">{money(line.budgetCents)}</td><td className="num">{money(line.actualCents)}</td><td className={`num ${tone}`}>{money(line.varianceCents)}</td><td className={`num ${line.variancePercent === null ? 'finance-empty' : tone}`}>{line.variancePercent === null ? '—' : `${line.variancePercent.toFixed(2)}%`}</td></>;
+function StatementHead({ first, heading, columns, fullYear }: { first: string; heading: string; columns: Columns; fullYear: boolean }) {
+  return <thead><tr><th scope="col">{first}</th><th scope="col" className="num"><span className="finance-head-period">{heading} </span>{columns.budget}</th><th scope="col" className="num"><span className="finance-head-period">{heading} </span>{columns.actual}</th><th scope="col" className="num">{columns.variance}</th><th scope="col" className="num">{columns.percent}</th>{fullYear && <th scope="col" className="num">Full-year budget</th>}</tr></thead>;
 }
 
-function StatementHead({ first, heading }: { first: string; heading: string }) {
-  return <thead><tr><th scope="col">{first}</th><th scope="col" className="num"><span className="finance-head-period">{heading} </span>budget</th><th scope="col" className="num"><span className="finance-head-period">{heading} </span>actual</th><th scope="col" className="num">Variance</th><th scope="col" className="num">% variance</th></tr></thead>;
-}
-
-function Statement({ period, heading, hasBudget }: { period: FinancePeriod; heading: string; hasBudget: boolean }) {
-  const shown = period.lines.filter(line => line.key !== 'uncosted' || line.actualCents !== 0);
+function Statement({ period, heading, kind, hasBudget }: { period: FinancePeriod; heading: string; kind: 'month' | 'year'; hasBudget: boolean }) {
+  const partial = period.status === 'in_progress';
+  const columns: Columns = partial ? { budget: kind === 'year' ? 'Budget to date' : 'Budget', actual: 'Actual to date', variance: 'Variance so far', percent: '% so far' } : { budget: 'Budget', actual: 'Actual', variance: 'Variance', percent: '% variance' };
+  const fullYear = kind === 'year' && partial;
+  const width = fullYear ? 6 : 5;
+  const shown = period.lines.filter(line => line.key !== 'uncosted' || (line.actualCents ?? 0) !== 0);
   const summaryKeys = ['revenue', 'cogs', 'uncosted', 'expenses', 'net_profit'];
   const summary = summaryKeys.flatMap(key => shown.filter(line => line.key === key));
   const sections = ['Revenue', 'Cost of Goods Sold', 'Expenses'];
   const rowClass = (line: FinanceLine) => line.key === 'net_profit' || line.key === 'gross_profit' ? 'finance-result' : line.editable || line.key === 'uncosted' ? '' : 'finance-total';
   return <>
-    <div className="table-wrap finance-table"><table><caption className="sr-only">Summary, {heading}</caption><StatementHead first="Summary" heading={heading} /><tbody>{summary.map(line => <tr key={line.key} className={line.key === 'net_profit' ? 'finance-result' : 'finance-total'}><th scope="row">{line.key === 'cogs' ? 'Cost of Goods Sold' : line.label}</th><Amounts line={line} hasBudget={hasBudget} /></tr>)}</tbody></table></div>
-    <div className="table-wrap finance-table"><table><caption className="sr-only">Statement detail, {heading}</caption>
-      {sections.map((section, index) => <tbody key={section}><tr className="finance-section-row"><th scope="colgroup" colSpan={index === 0 ? 1 : 5}>{section}</th>{index === 0 && <><td className="num">Budget</td><td className="num">Actual</td><td className="num">Variance</td><td className="num">% variance</td></>}</tr>{shown.filter(line => line.section === section).map(line => <tr key={line.key} className={rowClass(line)}><th scope="row">{line.label}</th><Amounts line={line} hasBudget={hasBudget} /></tr>)}</tbody>)}
+    <div className="table-wrap finance-table finance-statement-table"><table><caption className="sr-only">Summary, {heading}</caption><StatementHead first="Summary" heading={heading} columns={columns} fullYear={fullYear} /><tbody><tr className="finance-section-row finance-phone-only"><th scope="colgroup" colSpan={width}>Summary</th></tr>{summary.map(line => <tr key={line.key} className={line.key === 'net_profit' ? 'finance-result' : 'finance-total'}><th scope="row">{line.key === 'cogs' ? 'Cost of Goods Sold' : line.label}</th><Amounts line={line} hasBudget={hasBudget} columns={columns} fullYear={fullYear} /></tr>)}</tbody></table></div>
+    <div className="table-wrap finance-table finance-statement-table"><table><caption className="sr-only">Statement detail, {heading}</caption>
+      {sections.map((section, index) => <tbody key={section}><tr className="finance-section-row"><th scope="colgroup" colSpan={index === 0 ? 1 : width}>{section}</th>{index === 0 && <><td className="num">{columns.budget}</td><td className="num">{columns.actual}</td><td className="num">{columns.variance}</td><td className="num">{columns.percent}</td>{fullYear && <td className="num">Full-year budget</td>}</>}</tr>{shown.filter(line => line.section === section).map(line => <tr key={line.key} className={rowClass(line)}><th scope="row">{line.label}</th><Amounts line={line} hasBudget={hasBudget} columns={columns} fullYear={fullYear} /></tr>)}</tbody>)}
     </table></div>
   </>;
 }
 
 function AllMonths({ report, onOpen }: { report: FinanceReport; onOpen: (month: string) => void }) {
-  const { money } = useCompanySettings();
   const [metric, setMetric] = useState<Metric>('actual');
-  const hasBudget = report.yearly.hasBudget;
-  const netVariance = (period: FinancePeriod) => { const line = lineOf(period, 'net_profit'); return period.hasBudget ? <td className={`num ${varianceTone(line.varianceCents)}`}>{money(line.varianceCents)}</td> : <td className="num finance-empty">—</td>; };
-  const summaryCells = (period: FinancePeriod) => <><td className="num">{money(lineOf(period, 'revenue').actualCents)}</td><td className="num">{money(lineOf(period, 'cogs').actualCents)}</td><td className="num">{money(lineOf(period, 'expenses').actualCents)}</td><td className="num"><b>{money(lineOf(period, 'net_profit').actualCents)}</b></td><td className={`num ${period.hasBudget ? '' : 'finance-empty'}`}>{period.hasBudget ? money(lineOf(period, 'net_profit').budgetCents) : '—'}</td>{netVariance(period)}</>;
-  const value = (line: FinanceLine) => metric === 'actual' ? line.actualCents : metric === 'budget' ? line.budgetCents : line.varianceCents;
+  const { yearly } = report;
+  const anyBudget = report.months.some(month => month.hasBudget);
+  const partial = yearly.status === 'in_progress';
+  const amount = (cents: number | null, strong = false) => cents === null ? <td className="num finance-empty">—</td> : <td className="num">{strong ? <b>{plainAmount(cents)}</b> : plainAmount(cents)}</td>;
+  const netVariance = (period: FinancePeriod) => { const { varianceCents } = lineOf(period, 'net_profit'); return period.hasBudget && varianceCents !== null ? <td className={`num ${varianceTone(varianceCents)}`}>{plainAmount(varianceCents)}</td> : <td className="num finance-empty">—</td>; };
+  const summaryCells = (period: FinancePeriod) => <>{amount(lineOf(period, 'revenue').actualCents)}{amount(lineOf(period, 'cogs').actualCents)}{amount(lineOf(period, 'expenses').actualCents)}{amount(lineOf(period, 'net_profit').actualCents, true)}{amount(period.hasBudget ? lineOf(period, 'net_profit').budgetCents : null)}{netVariance(period)}</>;
   const cell = (line: FinanceLine, label: string, period: FinancePeriod) => {
-    if (metric !== 'actual' && !period.hasBudget) return <td key={label} className="num finance-empty">—</td>;
-    return <td key={label} className={`num ${metric === 'variance' ? varianceTone(line.varianceCents) : ''}`}>{plainAmount(value(line))}</td>;
+    const value = metric === 'actual' ? line.actualCents : metric === 'variance' ? (period.hasBudget ? line.varianceCents : null) : (period.hasBudget ? line.budgetCents : null);
+    if (value === null) return <td key={label} className="num finance-empty">—</td>;
+    return <td key={label} className={`num ${metric === 'variance' ? varianceTone(value) : ''}`}>{plainAmount(value)}</td>;
   };
-  const lines = report.yearly.lines.filter(line => line.key !== 'uncosted' || line.actualCents !== 0 || report.months.some(month => lineOf(month, 'uncosted').actualCents !== 0));
+  const lines = yearly.lines.filter(line => line.key !== 'uncosted' || report.months.some(month => (lineOf(month, 'uncosted').actualCents ?? 0) !== 0));
+  const yearLabel = partial ? `${report.year} to date` : yearly.status === 'future' ? `${report.year} budget` : `${report.year} total`;
   return <>
     <div className="table-wrap finance-table finance-sticky finance-month-summary"><table><caption className="sr-only">Month summary, {report.year}</caption>
       <thead><tr><th scope="col">Month</th><th scope="col" className="num">Revenue</th><th scope="col" className="num">Cost of goods</th><th scope="col" className="num">Expenses</th><th scope="col" className="num">Net profit</th><th scope="col" className="num">Budget net</th><th scope="col" className="num">Net variance</th></tr></thead>
-      <tbody>{report.months.map((month: FinanceMonth) => <tr key={month.month}><th scope="row"><button className="finance-month-link" type="button" onClick={() => onOpen(month.month)}>{monthName(month.month)}</button></th>{summaryCells(month)}</tr>)}<tr className="finance-result"><th scope="row">{report.year} total</th>{summaryCells(report.yearly)}</tr></tbody>
+      <tbody>{report.months.map((month: FinanceMonth) => <tr key={month.month} className={month.status === 'future' ? 'finance-future-row' : ''}><th scope="row"><button className="finance-month-link" type="button" onClick={() => onOpen(month.month)}>{monthName(month.month)}</button>{month.status !== 'complete' && <small className="finance-row-status">{statusLabel[month.status]}</small>}</th>{summaryCells(month)}</tr>)}<tr className="finance-result"><th scope="row">{yearLabel}</th>{summaryCells(yearly)}</tr>{partial && <tr className="finance-total"><th scope="row">Full-year budget</th><td className="num finance-empty">—</td><td className="num finance-empty">—</td><td className="num finance-empty">—</td><td className="num finance-empty">—</td>{amount(lineOf(yearly, 'net_profit').fullBudgetCents ?? 0)}<td className="num finance-empty">—</td></tr>}</tbody>
     </table></div>
-    <div className="finance-grid-heading"><h3>Every line by month</h3><label><span className="sr-only">Figures shown</span><SelectControl aria-label="Figures shown" value={metric} onValueChange={next => setMetric(next as Metric)} options={[{ value: 'actual', label: 'Actual' }, { value: 'budget', label: 'Budget', disabled: !hasBudget }, { value: 'variance', label: 'Variance', disabled: !hasBudget }]} /></label></div>
+    <div className="finance-grid-heading"><h3>Every line by month</h3><label><span className="sr-only">Figures shown</span><SelectControl aria-label="Figures shown" value={metric} onValueChange={next => setMetric(next as Metric)} options={[{ value: 'actual', label: 'Actual' }, { value: 'budget', label: 'Budget', disabled: !anyBudget }, { value: 'variance', label: 'Variance', disabled: !anyBudget }]} /></label></div>
     <div className="table-wrap finance-table finance-sticky finance-month-grid"><table><caption className="sr-only">{metric} by line and month, {report.year}</caption>
-      <thead><tr><th scope="col">Line</th>{report.months.map(month => <th key={month.month} scope="col" className="num">{monthName(month.month, 'short')}</th>)}<th scope="col" className="num">{report.year}</th></tr></thead>
-      <tbody>{lines.map(line => <tr key={line.key} className={line.key === 'net_profit' || line.key === 'gross_profit' ? 'finance-result' : line.editable || line.key === 'uncosted' ? '' : 'finance-total'}><th scope="row">{line.label}</th>{report.months.map(month => cell(lineOf(month, line.key), month.month, month))}{cell(line, 'year', report.yearly)}</tr>)}</tbody>
+      <thead><tr><th scope="col">Line</th>{report.months.map(month => <th key={month.month} scope="col" className="num">{monthName(month.month, 'short')}</th>)}<th scope="col" className="num">{partial ? 'To date' : report.year}</th>{partial && metric === 'budget' && <th scope="col" className="num">Full year</th>}</tr></thead>
+      <tbody>{lines.map(line => <tr key={line.key} className={line.key === 'net_profit' || line.key === 'gross_profit' ? 'finance-result' : line.editable || line.key === 'uncosted' ? '' : 'finance-total'}><th scope="row">{line.label}</th>{report.months.map(month => cell(lineOf(month, line.key), month.month, month))}{cell(line, 'year', yearly)}{partial && metric === 'budget' && <td className="num">{plainAmount(line.fullBudgetCents ?? 0)}</td>}</tr>)}</tbody>
     </table></div>
   </>;
 }
@@ -204,12 +245,13 @@ function EntryEditor({ report, revision, busy, readOnly, save, remove }: { repor
   const [form, setForm] = useState(blank);
   const [invalid, setInvalid] = useState(false);
   const [range, setRange] = useState<DateRangeValue>({ days: null, from: `${report.year}-01-01`, to: `${report.year}-12-31` });
-  const [rows, setRows] = useState<FinanceEntry[] | null>(null);
+  const [list, setList] = useState<FinanceEntryList | null>(null);
+  const rows = list?.entries ?? null;
   const [loadError, setLoadError] = useState(false);
   useEffect(() => {
     if (!accessToken) return;
     let active = true;
-    void api.financeEntries(accessToken, rangeQuery(range, report.company.timeZone)).then(next => { if (active) { setRows(next); setLoadError(false); } }).catch(() => { if (active) setLoadError(true); });
+    void api.financeEntries(accessToken, rangeQuery(range, report.company.timeZone)).then(next => { if (active) { setList(next); setLoadError(false); } }).catch(() => { if (active) setLoadError(true); });
     return () => { active = false; };
   }, [accessToken, range, report.company.timeZone, revision]);
   const submit = (event: FormEvent) => {
@@ -232,6 +274,7 @@ function EntryEditor({ report, revision, busy, readOnly, save, remove }: { repor
       {invalid && <p className="form-error" role="alert">Enter an amount above zero with no more than two decimal places.</p>}
     </form>
     <div className="finance-entry-filter"><DateRangePicker allowAll value={range} onChange={setRange} label="Finance entry period" /></div>
+    {list?.truncated && <div className="finance-entry-filter"><Notice title={`Showing the latest ${list.limit} entries`}>Older entries in this period are not listed, so narrow the dates to find them. The report totals are not affected and include every entry.</Notice></div>}
     {loadError ? <p className="form-error" role="alert">Could not load entries. Try again.</p> : rows === null ? <EmptyState text="Loading entries" /> : rows.length ? <div className="table-wrap"><table><thead><tr><th>Date</th><th>Category</th><th>Note</th><th className="num">Amount</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>{rows.map(entry => <tr key={entry.id}><td>{calendarDate(entry.entryDate)}</td><td>{entry.kind === 'other_revenue' ? 'Other Revenue' : report.categories.find(category => category.id === entry.categoryId)?.name}</td><td>{entry.note || '—'}</td><td className="num">{money(entry.amountCents)}</td><td className="finance-row-actions">{deleting === entry.id
       ? <><button type="button" className="text-button negative" disabled={busy || readOnly} onClick={() => { setDeleting(null); void remove(entry.id).catch(() => {}); }}>Confirm delete</button><button type="button" className="text-button" onClick={() => setDeleting(null)}>Keep</button></>
       : <><button type="button" className="text-button" disabled={busy} onClick={() => { setEditing(entry.id); setForm({ kind: entry.kind, categoryId: entry.categoryId ?? blank.categoryId, entryDate: entry.entryDate, amount: (entry.amountCents / 100).toFixed(2), note: entry.note }); }}>Edit</button><button type="button" className="text-button negative" disabled={busy} onClick={() => setDeleting(entry.id)}>Delete</button></>}</td></tr>)}</tbody></table></div> : <EmptyState text="No entries in this period." />}
