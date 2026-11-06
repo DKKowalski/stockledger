@@ -121,7 +121,7 @@ function FinanceWorkspacePage() {
     {error && <p role="alert" className="form-error">{error}</p>}
     {loaded && selectedMonth && <>
       <div className="finance-controls">
-        {editor === 'budget' && <BudgetEditor key={`${month}:${revision}`} report={loaded} month={month} setMonth={setMonthNumber} busy={busy} readOnly={readOnly} save={body => save(() => api.saveFinanceBudget(accessToken!, body))} />}
+        {editor === 'budget' && <BudgetEditor key={`${month}:${revision}`} report={loaded} month={month} setMonth={setMonthNumber} busy={busy} readOnly={readOnly} save={bodies => save(async () => { for (const body of bodies) await api.saveFinanceBudget(accessToken!, body); })} />}
         {editor === 'entries' && <EntryEditor report={loaded} revision={revision} busy={busy} readOnly={readOnly} save={(body, id) => save(() => api.saveFinanceEntry(accessToken!, body, id))} remove={id => save(() => api.deleteFinanceEntry(accessToken!, id))} />}
         {editor === 'categories' && <CategoryEditor key={revision} categories={loaded.categories} busy={busy} readOnly={readOnly} save={(body, id) => save(() => api.saveFinanceCategory(accessToken!, body, id))} />}
         {!hasBudget && editor !== 'budget' && <Notice title={`No budget set for ${view === 'month' ? monthName(month) : year}`} action={<button className="button secondary" type="button" onClick={() => setEditor('budget')}>Set budget</button>}>Your actuals are shown below. Add a monthly budget to compare them with your plan; you can copy one month across the year.</Notice>}
@@ -251,25 +251,38 @@ function AllMonths({ report, onOpen }: { report: FinanceReport; onOpen: (month: 
 
 const toAmount = (cents: number) => (cents === 0 ? '' : (Math.abs(cents) / 100).toFixed(2));
 
-function BudgetEditor({ report, month, setMonth, busy, readOnly, save }: { report: FinanceReport; month: string; setMonth: (month: string) => void; busy: boolean; readOnly: boolean; save: (body: FinanceBudgetInput) => Promise<void> }) {
+function BudgetEditor({ report, month, setMonth, busy, readOnly, save }: { report: FinanceReport; month: string; setMonth: (month: string) => void; busy: boolean; readOnly: boolean; save: (bodies: FinanceBudgetInput[]) => Promise<void> }) {
+  const { money } = useCompanySettings();
   const period = report.months.find(row => row.month === month)!;
   const editable = period.lines.filter(line => line.editable);
   const [amounts, setAmounts, clearAmounts, dirty] = useFinanceDraft<Record<string, string>>(`budget:${month}`, Object.fromEntries(editable.map(line => [line.key, toAmount(line.budgetCents)])));
-  const [copyToYear, setCopy, clearCopy, copyDirty] = useFinanceDraft(`copy:${month}`, false);
+  const [added, setAdded] = useFinanceDraft<string[]>(`budgetLines:${month}`, []);
+  const [targets, setTargets, clearTargets] = useFinanceDraft<string[]>(`copyMonths:${month}`, []);
+  const [copyOpen, setCopyOpen] = useState(false);
+  const [advanced, setAdvanced] = useState(false);
   const [invalid, setInvalid] = useState(false);
-  const submit = (event: FormEvent) => {
-    event.preventDefault();
+  const used = (key: string) => report.months.some(row => row.lines.some(line => line.key === key && ((line.actualCents ?? 0) !== 0 || line.budgetCents !== 0)));
+  const visible = editable.filter(line => advanced || ['sales', 'cogs'].includes(line.key) || used(line.key) || added.includes(line.key));
+  const remaining = editable.filter(line => !visible.includes(line));
+  const cents = (key: string) => parseMoneyCents(amounts[key] || '0') ?? 0;
+  const planned = editable.reduce((total, line) => total + (line.section === 'Expenses' || ['cogs', 'discounts', 'returns'].includes(line.key) ? -1 : 1) * cents(line.key), 0);
+  const commit = (copy: boolean) => {
     const lines = editable.map(line => ({ lineKey: line.key, amountCents: amounts[line.key] ? parseMoneyCents(amounts[line.key]) : 0 }));
     if (lines.some(line => line.amountCents === null)) { setInvalid(true); return; }
     setInvalid(false);
-    void save({ month: `${month}-01`, copyToYear, lines: lines as FinanceBudgetInput['lines'] }).then(() => { clearAmounts(); clearCopy(); }).catch(() => {});
+    const base = { lines: lines as FinanceBudgetInput['lines'], copyToYear: false };
+    const bodies = copy ? targets.length === 12 ? [{ ...base, month: `${month}-01`, copyToYear: true }] : targets.map(target => ({ ...base, month: `${target}-01` })) : [{ ...base, month: `${month}-01` }];
+    void save(bodies).then(() => { if (!copy || targets.includes(month)) clearAmounts(); clearTargets(); setCopyOpen(false); }).catch(() => {});
   };
-  return <Panel className="finance-management" title="Monthly budget" subtitle={`Enter positive amounts in ${report.company.currency}. Sales discounts and returns are deducted from revenue for you.`}><form className="finance-budget-form" onSubmit={submit}>
+  return <Panel className="finance-management" title="Monthly budget" subtitle={`Plan in ${report.company.currency}. Blank means zero; discounts, returns and expenses reduce planned profit.`}><form className="finance-budget-form" onSubmit={event => { event.preventDefault(); commit(false); }}>
     <label className="finance-budget-month"><span>Budget month</span><SelectControl disabled={busy} aria-label="Budget month" value={month.slice(5, 7)} onValueChange={setMonth} options={report.months.map(row => ({ value: row.month.slice(5, 7), label: `${monthName(row.month)} ${report.year}` }))} /></label>
-    <div className="finance-budget-grid">{editable.map(line => <label key={line.key}><span>{line.label}</span><InputControl disabled={busy} aria-label={`${line.label} budget`} type="number" inputMode="decimal" min="0" max="21474836.47" step="0.01" placeholder="0.00" value={amounts[line.key]} onValueChange={value => setAmounts(current => ({ ...current, [line.key]: value }))} /></label>)}</div>
+    <label className="finance-copy"><input type="checkbox" checked={advanced} onChange={event => setAdvanced(event.target.checked)} /><span>Show complete budget worksheet</span></label>
+    {['Revenue', 'Cost of Goods Sold', 'Expenses'].map(section => <fieldset className="budget-group" key={section}><legend>{section === 'Revenue' ? 'Sales and other revenue' : section === 'Expenses' ? 'Operating expenses' : 'Stock cost'}</legend><div className="finance-budget-grid">{visible.filter(line => line.section === section).map(line => <label key={line.key}><span>{line.label}</span><InputControl disabled={busy} aria-label={`${line.label} budget`} type="number" inputMode="decimal" min="0" max="21474836.47" step="0.01" placeholder="0.00" value={amounts[line.key] ?? ''} onValueChange={value => setAmounts(current => ({ ...current, [line.key]: value }))} /></label>)}</div>{section === 'Expenses' && !visible.some(line => line.section === section) && <p>No expense lines yet. Add rent, utilities or another cost below.</p>}</fieldset>)}
+    {remaining.length > 0 && <label><span>Add a budget line</span><SelectControl aria-label="Add a budget line" value="" onValueChange={key => setAdded(current => [...current, key])} options={[{ value: '', label: 'Choose a line' }, ...remaining.map(line => ({ value: line.key, label: line.label }))]} /></label>}
     {invalid && <p className="form-error" role="alert">Use amounts with no more than two decimal places.</p>}
-    <label className="finance-copy"><input type="checkbox" disabled={busy} checked={copyToYear} onChange={event => setCopy(event.target.checked)} /><span>Copy these amounts to all 12 months of {report.year}. This replaces budgets already set for those months.</span></label>
-    <button className="button" disabled={busy || readOnly}>{copyToYear ? `Save for all of ${report.year}` : `Save ${monthName(month)} budget`}</button>{(dirty || copyDirty) && <button className="button secondary" type="button" disabled={busy} onClick={() => { clearAmounts(); clearCopy(); }}>Discard this month’s draft</button>}
+    <div className="budget-save-bar"><p role="status">Planned {planned < 0 ? 'loss' : 'profit'} <strong>{money(Math.abs(planned))}</strong></p><button className="button" disabled={busy || readOnly}>{busy ? 'Saving…' : `Save ${monthName(month)} budget`}</button>{dirty && <button className="button secondary" type="button" disabled={busy} onClick={() => { clearAmounts(); clearTargets(); }}>Discard this month’s draft</button>}</div>
+    <button className="button secondary" type="button" aria-expanded={copyOpen} onClick={() => setCopyOpen(value => !value)}>Copy this month…</button>
+    {copyOpen && <fieldset className="budget-copy-panel"><legend>Copy {monthName(month)} amounts</legend><p>This saves the amounts above to the selected months. Existing budgets in those months are replaced.</p><label className="finance-copy"><input type="checkbox" disabled={busy} checked={targets.length === 12} onChange={event => setTargets(event.target.checked ? report.months.map(row => row.month) : [])} /><span>Copy these amounts to all 12 months of {report.year}</span></label><div className="budget-months">{report.months.map(row => <label key={row.month}><input type="checkbox" disabled={busy} checked={targets.includes(row.month)} onChange={event => setTargets(current => event.target.checked ? [...current, row.month] : current.filter(value => value !== row.month))} />{monthName(row.month)}{row.hasBudget ? ' (replace budget)' : ' (no budget)'}</label>)}</div><p role="status">Selected: {targets.length ? report.months.filter(row => targets.includes(row.month)).map(row => `${monthName(row.month)}${row.hasBudget ? ' (replace)' : ' (new)'}`).join(', ') : 'No months selected'}.</p><p>If a connection fails during a selected-month copy, earlier months may already be saved. Retry the same selection to finish.</p><button className="button" type="button" disabled={!targets.length || busy || readOnly} onClick={() => commit(true)}>{targets.length === 12 ? `Save for all of ${report.year}` : `Copy to ${targets.length} selected months`}</button></fieldset>}
   </form></Panel>;
 }
 

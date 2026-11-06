@@ -112,7 +112,9 @@ test('fills a year from one month and records exact cents', async ({ page }) => 
   await page.goto('/finance');
   await page.getByRole('status').filter({ hasText: 'No budget set' }).getByRole('button', { name: 'Set budget' }).click();
   await page.getByLabel('Sales Revenue budget').fill('1.15');
+  await page.getByRole('button', { name: 'Copy this month…' }).click();
   await page.getByLabel('Copy these amounts to all 12 months').check();
+  await expect(page.getByRole('status').filter({ hasText: 'Selected:' })).toContainText('December (new)');
   await page.getByRole('button', { name: `Save for all of ${year}` }).click();
   await expect(page.getByRole('status').filter({ hasText: 'No budget set' })).toHaveCount(0);
   expect(saved?.copyToYear).toBe(true);
@@ -385,3 +387,25 @@ for (const width of [390, 1440]) {
     await uiuxEvidence(page, 'ux02-overview-today');
   });
 }
+
+for (const width of [390, 1440]) test(`simple budget shows used lines and live profit at ${width}px`, async ({ page }) => {
+  await page.setViewportSize({ width, height: 900 });
+  const data = { report: report(0) };
+  data.report.categories.push({ id: 'legal', name: 'Legal fees', isActive: true });
+  for (const month of data.report.months) month.lines.push(line('expense:legal', 'Legal fees', 'Expenses', 0, 0, true));
+  await session(page, data);
+  await page.goto('/finance');
+  await page.getByRole('button', { name: 'Set budget', exact: true }).first().click();
+  await expect(page.getByLabel('Legal fees budget')).toHaveCount(0);
+  await page.getByLabel('Sales Revenue budget').fill('1000');
+  await page.getByLabel('Cost of Goods Sold budget').fill('400');
+  await page.getByLabel('Rent or Lease budget').fill('200');
+  await expect(page.locator('.budget-save-bar')).toContainText('400.00');
+  await page.getByRole('combobox', { name: 'Add a budget line' }).click();
+  await page.getByRole('option', { name: 'Legal fees', exact: true }).click();
+  await expect(page.getByLabel('Legal fees budget')).toBeVisible();
+  await uiuxEvidence(page, 'ux07-budget');
+  await page.getByRole('button', { name: 'Copy this month…' }).click();
+  await page.getByLabel('December (no budget)', { exact: true }).check();
+  await expect(page.getByRole('status').filter({ hasText: 'Selected:' })).toHaveText('Selected: December (new).');
+});
