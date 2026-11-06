@@ -1946,3 +1946,10 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px soli
 }
 
 .finance-draft-status { margin: 0 0 16px; padding: 12px 16px; border-left: 3px solid var(--violet); color: var(--ink-soft); background: var(--violet-soft); font-size: 14px; line-height: 1.5; }
+
+.movement-correction-details { display: grid; gap: 12px; margin: 20px 0; }
+.movement-correction-details div { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 12px; }
+.movement-correction-details dt { color: var(--muted); font-size: 13px; }
+.movement-correction-details dd { margin: 0; color: var(--ink); font-size: 14px; overflow-wrap: anywhere; }
+.movement-correction-effect { padding: 12px; border-radius: 10px; color: var(--ink-soft); background: var(--violet-soft); font-size: 14px; line-height: 1.5; }
+.movement-correction-dialog .dialog-actions { flex-wrap: wrap; margin-top: 20px; }

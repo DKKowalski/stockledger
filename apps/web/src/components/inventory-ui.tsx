@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import type { ReactNode } from 'react';
+import type { ReactNode, Ref } from 'react';
 import { useInventoryStore } from '../app/inventory-store';
 import { useCompanySettings } from '../app/company-settings-store';
 import type { Position } from '../types';
@@ -31,8 +31,8 @@ export function Kpi({ icon: Icon, label, value, note, tone = '', amount = false 
   </article>;
 }
 
-export function Panel({ title, subtitle, className = '', tour, children }: { title: string; subtitle?: string; className?: string; tour?: string; children: ReactNode }) {
-  return <section className={`panel ${className}`} data-tour={tour}><div className="panel-header"><h2>{title}</h2>{subtitle && <p>{subtitle}</p>}</div>{children}</section>;
+export function Panel({ title, subtitle, className = '', tour, headingRef, children }: { title: string; subtitle?: string; className?: string; tour?: string; headingRef?: Ref<HTMLHeadingElement>; children: ReactNode }) {
+  return <section className={`panel ${className}`} data-tour={tour}><div className="panel-header"><h2 ref={headingRef} tabIndex={headingRef ? -1 : undefined}>{title}</h2>{subtitle && <p>{subtitle}</p>}</div>{children}</section>;
 }
 
 export function LocationFilter() {

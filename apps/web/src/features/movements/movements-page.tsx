@@ -1,9 +1,10 @@
+import { Dialog } from '@base-ui/react/dialog';
 import { DatePicker } from '../../components/ui/date-picker';
 import { DateRangePicker } from '../../components/ui/date-range-picker';
 import { companyDay, rangeQuery, type DateRangeValue } from '../../lib/date-range';
 import { HybridOperationsPanels } from './hybrid-operations-panels';
 import { Trash2 } from 'lucide-react';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { NavLink, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { api } from '../../api';
@@ -15,6 +16,7 @@ import { InfoTooltip } from '../../components/ui/info-tooltip';
 import { InputControl } from '../../components/ui/input-control';
 import { AsyncActionButton } from '../../components/ui/async-action-button';
 import { useAsyncActionState } from '../../components/ui/use-async-action-state';
+import { safeErrorMessage } from '../../lib/user-facing-error';
 import { movementMeta } from '../../lib/presentation';
 import type { Movement, MovementType, ReturnableSale, Supplier } from '../../types';
 
@@ -46,6 +48,11 @@ export function MovementsPage() {
   const items = snapshot?.items.filter((item) => item.isActive) ?? [];
   const places = snapshot?.locations ?? [];
   const [ledger, setLedger] = useState<{ rows: Movement[]; total: number } | null>(null);
+  const [deleting, setDeleting] = useState<Movement | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const deleteTrigger = useRef<HTMLButtonElement | null>(null);
+  const cancelDelete = useRef<HTMLButtonElement | null>(null);
+  const ledgerFocus = useRef<HTMLHeadingElement | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [sales, setSales] = useState<ReturnableSale[]>([]);
   const rows = ledger?.rows ?? [];
@@ -123,10 +130,37 @@ export function MovementsPage() {
       </form>
     </Panel>
     <HybridOperationsPanels />
-    <Panel title={`Movement ledger (${ledger?.total ?? 0})`} className="spaced">
+    <Panel headingRef={ledgerFocus} title={`Movement ledger (${ledger?.total ?? 0})`} className="spaced">
       <div className="filter-row"><DateRangePicker allowAll value={range} onChange={setRange} /><label><span className="sr-only">Filter movement type</span><SelectControl aria-label="Filter movement type" value={filter} onValueChange={(value) => setFilter(value as typeof filter)} options={[{ value: 'all', label: 'All movement types' }, ...Object.entries(movementMeta).map(([value, meta]) => ({ value, label: meta.label }))]} /></label></div>
-      {rows.length ? <div className="table-wrap"><table><thead><tr><th>Date</th><th>Item</th><th>Type</th><th>Place</th><th>Reference</th><th className="num">Qty</th><th className="num">Unit cost</th><th className="num">Sale total</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>{rows.map((movement) => <tr key={movement.id}><td>{calendarDate(movement.movementDate)}</td><td><b>{movement.item?.name ?? 'Deleted item'}</b><small>{movement.note}</small></td><td>{movementMeta[movement.type].label}</td><td>{movement.destination ? `${movement.location?.name ?? 'Unknown'} → ${movement.destination.name}` : movement.location?.name ?? 'Unknown'}</td><td>{movement.reference || suppliers.find((supplier) => supplier.id === movement.supplierId)?.name || '—'}</td><td className={`num ${movement.sign === 1 ? 'positive' : 'negative'}`}>{movement.sign === 1 ? '+' : '−'}{movement.quantity}</td><td className="num">{movement.unitCostCents == null ? '—' : money(movement.unitCostCents)}</td><td className="num">{movement.saleTotalCents == null ? '—' : money(movement.saleTotalCents)}</td><td className="num">{movement.saleId ? <span className="account-owner-label">Reversal required</span> : movement.stockCountId ? <span className="account-owner-label">Counted</span> : <button className="icon-button" aria-label="Delete movement" disabled={busy} onClick={() => accessToken && void mutate(() => api.deleteMovement(accessToken, movement.id), 'The stock movement was removed.')}><Trash2 size={16} /></button>}</td></tr>)}</tbody></table></div> : ledger ? <EmptyState text="No movements match this filter." /> : <div className="empty"><p>Loading movements</p></div>}
+      {rows.length ? <div className="table-wrap"><table><thead><tr><th>Date</th><th>Item</th><th>Type</th><th>Place</th><th>Reference</th><th className="num">Qty</th><th className="num">Unit cost</th><th className="num">Sale total</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>{rows.map((movement) => <tr key={movement.id}><td>{calendarDate(movement.movementDate)}</td><td><b>{movement.item?.name ?? 'Deleted item'}</b><small>{movement.note}</small></td><td>{movementMeta[movement.type].label}</td><td>{movement.destination ? `${movement.location?.name ?? 'Unknown'} → ${movement.destination.name}` : movement.location?.name ?? 'Unknown'}</td><td>{movement.reference || suppliers.find((supplier) => supplier.id === movement.supplierId)?.name || '—'}</td><td className={`num ${movement.sign === 1 ? 'positive' : 'negative'}`}>{movement.sign === 1 ? '+' : '−'}{movement.quantity}</td><td className="num">{movement.unitCostCents == null ? '—' : money(movement.unitCostCents)}</td><td className="num">{movement.saleTotalCents == null ? '—' : money(movement.saleTotalCents)}</td><td className="num">{movement.saleId ? <span className="account-owner-label">Reversal required</span> : movement.stockCountId ? <span className="account-owner-label">Counted</span> : <button className="icon-button" aria-label={`Correct movement for ${movement.item?.name ?? 'deleted item'}`} disabled={busy} onClick={event => { deleteTrigger.current = event.currentTarget; setDeleteError(null); setDeleting(movement); }}><Trash2 size={16} /></button>}</td></tr>)}</tbody></table></div> : ledger ? <EmptyState text="No movements match this filter." /> : <div className="empty"><p>Loading movements</p></div>}
       {ledger && rows.length < ledger.total && <div className="ledger-more"><button className="button secondary" disabled={loadingMore} onClick={() => void loadMore()} type="button">{loadingMore ? 'Loading' : `Show more (${ledger.total - rows.length} left)`}</button></div>}
     </Panel>
+    <Dialog.Root open={Boolean(deleting)} onOpenChange={open => { if (!open && !busy) setDeleting(null); }}>
+      <Dialog.Portal><Dialog.Backdrop className="team-share-backdrop" /><Dialog.Viewport className="team-share-viewport">
+        <Dialog.Popup className="team-share-dialog movement-correction-dialog" initialFocus={cancelDelete} finalFocus={() => deleteTrigger.current?.isConnected ? deleteTrigger.current : ledgerFocus.current}>
+          {deleting && <>
+            <div className="team-share-heading"><div><Dialog.Title>Remove this {deleting.type === 'purchase' ? 'receipt' : 'movement'}?</Dialog.Title><Dialog.Description>Check this record before removing it. This cannot be undone here.</Dialog.Description></div></div>
+            <dl className="movement-correction-details">
+              <div><dt>Item</dt><dd>{deleting.item?.name ?? 'Deleted item'} · {deleting.item?.sku}</dd></div>
+              <div><dt>Record</dt><dd>{movementMeta[deleting.type].label} · {calendarDate(deleting.movementDate)} · {deleting.quantity} {deleting.item?.unit ?? 'units'}</dd></div>
+              <div><dt>Place</dt><dd>{deleting.location?.name ?? 'Unknown'}{deleting.destination && ` → ${deleting.destination.name}`}</dd></div>
+              {deleting.reference && <div><dt>Reference</dt><dd>{deleting.reference}</dd></div>}
+              {deleting.note && <div><dt>Note</dt><dd>{deleting.note}</dd></div>}
+              {deleting.unitCostCents !== null && <div><dt>Recorded unit cost</dt><dd>{money(deleting.unitCostCents)}</dd></div>}
+              {deleting.saleTotalCents !== null && <div><dt>Recorded sale total to remove</dt><dd>{money(deleting.saleTotalCents)}</dd></div>}
+            </dl>
+            <p className="movement-correction-effect">{deleting.type === 'transfer'
+              ? `Stock increases by ${deleting.quantity} at ${deleting.location?.name ?? 'the source'} and decreases by ${deleting.quantity} at ${deleting.destination?.name ?? 'the destination'}.`
+              : `Stock ${['purchase', 'return_in', 'adjustment_in'].includes(deleting.type) ? 'decreases' : 'increases'} by ${deleting.quantity} at ${deleting.location?.name ?? 'this place'}.`} Stock values and reports will be recalculated. Records needed by later stock movements cannot be removed.</p>
+            {deleteError && <p role="alert" className="form-error">{deleteError}</p>}
+            <div className="dialog-actions"><Dialog.Close ref={cancelDelete} className="button secondary" disabled={busy}>Cancel</Dialog.Close><button className="button danger-button" disabled={busy} onClick={() => {
+              if (!accessToken) return;
+              setDeleteError(null);
+              void mutate(() => api.deleteMovement(accessToken, deleting.id), 'The stock movement was removed.').then(() => { deleteTrigger.current = null; setDeleting(null); }).catch(caught => setDeleteError(safeErrorMessage(caught, 'Could not remove this movement. Try again.')));
+            }}>{busy ? 'Removing…' : deleting.type === 'purchase' ? 'Remove this receipt' : 'Remove this movement'}</button></div>
+          </>}
+        </Dialog.Popup>
+      </Dialog.Viewport></Dialog.Portal>
+    </Dialog.Root>
   </PageState>;
 }
