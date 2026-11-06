@@ -93,7 +93,7 @@ export function LandingPage() {
           <p className="landing-lede">StockLedger keeps your warehouses, shops, movements, and selling prices in one shared record your team can trust.</p>
           <div className="landing-hero-actions">
             <Link className="landing-button" to="/signup">Create your workspace<ArrowUpRight size={17} /></Link>
-            <a className="landing-text-link" href="#product">See the product<ArrowRight size={15} /></a>
+            <Link className="landing-text-link" to="/login">Sign in<ArrowRight size={15} /></Link>
           </div>
           <p className="landing-hero-note"><Check size={14} />Start with a spreadsheet or a clean catalog.</p>
         </div>

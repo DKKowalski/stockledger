@@ -1154,7 +1154,10 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px soli
 @media (max-width: 720px) {
   .landing-nav-inner { height: 66px; padding-inline: 16px; }
   .landing-nav-actions { gap: 13px; }
-  .landing-sign-in { display: none; }
+  .landing-sign-in { display: inline-flex; align-items: center; min-height: 44px; padding-inline: 8px; }
+  .landing-nav-actions { gap: 4px; }
+  .landing-nav-actions .landing-button-small { padding-inline: 9px; min-height: 44px; font-size: 11px; }
+  .landing-brand { font-size: 16px; gap: 5px; }
   .landing-button-small { min-height: 38px; }
   .landing-hero { padding: 62px 16px 0; }
   .landing-hero h1 { margin-top: 19px; font-size: clamp(45px, 14.5vw, 72px); line-height: .94; }
@@ -2047,3 +2050,5 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px soli
 .sell-form fieldset { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); gap: 16px; min-width: 0; padding: 0; margin: 0; border: 0; }
 
 .form-grid label > .quantity-label:first-child { display: block; }
+
+.landing-sign-in { display: inline-flex; align-items: center; min-height: 44px; }
