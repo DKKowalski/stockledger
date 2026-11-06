@@ -1,3 +1,4 @@
+import { uiuxEvidence } from './helpers/uiux-evidence';
 import { clickDay, openCustom } from './helpers/calendar';
 import { expect, test, type Page } from '@playwright/test';
 import type { FinanceBudgetInput, FinanceLine, FinanceReport } from '../../apps/web/src/features/finance/finance-types';
@@ -273,4 +274,58 @@ test('finance entries use the custom calendar range only after Apply and print n
   await page.getByRole('button', { name: /^Entry date:/ }).click();
   await page.emulateMedia({ media: 'print' });
   await expect(page.locator('.calendar-positioner')).toBeHidden();
+});
+
+for (const width of [390, 1440]) {
+  test(`keeps separate Finance drafts across editors, views and budget months at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await session(page, { report: runningYear(10000) });
+    await page.goto('/finance');
+    await page.getByRole('button', { name: 'Expenses and other revenue', exact: true }).click();
+    await page.getByLabel('Entry amount').fill('37.50');
+    await page.getByLabel('Entry note').fill('Delivery still to check');
+    await uiuxEvidence(page, 'ux03-entry-draft');
+    await page.getByRole('button', { name: 'Set budget', exact: true }).click();
+    await page.getByLabel('Sales Revenue budget', { exact: true }).fill('222.00');
+    await page.getByRole('combobox', { name: 'Budget month' }).click();
+    await page.getByRole('option', { name: 'October 2026', exact: true }).click();
+    await page.getByLabel('Sales Revenue budget', { exact: true }).fill('333.00');
+    await page.getByRole('combobox', { name: 'Budget month' }).click();
+    await page.getByRole('option', { name: 'November 2026', exact: true }).click();
+    await expect(page.getByLabel('Sales Revenue budget', { exact: true })).toHaveValue('222.00');
+    await page.getByRole('button', { name: 'Categories', exact: true }).click();
+    await page.getByLabel('New category', { exact: true }).fill('Delivery');
+    await page.getByRole('tab', { name: 'Yearly', exact: true }).click();
+    await page.getByRole('button', { name: 'Expenses and other revenue', exact: true }).click();
+    await expect(page.getByLabel('Entry amount')).toHaveValue('37.50');
+    await expect(page.getByLabel('Entry note')).toHaveValue('Delivery still to check');
+    await page.getByRole('button', { name: 'Categories', exact: true }).click();
+    await expect(page.getByLabel('New category', { exact: true })).toHaveValue('Delivery');
+    await uiuxEvidence(page, 'ux03-category-draft');
+    await page.getByRole('button', { name: 'Set budget', exact: true }).click();
+    await expect(page.getByLabel('Sales Revenue budget', { exact: true })).toHaveValue('222.00');
+    await uiuxEvidence(page, 'ux03-budget-draft');
+    await page.getByRole('button', { name: 'Discard this month’s draft' }).click();
+    await expect(page.getByLabel('Sales Revenue budget', { exact: true })).toHaveValue('100.00');
+  });
+}
+
+test('retains a failed Finance entry and clears it only after a successful retry', async ({ page }) => {
+  await session(page, { report: runningYear(10000) });
+  let fail = true;
+  await page.route('**/finance/entries', route => route.fulfill(fail ? { status: 503, json: { message: 'Unavailable' } } : { status: 201, json: { id: 'saved-entry' } }));
+  await page.goto('/finance');
+  await page.getByRole('button', { name: 'Expenses and other revenue', exact: true }).click();
+  await page.getByLabel('Entry amount').fill('24.50');
+  await page.getByLabel('Entry note').fill('Transport');
+  await page.getByRole('button', { name: 'Record entry', exact: true }).click();
+  await expect(page.getByText('Could not save finance records', { exact: false })).toBeVisible();
+  await page.getByRole('button', { name: 'Set budget', exact: true }).click();
+  await page.getByRole('button', { name: 'Expenses and other revenue', exact: true }).click();
+  await expect(page.getByLabel('Entry amount')).toHaveValue('24.50');
+  await expect(page.getByLabel('Entry note')).toHaveValue('Transport');
+  fail = false;
+  await page.getByRole('button', { name: 'Record entry', exact: true }).click();
+  await expect(page.getByLabel('Entry amount')).toHaveValue('');
+  await expect(page.getByLabel('Entry note')).toHaveValue('');
 });

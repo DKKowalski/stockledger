@@ -1,6 +1,6 @@
 import { DatePicker } from '../../components/ui/date-picker';
 import { CircleAlert, Download, Printer } from 'lucide-react';
-import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState, type Dispatch, type SetStateAction, type FormEvent, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { ApiError, api } from '../../api';
@@ -19,6 +19,18 @@ type View = 'month' | 'months' | 'year';
 type Editor = 'budget' | 'entries' | 'categories' | null;
 type Metric = 'actual' | 'budget' | 'variance';
 
+// Drafts belong to this signed-in Finance page, not an editor's mount lifetime.
+// Nothing is persisted to shared-device storage. Period keys keep budgets separate.
+type Drafts = Record<string, unknown>;
+const DraftContext = createContext<{ drafts: Drafts; setDrafts: Dispatch<SetStateAction<Drafts>> } | null>(null);
+function useFinanceDraft<T,>(key: string, initial: T) {
+  const { drafts, setDrafts } = useContext(DraftContext)!;
+  const value = key in drafts ? drafts[key] as T : initial;
+  const setValue = (next: SetStateAction<T>) => setDrafts(current => ({ ...current, [key]: typeof next === 'function' ? (next as (value: T) => T)(key in current ? current[key] as T : initial) : next }));
+  const clear = () => setDrafts(current => { const next = { ...current }; delete next[key]; return next; });
+  return [value, setValue, clear, key in drafts] as const;
+}
+
 const views = [{ value: 'month', label: 'Month' }, { value: 'months', label: 'All months' }, { value: 'year', label: 'Yearly' }] as const;
 const monthName = (month: string, format: 'long' | 'short' = 'long') => new Intl.DateTimeFormat(undefined, { month: format, timeZone: 'UTC' }).format(new Date(`${month}-01T12:00:00Z`));
 const lineOf = (period: FinancePeriod, key: string) => period.lines.find(line => line.key === key)!;
@@ -35,6 +47,7 @@ export function FinancePage() {
   const [monthNumber, setMonthNumber] = useState(today.slice(5, 7));
   const [view, setView] = useState<View>('month');
   const [editor, setEditor] = useState<Editor>(null);
+  const [drafts, setDrafts] = useState<Drafts>({});
   const [report, setReport] = useState<FinanceReport | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -87,7 +100,7 @@ export function FinancePage() {
   const toggle = (next: Exclude<Editor, null>) => setEditor(editor === next ? null : next);
   const editorButton = (name: Exclude<Editor, null>, label: string) => <button className={`button secondary ${editor === name ? 'is-active' : ''}`} type="button" aria-expanded={editor === name} onClick={() => toggle(name)}>{label}</button>;
 
-  return <div className={`finance-page finance-view-${view}`}>
+  return <DraftContext.Provider value={{ drafts, setDrafts }}><div className={`finance-page finance-view-${view}`}>
     <div className="finance-controls">
       <PageHeader title="Finance" subtitle="Budget vs actual profit and loss" actions={<><button className="button secondary" type="button" disabled={!loaded || busy} onClick={() => void exportFile()}><Download size={16} />Export CSV</button><button className="button secondary" type="button" disabled={!loaded} onClick={() => window.print()}><Printer size={16} />Print</button></>} />
       <MotionTabs aria-label="Finance report view" items={views} value={view} onValueChange={setView} />
@@ -97,6 +110,7 @@ export function FinancePage() {
         <div className="finance-editor-buttons">{editorButton('budget', 'Set budget')}{editorButton('entries', 'Expenses and other revenue')}{editorButton('categories', 'Categories')}</div>
       </section>
     </div>
+    {Object.keys(drafts).some(key => key !== 'entryEditing') && <p className="finance-draft-status" role="status">Unsaved Finance drafts are kept while you switch editors, views and months. Save or discard them in their editor. Leaving Finance or reloading clears them.</p>}
     {error && <p role="alert" className="form-error">{error}</p>}
     {loaded && selectedMonth && <>
       <div className="finance-controls">
@@ -119,7 +133,7 @@ export function FinancePage() {
       </section>
     </>}
     {!report && !error && <EmptyState text="Loading finance report" />}
-  </div>;
+  </div></DraftContext.Provider>;
 }
 
 const statusLabel: Record<FinanceStatus, string> = { complete: 'Complete', in_progress: 'In progress', future: 'Not started' };
@@ -218,22 +232,22 @@ const toAmount = (cents: number) => (cents === 0 ? '' : (Math.abs(cents) / 100).
 function BudgetEditor({ report, month, setMonth, busy, readOnly, save }: { report: FinanceReport; month: string; setMonth: (month: string) => void; busy: boolean; readOnly: boolean; save: (body: FinanceBudgetInput) => Promise<void> }) {
   const period = report.months.find(row => row.month === month)!;
   const editable = period.lines.filter(line => line.editable);
-  const [amounts, setAmounts] = useState<Record<string, string>>(Object.fromEntries(editable.map(line => [line.key, toAmount(line.budgetCents)])));
-  const [copyToYear, setCopy] = useState(false);
+  const [amounts, setAmounts, clearAmounts, dirty] = useFinanceDraft<Record<string, string>>(`budget:${month}`, Object.fromEntries(editable.map(line => [line.key, toAmount(line.budgetCents)])));
+  const [copyToYear, setCopy, clearCopy, copyDirty] = useFinanceDraft(`copy:${month}`, false);
   const [invalid, setInvalid] = useState(false);
   const submit = (event: FormEvent) => {
     event.preventDefault();
     const lines = editable.map(line => ({ lineKey: line.key, amountCents: amounts[line.key] ? parseMoneyCents(amounts[line.key]) : 0 }));
     if (lines.some(line => line.amountCents === null)) { setInvalid(true); return; }
     setInvalid(false);
-    void save({ month: `${month}-01`, copyToYear, lines: lines as FinanceBudgetInput['lines'] }).catch(() => {});
+    void save({ month: `${month}-01`, copyToYear, lines: lines as FinanceBudgetInput['lines'] }).then(() => { clearAmounts(); clearCopy(); }).catch(() => {});
   };
   return <Panel className="finance-management" title="Monthly budget" subtitle={`Enter positive amounts in ${report.company.currency}. Sales discounts and returns are deducted from revenue for you.`}><form className="finance-budget-form" onSubmit={submit}>
-    <label className="finance-budget-month"><span>Budget month</span><SelectControl aria-label="Budget month" value={month.slice(5, 7)} onValueChange={setMonth} options={report.months.map(row => ({ value: row.month.slice(5, 7), label: `${monthName(row.month)} ${report.year}` }))} /></label>
-    <div className="finance-budget-grid">{editable.map(line => <label key={line.key}><span>{line.label}</span><InputControl aria-label={`${line.label} budget`} type="number" inputMode="decimal" min="0" max="21474836.47" step="0.01" placeholder="0.00" value={amounts[line.key]} onValueChange={value => setAmounts(current => ({ ...current, [line.key]: value }))} /></label>)}</div>
+    <label className="finance-budget-month"><span>Budget month</span><SelectControl disabled={busy} aria-label="Budget month" value={month.slice(5, 7)} onValueChange={setMonth} options={report.months.map(row => ({ value: row.month.slice(5, 7), label: `${monthName(row.month)} ${report.year}` }))} /></label>
+    <div className="finance-budget-grid">{editable.map(line => <label key={line.key}><span>{line.label}</span><InputControl disabled={busy} aria-label={`${line.label} budget`} type="number" inputMode="decimal" min="0" max="21474836.47" step="0.01" placeholder="0.00" value={amounts[line.key]} onValueChange={value => setAmounts(current => ({ ...current, [line.key]: value }))} /></label>)}</div>
     {invalid && <p className="form-error" role="alert">Use amounts with no more than two decimal places.</p>}
-    <label className="finance-copy"><input type="checkbox" checked={copyToYear} onChange={event => setCopy(event.target.checked)} /><span>Copy these amounts to all 12 months of {report.year}. This replaces budgets already set for those months.</span></label>
-    <button className="button" disabled={busy || readOnly}>{copyToYear ? `Save for all of ${report.year}` : `Save ${monthName(month)} budget`}</button>
+    <label className="finance-copy"><input type="checkbox" disabled={busy} checked={copyToYear} onChange={event => setCopy(event.target.checked)} /><span>Copy these amounts to all 12 months of {report.year}. This replaces budgets already set for those months.</span></label>
+    <button className="button" disabled={busy || readOnly}>{copyToYear ? `Save for all of ${report.year}` : `Save ${monthName(month)} budget`}</button>{(dirty || copyDirty) && <button className="button secondary" type="button" disabled={busy} onClick={() => { clearAmounts(); clearCopy(); }}>Discard this month’s draft</button>}
   </form></Panel>;
 }
 
@@ -241,9 +255,10 @@ function EntryEditor({ report, revision, busy, readOnly, save, remove }: { repor
   const { accessToken } = useAuth();
   const { money, calendarDate } = useCompanySettings();
   const blank = { kind: 'expense' as FinanceEntry['kind'], categoryId: report.categories.find(category => category.isActive)?.id ?? '', entryDate: companyDay(report.company.timeZone), amount: '', note: '' };
-  const [editing, setEditing] = useState<string | undefined>();
+  const [editing, setEditing] = useFinanceDraft<string | undefined>('entryEditing', undefined);
   const [deleting, setDeleting] = useState<string | null>(null);
-  const [form, setForm] = useState(blank);
+  const { drafts, setDrafts } = useContext(DraftContext)!;
+  const [form, setForm, clearForm, dirty] = useFinanceDraft(`entry:${editing ?? 'new'}`, blank);
   const [invalid, setInvalid] = useState(false);
   const [range, setRange] = useState<DateRangeValue>({ days: null, from: `${report.year}-01-01`, to: `${report.year}-12-31` });
   const [list, setList] = useState<FinanceEntryList | null>(null);
@@ -260,37 +275,37 @@ function EntryEditor({ report, revision, busy, readOnly, save, remove }: { repor
     const amountCents = parseMoneyCents(form.amount);
     if (!amountCents) { setInvalid(true); return; }
     setInvalid(false);
-    void save({ kind: form.kind, ...(form.kind === 'expense' ? { categoryId: form.categoryId } : {}), entryDate: form.entryDate, amountCents, note: form.note }, editing).then(() => { setEditing(undefined); setForm({ ...form, amount: '', note: '' }); }).catch(() => {});
+    void save({ kind: form.kind, ...(form.kind === 'expense' ? { categoryId: form.categoryId } : {}), entryDate: form.entryDate, amountCents, note: form.note }, editing).then(() => { clearForm(); setEditing(undefined); }).catch(() => {});
   };
   // An archived category stays selectable only for the entry already filed under it.
   const options = report.categories.filter(category => category.isActive || category.id === form.categoryId).map(category => ({ value: category.id, label: category.isActive ? category.name : `${category.name} (archived)` }));
   return <Panel className="finance-management" title="Expenses and other revenue" subtitle="Each entry counts in the report on its own date.">
     <form className="finance-entry-form" onSubmit={submit}>
-      <label><span>Entry type</span><SelectControl aria-label="Entry type" value={form.kind} onValueChange={value => setForm({ ...form, kind: value as FinanceEntry['kind'] })} options={[{ value: 'expense', label: 'Operating expense' }, { value: 'other_revenue', label: 'Other revenue' }]} /></label>
-      {form.kind === 'expense' && <label><span>Expense category</span><SelectControl aria-label="Expense category" required value={form.categoryId} onValueChange={categoryId => setForm({ ...form, categoryId })} options={options} /></label>}
-      <label><span>Date</span><DatePicker label="Entry date" aria-label="Entry date" required value={form.entryDate} onValueChange={entryDate => setForm({ ...form, entryDate })} /></label>
-      <label><span>Amount ({report.company.currency})</span><InputControl aria-label="Entry amount" type="number" inputMode="decimal" required min="0.01" max="21474836.47" step="0.01" value={form.amount} onValueChange={amount => setForm({ ...form, amount })} /></label>
-      <label className="finance-entry-note"><span>Note</span><InputControl aria-label="Entry note" maxLength={500} value={form.note} onValueChange={note => setForm({ ...form, note })} /></label>
-      <div className="finance-entry-actions"><button className="button" disabled={busy || readOnly}>{editing ? 'Save changes' : 'Record entry'}</button>{editing && <button type="button" className="button secondary" onClick={() => { setEditing(undefined); setForm({ ...blank, kind: form.kind }); }}>Cancel</button>}</div>
+      <label><span>Entry type</span><SelectControl disabled={busy} aria-label="Entry type" value={form.kind} onValueChange={value => setForm({ ...form, kind: value as FinanceEntry['kind'] })} options={[{ value: 'expense', label: 'Operating expense' }, { value: 'other_revenue', label: 'Other revenue' }]} /></label>
+      {form.kind === 'expense' && <label><span>Expense category</span><SelectControl disabled={busy} aria-label="Expense category" required value={form.categoryId} onValueChange={categoryId => setForm({ ...form, categoryId })} options={options} /></label>}
+      <label><span>Date</span><DatePicker disabled={busy} label="Entry date" aria-label="Entry date" required value={form.entryDate} onValueChange={entryDate => setForm({ ...form, entryDate })} /></label>
+      <label><span>Amount ({report.company.currency})</span><InputControl disabled={busy} aria-label="Entry amount" type="number" inputMode="decimal" required min="0.01" max="21474836.47" step="0.01" value={form.amount} onValueChange={amount => setForm({ ...form, amount })} /></label>
+      <label className="finance-entry-note"><span>Note</span><InputControl disabled={busy} aria-label="Entry note" maxLength={500} value={form.note} onValueChange={note => setForm({ ...form, note })} /></label>
+      <div className="finance-entry-actions"><button className="button" disabled={busy || readOnly}>{editing ? 'Save changes' : 'Record entry'}</button>{editing && <button type="button" className="button secondary" onClick={() => setEditing(undefined)}>Back to new entry</button>}{dirty && <button type="button" className="button secondary" disabled={busy} onClick={() => { clearForm(); setEditing(undefined); }}>Discard entry draft</button>}</div>
       {invalid && <p className="form-error" role="alert">Enter an amount above zero with no more than two decimal places.</p>}
     </form>
     <div className="finance-entry-filter"><DateRangePicker allowAll value={range} onChange={setRange} label="Finance entry period" /></div>
     {list?.truncated && <div className="finance-entry-filter"><Notice title={`Showing the latest ${list.limit} entries`}>Older entries in this period are not listed, so narrow the dates to find them. The report totals are not affected and include every entry.</Notice></div>}
     {loadError ? <p className="form-error" role="alert">Could not load entries. Try again.</p> : rows === null ? <EmptyState text="Loading entries" /> : rows.length ? <div className="table-wrap"><table><thead><tr><th>Date</th><th>Category</th><th>Note</th><th className="num">Amount</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>{rows.map(entry => <tr key={entry.id}><td>{calendarDate(entry.entryDate)}</td><td>{entry.kind === 'other_revenue' ? 'Other Revenue' : report.categories.find(category => category.id === entry.categoryId)?.name}</td><td>{entry.note || '—'}</td><td className="num">{money(entry.amountCents)}</td><td className="finance-row-actions">{deleting === entry.id
       ? <><button type="button" className="text-button negative" disabled={busy || readOnly} onClick={() => { setDeleting(null); void remove(entry.id).catch(() => {}); }}>Confirm delete</button><button type="button" className="text-button" onClick={() => setDeleting(null)}>Keep</button></>
-      : <><button type="button" className="text-button" disabled={busy} onClick={() => { setEditing(entry.id); setForm({ kind: entry.kind, categoryId: entry.categoryId ?? blank.categoryId, entryDate: entry.entryDate, amount: (entry.amountCents / 100).toFixed(2), note: entry.note }); }}>Edit</button><button type="button" className="text-button negative" disabled={busy} onClick={() => setDeleting(entry.id)}>Delete</button></>}</td></tr>)}</tbody></table></div> : <EmptyState text="No entries in this period." />}
+      : <><button type="button" className="text-button" disabled={busy} onClick={() => { const key = `entry:${entry.id}`; if (!(key in drafts)) setDrafts(current => ({ ...current, [key]: { kind: entry.kind, categoryId: entry.categoryId ?? blank.categoryId, entryDate: entry.entryDate, amount: (entry.amountCents / 100).toFixed(2), note: entry.note } })); setEditing(entry.id); }}>Edit</button><button type="button" className="text-button negative" disabled={busy} onClick={() => setDeleting(entry.id)}>Delete</button></>}</td></tr>)}</tbody></table></div> : <EmptyState text="No entries in this period." />}
   </Panel>;
 }
 
 function CategoryEditor({ categories, busy, readOnly, save }: { categories: FinanceCategory[]; busy: boolean; readOnly: boolean; save: (body: { name: string; isActive: boolean }, id?: string) => Promise<void> }) {
-  const [name, setName] = useState('');
+  const [name, setName, clearName] = useFinanceDraft('category:new', '');
   return <Panel className="finance-management" title="Expense categories" subtitle="Archived categories stop appearing in new entries but stay in reports that have amounts against them.">
-    <form className="finance-category-row finance-category-add" onSubmit={event => { event.preventDefault(); void save({ name, isActive: true }).catch(() => {}); }}><InputControl aria-label="New category" placeholder="New category" required maxLength={80} value={name} onValueChange={setName} /><button className="button" disabled={busy || readOnly}>Add category</button></form>
+    <form className="finance-category-row finance-category-add" onSubmit={event => { event.preventDefault(); void save({ name, isActive: true }).then(clearName).catch(() => {}); }}><InputControl disabled={busy} aria-label="New category" placeholder="New category" required maxLength={80} value={name} onValueChange={setName} /><button className="button" disabled={busy || readOnly}>Add category</button>{name && <button className="button secondary" type="button" disabled={busy} onClick={clearName}>Discard category draft</button>}</form>
     <div className="finance-category-list">{categories.map(category => <CategoryRow key={category.id} category={category} busy={busy} readOnly={readOnly} save={body => save(body, category.id)} />)}</div>
   </Panel>;
 }
 
 function CategoryRow({ category, busy, readOnly, save }: { category: FinanceCategory; busy: boolean; readOnly: boolean; save: (body: { name: string; isActive: boolean }) => Promise<void> }) {
-  const [name, setName] = useState(category.name);
-  return <form className={`finance-category-row ${category.isActive ? '' : 'is-archived'}`} onSubmit={event => { event.preventDefault(); void save({ name, isActive: category.isActive }).catch(() => {}); }}><InputControl aria-label={`Category name: ${category.name}`} required maxLength={80} value={name} onValueChange={setName} /><button className="button secondary" disabled={busy || readOnly || name.trim() === category.name}>Rename</button><button type="button" className="text-button" disabled={busy || readOnly} onClick={() => void save({ name: category.name, isActive: !category.isActive }).catch(() => {})}>{category.isActive ? 'Archive' : 'Restore'}</button></form>;
+  const [name, setName, clearName] = useFinanceDraft(`category:${category.id}`, category.name);
+  return <form className={`finance-category-row ${category.isActive ? '' : 'is-archived'}`} onSubmit={event => { event.preventDefault(); void save({ name, isActive: category.isActive }).then(clearName).catch(() => {}); }}><InputControl disabled={busy} aria-label={`Category name: ${category.name}`} required maxLength={80} value={name} onValueChange={setName} /><button className="button secondary" disabled={busy || readOnly || name.trim() === category.name}>Rename</button>{name !== category.name && <button className="text-button" type="button" disabled={busy} onClick={clearName}>Discard rename</button>}<button type="button" className="text-button" disabled={busy || readOnly} onClick={() => void save({ name: category.name, isActive: !category.isActive }).catch(() => {})}>{category.isActive ? 'Archive' : 'Restore'}</button></form>;
 }
