@@ -378,6 +378,7 @@ for (const width of [390, 1440]) {
     await expect(answer).toContainText('31.00');
     await expect(answer).toContainText('Cost coverage: 75%');
     await expect(answer).toContainText('not cash collected');
+    expect(new URL(requested).searchParams.get('days')).toBe('30');
     expect(new URL(requested).searchParams.get('from')).toBe('2026-11-06');
     expect(new URL(requested).searchParams.get('to')).toBe('2026-11-06');
     await expect(answer.locator('dd').first()).toBeInViewport();

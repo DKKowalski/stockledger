@@ -120,7 +120,7 @@ function OwnerTodayMoney() {
   useEffect(() => {
     if (user?.role !== 'administrator' || !accessToken || !settings) return;
     let active = true;
-    void api.profitability(accessToken, { days: 1, from: today, to: today, ...(locationId ? { locationId } : {}) })
+    void api.profitability(accessToken, { days: 30, from: today, to: today, ...(locationId ? { locationId } : {}) })
       .then(report => { if (active) { setAnswer({ scope, report }); setFailed(false); } })
       .catch(() => { if (active) { setAnswer(null); setFailed(true); } });
     return () => { active = false; };

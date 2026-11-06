@@ -37,6 +37,8 @@ for (const width of [360, 390, 1440]) {
     for (const theme of ['violet', 'cobalt']) {
       await page.evaluate(() => { history.pushState({}, '', '/'); dispatchEvent(new PopStateEvent('popstate')); });
       await page.locator('.health-legend small').first().waitFor();
+      await expect(page.locator('.today-money dd')).toHaveCount(2);
+      await expect(page.locator('.today-money')).not.toContainText('could not load');
       await page.evaluate(async value => { document.documentElement.dataset.accent = value; await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))); await Promise.all(document.getAnimations().filter(animation => animation.effect?.getTiming().iterations !== Infinity).map(animation => animation.finished.catch(() => {}))); }, theme);
       samples[`${theme}-health`] = await checkText(page, '.health-legend small, .chart-legend, .chart-period, .health-metric > span');
       // Use the shared focus treatment on an always-visible keyboard target.
