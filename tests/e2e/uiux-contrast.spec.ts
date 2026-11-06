@@ -57,6 +57,7 @@ for (const width of [360, 390, 1440]) {
       for (const [route, selector] of [['/reports', width < 600 ? '.phone-stock-identity span' : 'thead th'], ['/team', 'thead th'], ['/profitability', '.profit-filter-grid label > span']] as const) {
         await page.evaluate(target => { history.pushState({}, '', target); dispatchEvent(new PopStateEvent('popstate')); }, route);
         await page.locator(selector).first().waitFor();
+        if (route === '/profitability') await page.locator('.profit-kpis').waitFor();
         await page.evaluate(value => { document.documentElement.dataset.accent = value; }, theme);
         samples[`${theme}${route}`] = await checkText(page, selector, route === '/profitability' ? 13 : 12);
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
