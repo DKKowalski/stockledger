@@ -1,6 +1,6 @@
 import { DatePicker } from '../../components/ui/date-picker';
 import { CircleAlert, Download, Printer } from 'lucide-react';
-import { createContext, useCallback, useContext, useEffect, useState, type Dispatch, type SetStateAction, type FormEvent, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type Dispatch, type SetStateAction, type FormEvent, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { ApiError, api } from '../../api';
@@ -296,6 +296,11 @@ function EntryEditor({ report, revision, busy, readOnly, save, remove }: { repor
   const blank = { kind: 'expense' as FinanceEntry['kind'], categoryId: report.categories.find(category => category.isActive)?.id ?? '', entryDate: companyDay(report.company.timeZone), amount: '', note: '' };
   const [editing, setEditing] = useFinanceDraft<string | undefined>('entryEditing', undefined);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const entryHeading = useRef<HTMLHeadingElement>(null);
+  const editTrigger = useRef<HTMLButtonElement | null>(null);
+  const [saveFailed, setSaveFailed] = useState(false);
+  const returnToEntry = () => { setEditing(undefined); setSaveFailed(false); requestAnimationFrame(() => editTrigger.current?.focus()); };
+  const revealEditor = () => requestAnimationFrame(() => { entryHeading.current?.focus(); entryHeading.current?.scrollIntoView({ block: 'start', behavior: 'instant' }); });
   const { drafts, setDrafts } = useContext(DraftContext)!;
   const [form, setForm, clearForm, dirty] = useFinanceDraft(`entry:${editing ?? 'new'}`, blank);
   const [invalid, setInvalid] = useState(false);
@@ -320,18 +325,21 @@ function EntryEditor({ report, revision, busy, readOnly, save, remove }: { repor
     const amountCents = parseMoneyCents(form.amount);
     if (!amountCents) { setInvalid(true); return; }
     setInvalid(false);
-    void save({ kind: form.kind, ...(form.kind === 'expense' ? { categoryId: form.categoryId } : {}), entryDate: form.entryDate, amountCents, note: form.note }, editing).then(() => { clearForm(); setEditing(undefined); }).catch(() => {});
+    void save({ kind: form.kind, ...(form.kind === 'expense' ? { categoryId: form.categoryId } : {}), entryDate: form.entryDate, amountCents, note: form.note }, editing).then(() => { clearForm(); if (editing) returnToEntry(); else setSaveFailed(false); }).catch(() => setSaveFailed(true));
   };
   // An archived category stays selectable only for the entry already filed under it.
   const options = report.categories.filter(category => category.isActive || category.id === form.categoryId).map(category => ({ value: category.id, label: category.isActive ? category.name : `${category.name} (archived)` }));
-  return <Panel className="finance-management" title="Expenses and other revenue" subtitle="Each entry counts in the report on its own date.">
+  const editingEntry = list?.entries.find(entry => entry.id === editing);
+  const editingLabel = editing ? `Edit ${form.kind === 'expense' ? 'expense' : 'other revenue'} · ${calendarDate(editingEntry?.entryDate ?? form.entryDate)} · ${form.kind === 'expense' ? report.categories.find(category => category.id === form.categoryId)?.name ?? 'Expense' : 'Other revenue'}` : 'Expenses and other revenue';
+  return <Panel className="finance-management finance-entry-editor" headingRef={entryHeading} title={editingLabel} subtitle="Each entry counts in the report on its own date.">
     <form className="finance-entry-form" onSubmit={submit}>
       <label><span>Entry type</span><SelectControl disabled={busy} aria-label="Entry type" value={form.kind} onValueChange={value => setForm({ ...form, kind: value as FinanceEntry['kind'] })} options={[{ value: 'expense', label: 'Operating expense' }, { value: 'other_revenue', label: 'Other revenue' }]} /></label>
       {form.kind === 'expense' && <label><span>Expense category</span><SelectControl disabled={busy} aria-label="Expense category" required value={form.categoryId} onValueChange={categoryId => setForm({ ...form, categoryId })} options={options} /></label>}
       <label><span>Date</span><DatePicker disabled={busy} label="Entry date" aria-label="Entry date" required value={form.entryDate} onValueChange={entryDate => setForm({ ...form, entryDate })} /></label>
       <label><span>Amount ({report.company.currency})</span><InputControl disabled={busy} aria-label="Entry amount" type="number" inputMode="decimal" required min="0.01" max="21474836.47" step="0.01" value={form.amount} onValueChange={amount => setForm({ ...form, amount })} /></label>
       <label className="finance-entry-note"><span>Note</span><InputControl disabled={busy} aria-label="Entry note" maxLength={500} value={form.note} onValueChange={note => setForm({ ...form, note })} /></label>
-      <div className="finance-entry-actions"><button className="button" disabled={busy || readOnly}>{editing ? 'Save changes' : 'Record entry'}</button>{editing && <button type="button" className="button secondary" onClick={() => setEditing(undefined)}>Back to new entry</button>}{dirty && <button type="button" className="button secondary" disabled={busy} onClick={() => { clearForm(); setEditing(undefined); }}>Discard entry draft</button>}</div>
+      <div className="finance-entry-actions"><button className="button" disabled={busy || readOnly}>{busy ? 'Saving…' : editing ? 'Save changes' : 'Record entry'}</button>{editing && <button type="button" className="button secondary" disabled={busy} onClick={returnToEntry}>Cancel edit</button>}{dirty && <button type="button" className="button secondary" disabled={busy} onClick={() => { clearForm(); if (editing) returnToEntry(); }}>Discard entry draft</button>}</div>
+      {saveFailed && <p className="form-error" role="alert">The entry could not save. Your values are kept. Check your connection and try the Save action again.</p>}
       {invalid && <p className="form-error" role="alert">Enter an amount above zero with no more than two decimal places.</p>}
     </form>
     <div className="finance-entry-filter"><DateRangePicker allowAll value={range} onChange={setRange} label="Finance entry period" /></div>
@@ -339,7 +347,7 @@ function EntryEditor({ report, revision, busy, readOnly, save, remove }: { repor
     {loadError && <div className="form-error finance-read-error" role="alert"><p>Entries could not load. Check your connection, then retry the entry list. Your draft is kept.</p>{rows && entriesUpdated && <p>Displayed entries are out of date. Last loaded {entriesUpdated.toLocaleTimeString()}.</p>}<button className="button secondary" type="button" disabled={entriesLoading} onClick={() => setEntriesRetry(value => value + 1)}>{entriesLoading ? 'Retrying…' : 'Retry entries'}</button></div>}
     {rows === null ? !loadError && <EmptyState text="Loading entries" /> : rows.length ? <div className="table-wrap"><table><thead><tr><th>Date</th><th>Category</th><th>Note</th><th className="num">Amount</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>{rows.map(entry => <tr key={entry.id}><td>{calendarDate(entry.entryDate)}</td><td>{entry.kind === 'other_revenue' ? 'Other Revenue' : report.categories.find(category => category.id === entry.categoryId)?.name}</td><td>{entry.note || '—'}</td><td className="num">{money(entry.amountCents)}</td><td className="finance-row-actions">{deleting === entry.id
       ? <><button type="button" className="text-button negative" disabled={busy || readOnly} onClick={() => { setDeleting(null); void remove(entry.id).catch(() => {}); }}>Confirm delete</button><button type="button" className="text-button" onClick={() => setDeleting(null)}>Keep</button></>
-      : <><button type="button" className="text-button" disabled={busy} onClick={() => { const key = `entry:${entry.id}`; if (!(key in drafts)) setDrafts(current => ({ ...current, [key]: { kind: entry.kind, categoryId: entry.categoryId ?? blank.categoryId, entryDate: entry.entryDate, amount: (entry.amountCents / 100).toFixed(2), note: entry.note } })); setEditing(entry.id); }}>Edit</button><button type="button" className="text-button negative" disabled={busy} onClick={() => setDeleting(entry.id)}>Delete</button></>}</td></tr>)}</tbody></table></div> : <EmptyState text="No entries in this period." />}
+      : <><button type="button" className="text-button" disabled={busy} data-edit-entry={entry.id} onClick={event => { editTrigger.current = event.currentTarget; setSaveFailed(false); const key = `entry:${entry.id}`; if (!(key in drafts)) setDrafts(current => ({ ...current, [key]: { kind: entry.kind, categoryId: entry.categoryId ?? blank.categoryId, entryDate: entry.entryDate, amount: (entry.amountCents / 100).toFixed(2), note: entry.note } })); setEditing(entry.id); revealEditor(); }}>Edit</button><button type="button" className="text-button negative" disabled={busy} onClick={() => setDeleting(entry.id)}>Delete</button></>}</td></tr>)}</tbody></table></div> : <EmptyState text="No entries in this period." />}
   </Panel>;
 }
 

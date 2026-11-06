@@ -2106,3 +2106,5 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px soli
 .delivery-details { grid-column: 1 / -1; }
 .delivery-details summary { min-height: 44px; cursor: pointer; color: var(--violet-dark); font-weight: 600; }
 .delivery-details .form-grid { padding: 0; }
+
+.finance-entry-editor .panel-header h2 { scroll-margin-top: 100px; }

@@ -431,3 +431,36 @@ for (const width of [390, 1440]) test(`Finance retries failed reads without losi
   await expect(page.getByLabel('Entry note')).toHaveValue('Keep this draft');
   expect(reportReads).toBe(2); expect(entryReads).toBe(2); expect(writes).toBe(0);
 });
+
+for (const width of [390, 1440]) test(`editing a distant expense brings its context into focus and returns to its row at ${width}px`, async ({ page }) => {
+  await page.setViewportSize({ width, height: 844 });
+  await session(page, { report: report(10000) });
+  const entries = Array.from({ length: 30 }, (_, index) => ({ id: `entry-${index}`, kind: 'expense', categoryId: rent, entryDate: '2026-09-01', amountCents: 2450, note: `Delivery ${index}` }));
+  await page.route('**/finance/entries?**', route => route.fulfill({ json: { entries, truncated: false, limit: 500 } }));
+  let fail = true;
+  await page.route('**/finance/entries/entry-29', route => route.fulfill(fail ? { status: 503, json: {} } : { status: 200, json: entries[29] }));
+  await page.goto('/finance');
+  await page.getByRole('button', { name: 'Add expense', exact: true }).click();
+  await page.getByLabel('Entry amount').fill('37.50');
+  await page.getByLabel('Entry note').fill('New draft kept');
+  const edit = page.locator('[data-edit-entry="entry-29"]');
+  await edit.click();
+  const heading = page.getByRole('heading', { name: 'Edit expense · 1 Sept 2026 · Rent or Lease' });
+  await expect(heading).toBeFocused();
+  await expect(heading).toBeInViewport();
+  await expect(page.getByLabel('Entry amount')).toHaveValue('24.50');
+  await expect(page.getByLabel('Entry note')).toHaveValue('Delivery 29');
+  await uiuxEvidence(page, 'ux14-edit-expense');
+  await page.getByRole('button', { name: 'Cancel edit' }).click();
+  await expect(edit).toBeFocused(); await expect(edit).toBeInViewport();
+  await expect(page.getByLabel('Entry note')).toHaveValue('New draft kept');
+  await edit.click();
+  await page.getByLabel('Entry amount').fill('25.50');
+  await page.getByRole('button', { name: 'Save changes' }).click();
+  await expect(page.getByText('The entry could not save.', { exact: false })).toBeVisible();
+  await expect(page.getByLabel('Entry amount')).toHaveValue('25.50');
+  fail = false;
+  await page.getByRole('button', { name: 'Save changes' }).click();
+  await expect(edit).toBeFocused(); await expect(edit).toBeInViewport();
+  await expect(page.getByLabel('Entry amount')).toHaveValue('37.50');
+});
