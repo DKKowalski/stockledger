@@ -1798,7 +1798,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px soli
 .finance-copy input { width: auto; margin-top: 2px; }
 .finance-entry-form { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
 .finance-entry-note { grid-column: span 2; }
-.finance-entry-actions { display: flex; align-items: flex-end; gap: 9px; }
+.finance-entry-actions { grid-column: span 2; display: flex; flex-wrap: wrap; align-items: flex-end; gap: 9px; }
 .finance-entry-form .form-error { grid-column: 1 / -1; }
 .finance-row-actions { text-align: right; white-space: nowrap; }
 .finance-category-list { display: grid; gap: 10px; }

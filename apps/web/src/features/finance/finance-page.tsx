@@ -39,6 +39,11 @@ const varianceTone = (cents: number) => (cents < 0 ? 'negative' : cents > 0 ? 'p
 const plainAmount = (cents: number) => (cents / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export function FinancePage() {
+  const { user } = useAuth();
+  return <FinanceWorkspacePage key={`${user?.companyId}:${user?.id}`} />;
+}
+
+function FinanceWorkspacePage() {
   const { accessToken, user, signOut } = useAuth();
   const { settings, calendarDate } = useCompanySettings();
   const today = companyDay(settings?.timeZone);
