@@ -107,7 +107,7 @@ export function FinancePage() {
         {coverageSource && coverageSource.profitability.uncostedSaleUnits > 0 && <Notice title={`${coverageSource.profitability.uncostedSaleUnits} sold units have no recorded cost or price`} action={<Link className="button secondary" to="/profitability">Open Profit</Link>}>Cost coverage is {coverageSource.costCoveragePercent}%. These sales stay out of gross profit until their cost is known, so real profit may differ.</Notice>}
       </div>
       <section className="panel finance-statement">
-        <header className="finance-statement-header"><div><p>Budget vs Actual Profit and Loss</p>{headerPeriod && headerPeriod.status !== 'complete' && <span className={`finance-status ${headerPeriod.status}`}>{statusLabel[headerPeriod.status]}</span>}</div><div><h2>{loaded.company.name}</h2><p>{periodLabel}</p><small>All amounts in {loaded.company.currency}</small></div></header>
+        <header className="panel-header finance-statement-header"><div><p>Budget vs Actual Profit and Loss</p>{headerPeriod && headerPeriod.status !== 'complete' && <span className={`catalog-badge finance-status ${headerPeriod.status}`}>{statusLabel[headerPeriod.status]}</span>}</div><div><h2>{loaded.company.name}</h2><p>{periodLabel}</p><small>All amounts in {loaded.company.currency}</small></div></header>
         <div className="finance-statement-body">
           {headerPeriod && <Basis period={headerPeriod} view={view} />}
           {view === 'months' ? <AllMonths report={loaded} onOpen={value => { setMonthNumber(value.slice(5, 7)); setView('month'); }} /> : period && <Statement period={period} heading={view === 'month' ? `${monthName(month)} ${year}` : String(year)} kind={view === 'month' ? 'month' : 'year'} hasBudget={Boolean(hasBudget)} />}
