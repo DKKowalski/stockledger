@@ -30,3 +30,16 @@ for (const width of [390, 1440]) test(`stock alerts retain item and place at ${w
   await page.getByRole('button', { name: 'View all low stock' }).click();
   await expect(page).toHaveURL('/reports?tab=low');
 });
+
+for (const width of [390, 1440]) test(`stock charts expose full identities and honest zeroes at ${width}px`, async ({ page }) => {
+  await page.setViewportSize({ width, height: 900 });
+  await mediumSession(page);
+  await page.goto('/');
+  const list = page.getByRole('list', { name: 'Stock held and movement details' });
+  await expect(list).toContainText('Milo Family Tin 400g');
+  await list.locator('summary').first().click();
+  await expect(list.locator('details').first().locator('dl')).toContainText('Closing7 tin');
+  await expect(page.locator('.health-metric')).toContainText('1 of 2stock lines above reorder level');
+  expect(await page.locator('.chart-group').last().locator('.chart-bar.closing').evaluate(element => (element as HTMLElement).style.height)).toBe('0%');
+  await uiuxEvidence(page, 'ux09-overview');
+});
