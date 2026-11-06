@@ -409,6 +409,14 @@ for (const width of [390, 1440]) test(`simple budget shows used lines and live p
   await page.getByLabel('December (no budget)', { exact: true }).check();
   await expect(page.getByRole('status').filter({ hasText: 'Selected:' })).toHaveText('Selected: December (new).');
   await uiuxEvidence(page, 'ux07-copy-months');
+  await page.route('**/finance/budgets', route => {
+    const body = route.request().postDataJSON() as FinanceBudgetInput;
+    data.report.months = data.report.months.map(month => month.month === '2026-11' ? { ...month, hasBudget: true, lines: month.lines.map(line => ({ ...line, budgetCents: body.lines.find(value => value.lineKey === line.key)?.amountCents ?? line.budgetCents })) } : month);
+    return route.fulfill({ status: 201, json: {} });
+  });
+  await page.getByRole('button', { name: 'Save November budget', exact: true }).click();
+  await expect(page.locator('.finance-draft-status')).toHaveCount(0);
+  await expect(page.getByLabel('Sales Revenue budget')).toHaveValue('1000.00');
 });
 
 for (const width of [390, 1440]) test(`Finance retries failed reads without losing a draft at ${width}px`, async ({ page }) => {
