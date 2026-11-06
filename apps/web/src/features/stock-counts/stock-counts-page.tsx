@@ -1,7 +1,7 @@
 import { DatePicker } from '../../components/ui/date-picker';
 import { companyDay } from '../../lib/date-range';
 import { ClipboardCheck } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { api } from '../../api';
 import { useInventoryStore } from '../../app/inventory-store';
 import { useCompanySettings } from '../../app/company-settings-store';
@@ -21,7 +21,19 @@ export function StockCountsPage() {
   const [form, setForm] = useState({ itemId: '', locationId: '', countedQuantity: '', countedAt: companyDay(settings?.timeZone), note: '' });
   const items = snapshot?.items.filter((item) => item.isActive) ?? [];
   const places = snapshot?.locations ?? [];
-  const expected = useMemo(() => snapshot?.positions.find((position) => position.item.id === form.itemId && position.location.id === form.locationId)?.closing ?? null, [snapshot, form.itemId, form.locationId]);
+  const previewKey = `${form.itemId}:${form.locationId}:${form.countedAt}`;
+  const [preview, setPreview] = useState<{ key: string; expected: number | null; error: string | null } | null>(null);
+  const [previewVersion, setPreviewVersion] = useState(0);
+  const expected = preview?.key === previewKey ? preview.expected : null;
+  const previewError = preview?.key === previewKey ? preview.error : null;
+  useEffect(() => {
+    if (!accessToken || !form.itemId || !form.locationId || !form.countedAt) return;
+    let cancelled = false;
+    void api.stockCountPreview(accessToken, { itemId: form.itemId, locationId: form.locationId, countedAt: form.countedAt })
+      .then(result => { if (!cancelled) setPreview({ key: previewKey, expected: result.expectedQuantity, error: null }); })
+      .catch(() => { if (!cancelled) setPreview({ key: previewKey, expected: null, error: 'The ledger quantity for this date could not load. Retry before reviewing the variance.' }); });
+    return () => { cancelled = true; };
+  }, [accessToken, form.itemId, form.locationId, form.countedAt, previewKey, previewVersion, snapshot]);
   const variance = expected === null || form.countedQuantity === '' ? null : Number(form.countedQuantity) - expected;
 
   const load = useCallback(async () => {
@@ -34,32 +46,38 @@ export function StockCountsPage() {
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!accessToken) return;
-    await countAction.run(async () => {
+    if (!accessToken || expected === null) return;
+    try { await countAction.run(async () => {
       await mutate(() => api.addStockCount(accessToken, {
       itemId: form.itemId,
       locationId: form.locationId,
       countedQuantity: Number(form.countedQuantity),
       countedAt: form.countedAt,
+      expectedQuantity: expected,
       note: form.note,
       }), variance === 0 ? 'The count matched the ledger.' : `The ledger was adjusted by ${variance && variance > 0 ? '+' : ''}${variance ?? 0}.`);
       await load();
-    });
+    }); } catch (caught) {
+      // Keep entries and fetch a fresh dated expectation before the next review.
+      setPreview(null); setPreviewVersion(value => value + 1);
+      throw caught;
+    }
     setForm((current) => ({ ...current, itemId: '', countedQuantity: '', note: '' }));
   };
 
   return <PageState>
     <PageHeader title="Stock counts" />
     <Panel title="Record a physical count" subtitle="A variance creates a traceable adjustment. Matching counts are recorded without changing stock.">
+      {previewError && <div role="alert">{previewError} <button className="button secondary" onClick={() => setPreviewVersion(value => value + 1)}>Retry ledger quantity</button></div>}
       <form className="form-grid stock-count-form" onSubmit={(event) => void submit(event).catch(() => {})}>
         <label><span>Place</span><SelectControl aria-label="Place" required value={form.locationId} onValueChange={(locationId) => setForm({ ...form, locationId })} options={[{ value: '', label: 'Select place' }, ...places.map((place) => ({ value: place.id, label: place.name }))]} /></label>
         <label><span>{terms.Item}</span><SelectControl aria-label={terms.Item} required value={form.itemId} onValueChange={(itemId) => setForm({ ...form, itemId })} options={[{ value: '', label: `Select ${terms.item}` }, ...items.map((item) => ({ value: item.id, label: item.name }))]} /></label>
-        <label><span>Ledger quantity</span><InputControl readOnly value={expected === null ? `Select an ${terms.item} and place` : String(expected)} /></label>
+        <label><span>Ledger quantity</span><InputControl readOnly value={expected === null ? form.itemId && form.locationId ? 'Loading quantity for count date' : `Select an ${terms.item} and place` : String(expected)} /></label>
         <label><span>Counted quantity</span><InputControl type="number" min="0" required value={form.countedQuantity} onValueChange={(countedQuantity) => setForm({ ...form, countedQuantity })} /></label>
         <label><span>Count date</span><DatePicker label="Count date" required value={form.countedAt} onValueChange={(countedAt) => setForm({ ...form, countedAt })} /></label>
         <label><span>Reason or note</span><InputControl maxLength={500} required={Boolean(settings?.requireAdjustmentReason && variance !== null && variance !== 0)} value={form.note} onValueChange={(note) => setForm({ ...form, note })} /></label>
         <div className={`stock-count-variance ${variance === null || variance === 0 ? '' : variance > 0 ? 'positive' : 'negative'}`}><span>Variance</span><strong>{variance === null ? '—' : `${variance > 0 ? '+' : ''}${variance}`}</strong></div>
-        <AsyncActionButton disabled={busy || !items.length} idleLabel="Save count" pendingLabel="Saving" state={countAction.state} successLabel="Count saved" />
+        <AsyncActionButton disabled={busy || !items.length || expected === null} idleLabel="Save count" pendingLabel="Saving" state={countAction.state} successLabel="Count saved" />
       </form>
     </Panel>
     <Panel title={`Count history (${counts?.length ?? 0})`} className="spaced">

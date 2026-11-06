@@ -16,6 +16,7 @@ import { buildSnapshot, lowestBalanceFrom, withoutCosts, type ItemRecord, type L
 import { CreateItemDto } from './dto/create-item.dto.js';
 import { CreateLocationDto } from './dto/create-location.dto.js';
 import { CreateMovementDto } from './dto/create-movement.dto.js';
+import { StockCountPreviewDto } from './dto/stock-count-preview.dto.js';
 import { CreateStockCountDto } from './dto/create-stock-count.dto.js';
 import { CreateSupplierDto } from './dto/create-supplier.dto.js';
 import { ImportItemsDto } from './dto/import-items.dto.js';
@@ -355,6 +356,22 @@ export class InventoryService {
     });
   }
 
+  private countExpectedQuantity(scope: { items: ItemRecord[]; locations: LocationRecord[]; stocks: StockRecord[]; movements: MovementRecord[] }, itemId: string, locationId: string, countedAt: string) {
+    const ledger = scope.movements.filter(movement => movement.movementDate <= countedAt);
+    return buildSnapshot(scope.items, scope.locations, scope.stocks, ledger, 30, locationId)
+      .positions.find(position => position.item.id === itemId)?.closing ?? 0;
+  }
+
+  async previewStockCount(userId: string, companyId: string, query: StockCountPreviewDto) {
+    return this.prisma.withCompany(companyId, async tx => {
+      this.assertInventoryManager(await this.actor(tx, companyId, userId));
+      const scope = await this.scope(tx, companyId, query.itemId);
+      if (!scope.items[0]?.isActive) throw new NotFoundException('Inventory item not found');
+      this.knownLocation(scope.locations, query.locationId);
+      return { expectedQuantity: this.countExpectedQuantity(scope, query.itemId, query.locationId, query.countedAt) };
+    }, { consistentSnapshot: true });
+  }
+
   async createStockCount(userId: string, companyId: string, body: CreateStockCountDto) {
     return this.prisma.withCompany(companyId, async (tx) => {
       const actor = await this.actor(tx, companyId, userId);
@@ -365,15 +382,18 @@ export class InventoryService {
       const item = scope.items[0];
       if (!item || !item.isActive) throw new NotFoundException('Inventory item not found');
       this.knownLocation(scope.locations, body.locationId);
-      // A backdated count compares against the ledger on its own date, not today's balance.
-      const ledgerAtCount = scope.movements.filter((movement) => movement.movementDate <= body.countedAt);
-      const expectedQuantity = buildSnapshot(scope.items, scope.locations, scope.stocks, ledgerAtCount, 30, body.locationId)
-        .positions.find((position) => position.item.id === body.itemId)?.closing ?? 0;
+      const expectedQuantity = this.countExpectedQuantity(scope, body.itemId, body.locationId, body.countedAt);
+      if (body.expectedQuantity !== undefined && body.expectedQuantity !== expectedQuantity) {
+        throw new ConflictException('Stock changed since you reviewed this count. Refresh the ledger quantity for the count date and review the variance before saving.');
+      }
       const varianceQuantity = body.countedQuantity - expectedQuantity;
       const company = await tx.orm.public.Company.first({ id: companyId });
       if (!company) throw new UnauthorizedException('Business no longer exists');
       if (varianceQuantity !== 0 && company.requireAdjustmentReason && !body.note?.trim()) {
         throw new BadRequestException('Add a reason for this stock adjustment');
+      }
+      if (!company.allowNegativeStock && lowestBalanceFrom(scope.stocks, scope.movements, body.itemId, body.locationId, body.countedAt) + varianceQuantity < 0) {
+        throw new ConflictException('This count would leave negative stock on or after the count date. Review later stock changes and check the count quantity and date before saving.');
       }
       const count = await tx.orm.public.StockCount.create({
         companyId,

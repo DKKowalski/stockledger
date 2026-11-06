@@ -4,6 +4,7 @@ import type { AuthenticatedRequest } from '../auth/auth.types.js';
 import { CreateItemDto } from './dto/create-item.dto.js';
 import { CreateLocationDto } from './dto/create-location.dto.js';
 import { CreateMovementDto } from './dto/create-movement.dto.js';
+import { StockCountPreviewDto } from './dto/stock-count-preview.dto.js';
 import { CreateStockCountDto } from './dto/create-stock-count.dto.js';
 import { CreateSupplierDto } from './dto/create-supplier.dto.js';
 import { ImportItemsDto } from './dto/import-items.dto.js';
@@ -210,6 +211,11 @@ export class InventoryController {
   @Get('stock-counts')
   stockCounts(@Req() request: AuthenticatedRequest) {
     return this.inventory.listStockCounts(request.user.sub, request.user.companyId);
+  }
+
+  @Get('stock-counts/preview')
+  previewStockCount(@Req() request: AuthenticatedRequest, @Query() query: StockCountPreviewDto) {
+    return this.inventory.previewStockCount(request.user.sub, request.user.companyId, query);
   }
 
   @Post('stock-counts')

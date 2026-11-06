@@ -175,8 +175,10 @@ export const api = {
     request<Supplier>('/inventory/suppliers', { method: 'POST', body: JSON.stringify(body) }, accessToken),
   updateSupplier: (accessToken: string, supplierId: string, body: Partial<Pick<Supplier, 'name' | 'email' | 'phone' | 'address' | 'isActive'>>) =>
     request<Supplier>(`/inventory/suppliers/${supplierId}`, { method: 'PATCH', body: JSON.stringify(body) }, accessToken),
+  stockCountPreview: (accessToken: string, query: { itemId: string; locationId: string; countedAt: string }) =>
+    request<{ expectedQuantity: number }>(`/inventory/stock-counts/preview?${new URLSearchParams(query)}`, undefined, accessToken),
   stockCounts: (accessToken: string) => request<StockCount[]>('/inventory/stock-counts', undefined, accessToken),
-  addStockCount: (accessToken: string, body: { itemId: string; locationId: string; countedQuantity: number; countedAt: string; note?: string }) =>
+  addStockCount: (accessToken: string, body: { itemId: string; locationId: string; countedQuantity: number; countedAt: string; expectedQuantity?: number; note?: string }) =>
     request<StockCount>('/inventory/stock-counts', { method: 'POST', body: JSON.stringify(body) }, accessToken),
   profitability: (accessToken: string, filters: ProfitabilityFilters) => {
     const params = new URLSearchParams({ days: String(filters.days) });

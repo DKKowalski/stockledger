@@ -6,7 +6,7 @@ import { ConfigService } from '@nestjs/config';
 import type { Varchar } from '@prisma/orm-postgres/target/codec-types';
 import { PrismaService, type PrismaTransaction } from '../../prisma/prisma.service.js';
 import type { MovementRecord } from './inventory-calculations.js';
-import { buildSnapshot } from './inventory-calculations.js';
+import { lowestBalanceFrom } from './inventory-calculations.js';
 import { hybridPricingSwitchedOn } from './hybrid-pricing.js';
 import { PricingPreviewService } from './pricing-preview.service.js';
 import { CompleteSaleDto, SaleQuoteDto } from './dto/sale.dto.js';
@@ -152,14 +152,12 @@ export class SaleCompletionService {
       const result = await this.calculate(tx, userId, companyId, envelope.input);
       if (result.fingerprint !== envelope.fingerprint || result.currency !== envelope.currency) throw new ConflictException('Prices, item details or recorded costs changed. Review a new quote');
       for (const line of result.lines) {
-        const [items, stocks, movements, locations] = await Promise.all([
-          tx.orm.public.InventoryItem.where({ companyId, id: line.itemId }).all(),
+        const [stocks, movements] = await Promise.all([
           tx.orm.public.LocationStock.where({ companyId, itemId: line.itemId }).all(),
           tx.orm.public.StockMovement.where({ companyId, itemId: line.itemId }).all(),
-          tx.orm.public.Location.where({ companyId, id: actor.locationId! }).all(),
         ]);
-        const current = buildSnapshot(items, locations, stocks, movements as MovementRecord[], 30, actor.locationId).positions[0]?.closing ?? 0;
-        if (line.quantity > current) throw new ConflictException(`Only ${current} ${line.baseUnit} available for ${line.itemName}`);
+        const available = Math.max(0, lowestBalanceFrom(stocks, movements as MovementRecord[], line.itemId, actor.locationId!, envelope.input.movementDate));
+        if (line.quantity > available) throw new ConflictException(`Only ${available} ${line.baseUnit} of ${line.itemName} available from this sale date onward. Review later stock changes or check the sale date before trying again.`);
       }
       const sale = await tx.orm.public.Sale.create({ companyId, locationId: actor.locationId!, createdByUserId: userId,
         idempotencyKey: key, requestHash: varchar<64>(requestHash), currency: varchar<3>(result.currency), movementDate: envelope.input.movementDate,

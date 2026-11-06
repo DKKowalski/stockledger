@@ -2,6 +2,11 @@ import { Type } from 'class-transformer';
 import { IsDateString, IsInt, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
 
 export class CreateStockCountDto {
+  // Older clients can omit this. New clients must review the server's dated quantity.
+  @IsOptional()
+  @IsInt()
+  expectedQuantity?: number;
+
   @IsUUID()
   itemId!: string;
 

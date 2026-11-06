@@ -1120,6 +1120,51 @@ describe('legacy valuation baseline before prospective costing enrollment', () =
 });
 
 describe('dated stock checks with PostgreSQL', () => {
+  it('rejects a backdated count that would consume stock needed by a later sale', async () => {
+    const f = await fixture(10);
+    await outbound(f, 8, '2026-11-05');
+    await expect(service.createStockCount(f.admin.id, f.company.id, {
+      itemId: f.item.id, locationId: f.warehouse.id, countedQuantity: 0, countedAt: '2026-11-04', note: 'Physical count',
+    })).rejects.toBeInstanceOf(ConflictException);
+    expect(await balance(f, f.warehouse.id)).toBe(2);
+    expect(await db.orm.public.StockCount.where({ companyId: f.company.id }).all()).toHaveLength(0);
+    expect(await db.orm.public.StockMovement.where({ companyId: f.company.id }).all()).toHaveLength(1);
+  });
+
+  it('checks the lowest intermediate balance even when a later receipt restores stock', async () => {
+    const f = await fixture(10);
+    await outbound(f, 8, '2026-11-05');
+    await purchase(f, 10, '2026-11-06');
+    await expect(service.createStockCount(f.admin.id, f.company.id, {
+      itemId: f.item.id, locationId: f.warehouse.id, countedQuantity: 5, countedAt: '2026-11-04', note: 'Physical count',
+    })).rejects.toBeInstanceOf(ConflictException);
+    const safe = await service.createStockCount(f.admin.id, f.company.id, {
+      itemId: f.item.id, locationId: f.warehouse.id, countedQuantity: 8, countedAt: '2026-11-04', note: 'Physical count',
+    });
+    expect(safe).toMatchObject({ expectedQuantity: 10, varianceQuantity: -2 });
+    expect(await balance(f, f.warehouse.id)).toBe(10);
+  });
+
+  it('keeps backdated counts allowed when the business permits negative stock', async () => {
+    const f = await fixture(10);
+    await outbound(f, 8, '2026-11-05');
+    await db.orm.public.Company.where({ id: f.company.id }).update({ allowNegativeStock: true });
+    expect(await service.createStockCount(f.admin.id, f.company.id, {
+      itemId: f.item.id, locationId: f.warehouse.id, countedQuantity: 0, countedAt: '2026-11-04', note: 'Physical count',
+    })).toMatchObject({ expectedQuantity: 10, varianceQuantity: -10 });
+    expect(await balance(f, f.warehouse.id)).toBe(-8);
+  });
+
+  it('serializes a backdated count competing with an outbound movement under the item lock', async () => {
+    const f = await fixture(10);
+    const results = await race(f.item.id, [
+      () => service.createStockCount(f.admin.id, f.company.id, { itemId: f.item.id, locationId: f.warehouse.id, countedQuantity: 0, countedAt: '2026-11-04', note: 'Physical count' }),
+      () => otherService.createMovement(f.admin.id, f.company.id, { itemId: f.item.id, locationId: f.warehouse.id, type: Type.DAMAGE, quantity: 8, movementDate: '2026-11-05', note: 'Dated check' }),
+    ]);
+    expectOneConflict(results);
+    expect(await balance(f, f.warehouse.id)).toBeGreaterThanOrEqual(0);
+  });
+
   const outbound = (f: Awaited<ReturnType<typeof fixture>>, quantity: number, date: string) => service.createMovement(f.admin.id, f.company.id, {
     itemId: f.item.id, locationId: f.warehouse.id, type: Type.DAMAGE, quantity, movementDate: date, note: 'Dated check',
   });

@@ -71,6 +71,54 @@ async function closing(f: Fixture) { const snap=await request('/inventory/snapsh
 async function counts(f: Fixture) { return {sales:(await db.orm.public.Sale.where({companyId:f.company.id}).all()).length,movements:(await db.orm.public.StockMovement.where({companyId:f.company.id}).all()).length}; }
 
 describe('durable development sale completion via real HTTP and restricted runtime role',()=>{
+  it('rejects grouped checkout before a later receipt and rolls back every sale record', async () => {
+    const f = await fixture(0);
+    expect((await request('/inventory/movements', f.manager.token, 'POST', { itemId: f.items[0]!.id, locationId: f.shop.id, type: 'purchase', quantity: 10, unitCostCents: 1000, movementDate: '2026-11-06' })).status).toBe(201);
+    const quote = await request('/inventory/sales/quote', f.attendant.token, 'POST', { ...input(f, 5), movementDate: '2026-11-05' });
+    expect(quote.status).toBe(201);
+    const result = await complete(f, quote.body);
+    expect(result.status).toBe(409);
+    expect(result.body.message).toContain('date');
+    expect(await counts(f)).toEqual({ sales: 0, movements: 1 });
+    expect(await db.orm.public.SaleLine.where({ companyId: f.company.id }).all()).toHaveLength(0);
+    expect(await closing(f)).toBe(10);
+  });
+
+  it('rejects a grouped backdated sale when a later sale creates a trough before another receipt', async () => {
+    const f = await fixture(10);
+    expect((await request('/inventory/movements', f.attendant.token, 'POST', { itemId: f.items[0]!.id, locationId: f.shop.id, type: 'sale', quantity: 8, movementDate: '2026-11-05' })).status).toBe(201);
+    expect((await request('/inventory/movements', f.manager.token, 'POST', { itemId: f.items[0]!.id, locationId: f.shop.id, type: 'purchase', quantity: 10, unitCostCents: 1000, movementDate: '2026-11-06' })).status).toBe(201);
+    const quote = await request('/inventory/sales/quote', f.attendant.token, 'POST', { ...input(f, 5), movementDate: '2026-11-04' });
+    expect(quote.status).toBe(201);
+    expect((await complete(f, quote.body)).status).toBe(409);
+    expect(await closing(f)).toBe(12);
+  });
+
+  it('preserves the negative-stock policy: legacy sales can go negative; grouped checkout still requires it off', async () => {
+    const f = await fixture(0);
+    await db.orm.public.Company.where({ id: f.company.id }).update({ allowNegativeStock: true });
+    expect((await request('/inventory/movements', f.attendant.token, 'POST', { itemId: f.items[0]!.id, locationId: f.shop.id, type: 'sale', quantity: 5, movementDate: '2026-11-05' })).status).toBe(201);
+    expect(await closing(f)).toBe(-5);
+    const quote = await request('/inventory/sales/quote', f.attendant.token, 'POST', input(f, 5));
+    expect(quote.status).toBe(409);
+    expect(quote.body.message).toContain('negative stock switched off');
+  });
+
+  it('previews counts on their chosen date and rejects a stale reviewed expected quantity', async () => {
+    const f = await fixture(10);
+    expect((await request('/inventory/movements', f.manager.token, 'POST', { itemId: f.items[0]!.id, locationId: f.shop.id, type: 'purchase', quantity: 4, unitCostCents: 1000, movementDate: '2026-11-06' })).status).toBe(201);
+    const query = new URLSearchParams({ itemId: f.items[0]!.id, locationId: f.shop.id, countedAt: '2026-11-04' });
+    const preview = await request(`/inventory/stock-counts/preview?${query}`, f.manager.token);
+    expect(preview.status).toBe(200);
+    expect(preview.body.expectedQuantity).toBe(10);
+    expect((await request(`/inventory/stock-counts/preview?${query}`, f.attendant.token)).status).toBe(403);
+    const body = { itemId: f.items[0]!.id, locationId: f.shop.id, countedAt: '2026-11-04', countedQuantity: 10, expectedQuantity: 10 };
+    expect((await request('/inventory/stock-counts', f.manager.token, 'POST', body)).body).toMatchObject({ expectedQuantity: 10, varianceQuantity: 0 });
+    await request('/inventory/movements', f.manager.token, 'POST', { itemId: body.itemId, locationId: f.shop.id, type: 'purchase', quantity: 1, unitCostCents: 1000, movementDate: '2026-11-03' });
+    expect((await request('/inventory/stock-counts', f.manager.token, 'POST', body)).status).toBe(409);
+    expect(await db.orm.public.StockCount.where({ companyId: f.company.id }).all()).toHaveLength(1);
+  });
+
   it('records concurrent identical retail sale attempts once and returns the original response', async () => {
     const f = await fixture(20);
     config.set('app.saleCompletionCompanyIds', []);
