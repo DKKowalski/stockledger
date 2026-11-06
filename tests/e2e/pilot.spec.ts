@@ -1,5 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
 
+test.beforeEach(async ({ context }, testInfo) => {
+  // Independent demo visitors should not share localhost's login rate-limit
+  // bucket. The API trusts one proxy; use a reserved documentation client IP.
+  await context.setExtraHTTPHeaders({ 'X-Forwarded-For': `192.0.2.${testInfo.line}` });
+});
+
 async function signIntoDemo(page: Page) {
   await page.goto('/login');
   await page.getByRole('button', { name: 'Preview as owner' }).click();

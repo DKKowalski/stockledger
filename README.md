@@ -148,7 +148,7 @@ Render checks `/health/ready`, which verifies that the API can query PostgreSQL.
 
 The Render Free API sleeps after a period without traffic, and the first request after a long idle period can take about a minute while it starts.
 
-The app does not ping the API to keep it awake. Pinging around the clock uses nearly all of a Render workspace's 750 free instance hours each month. Use a paid Render API instance when StockLedger needs supported, continuously available production hosting.
+The browser does not send keep-awake pings. It pauses automatic session refresh when hidden or after five minutes without user activity, then refreshes once on return. A visible notice marks paused, refreshing or failed updates, and open forms retain their entries. This reduces needless requests and database load. The intentional UptimeRobot monitor pings `/health` every five minutes to keep the API awake; while that monitor runs, pausing browser refresh does not save Render running hours. Use a paid Render API instance when StockLedger needs supported, continuously available production hosting.
 
 StockLedger owns the transactional sending domain. Individual businesses do not need to connect their own domains. Until a StockLedger domain is verified, an administrator can create a staff account with a copyable invitation link, or create a copyable password-reset link from the Team page. Each new link invalidates the previous link of the same type and should be shared through a private channel.
 

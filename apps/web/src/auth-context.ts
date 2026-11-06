@@ -5,6 +5,9 @@ export type AuthState = {
   accessToken: string | null;
   user: User | null;
   restoring: boolean;
+  sessionVersion: number;
+  refreshState: 'active' | 'paused' | 'refreshing' | 'error';
+  resumeSession: () => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   registerOwner: (body: { fullName: string; businessName: string; email: string; password: string }) => Promise<RegistrationResponse>;
   verifyEmail: (token: string) => Promise<void>;

@@ -9,6 +9,7 @@ import { safeErrorMessage } from '../lib/user-facing-error';
 type InventoryStore = {
   snapshot: Snapshot | null;
   loading: boolean;
+  refreshing: boolean;
   busy: boolean;
   error: string | null;
   dateRange: DateRangeValue;
@@ -31,7 +32,8 @@ export function useInventoryStore() {
 }
 
 export function InventoryProvider({ children }: { children: ReactNode }) {
-  const { accessToken, user, signOut } = useAuth();
+  const { accessToken, sessionVersion, user, signOut } = useAuth();
+  const [loadedVersion, setLoadedVersion] = useState<number | null>(null);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -72,10 +74,10 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
         if (!cancelled) handleError(caught, 'Could not load inventory');
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) { setLoading(false); setLoadedVersion(sessionVersion); }
       });
     return () => { cancelled = true; };
-  }, [accessToken, days, locationId, dateRange, handleError]);
+  }, [accessToken, sessionVersion, days, locationId, dateRange, handleError]);
 
   const mutate = useCallback(async (action: () => Promise<unknown>, successMessage: string) => {
     setBusy(true);
@@ -105,8 +107,8 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
   }, [accessToken, days, locationId, dateRange, signOut]);
 
   const store = useMemo(
-    () => ({ snapshot, loading, busy, error, dateRange, setDateRange, days, locationId, setLocationId, refresh, mutate }),
-    [snapshot, loading, busy, error, dateRange, days, locationId, refresh, mutate],
+    () => ({ snapshot, loading, refreshing: loadedVersion !== null && sessionVersion !== loadedVersion, busy, error, dateRange, setDateRange, days, locationId, setLocationId, refresh, mutate }),
+    [snapshot, loading, sessionVersion, loadedVersion, busy, error, dateRange, days, locationId, refresh, mutate],
   );
 
   return <InventoryStoreContext.Provider value={store}>{children}</InventoryStoreContext.Provider>;

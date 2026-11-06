@@ -7,6 +7,8 @@ import type { CompanyProfileSettings, CompanySettings, InventorySettings, Termin
 type CompanySettingsStore = {
   settings: CompanySettings | null;
   loading: boolean;
+  refreshing: boolean;
+  refresh: () => Promise<void>;
   error: string | null;
   save: (settings: CompanyProfileSettings) => Promise<CompanySettings>;
   saveInventory: (settings: InventorySettings) => Promise<CompanySettings>;
@@ -28,7 +30,8 @@ export function useCompanySettings() {
 }
 
 export function CompanySettingsProvider({ children }: { children: ReactNode }) {
-  const { accessToken, signOut } = useAuth();
+  const { accessToken, sessionVersion, signOut } = useAuth();
+  const [loadedVersion, setLoadedVersion] = useState<number | null>(null);
   const [settings, setSettings] = useState<CompanySettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -50,10 +53,15 @@ export function CompanySettingsProvider({ children }: { children: ReactNode }) {
         else setError(caught instanceof Error ? caught.message : 'Could not load business settings');
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) { setLoading(false); setLoadedVersion(sessionVersion); }
       });
     return () => { cancelled = true; };
-  }, [accessToken, signOut]);
+  }, [accessToken, sessionVersion, signOut]);
+
+  const refresh = useCallback(async () => {
+    try { setSettings(await api.companySettings(accessToken)); setError(null); }
+    catch { setError('Business settings could not refresh. The displayed settings may be out of date. Retry before continuing.'); }
+  }, [accessToken]);
 
   const save = useCallback(async (next: CompanyProfileSettings) => {
     const saved = await api.updateCompanySettings(accessToken, next);
@@ -124,6 +132,6 @@ export function CompanySettingsProvider({ children }: { children: ReactNode }) {
     return { item, items: plural(item), Item: cap(item), Items: cap(plural(item)), shop, shops: plural(shop), Shop: cap(shop), Shops: cap(plural(shop)), warehouse, warehouses: plural(warehouse), Warehouse: cap(warehouse), Warehouses: cap(plural(warehouse)) };
   }, [settings?.itemTerm, settings?.shopTerm, settings?.warehouseTerm]);
 
-  const store = useMemo(() => ({ settings, loading, error, save, saveInventory, saveTerminology, money, calendarDate, memberDate, dateTime, terms }), [settings, loading, error, save, saveInventory, saveTerminology, money, calendarDate, memberDate, dateTime, terms]);
+  const store = useMemo(() => ({ settings, loading, refreshing: sessionVersion !== loadedVersion, refresh, error, save, saveInventory, saveTerminology, money, calendarDate, memberDate, dateTime, terms }), [settings, loading, sessionVersion, loadedVersion, refresh, error, save, saveInventory, saveTerminology, money, calendarDate, memberDate, dateTime, terms]);
   return <CompanySettingsContext.Provider value={store}>{children}</CompanySettingsContext.Provider>;
 }
