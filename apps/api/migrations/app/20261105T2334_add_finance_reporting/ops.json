@@ -1,0 +1,1400 @@
+[
+  {
+    "id": "table.finance_budgets",
+    "label": "Create table \"finance_budgets\"",
+    "summary": "Creates table \"finance_budgets\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "finance_budgets"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"finance_budgets\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"finance_budgets\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"finance_budgets\"",
+        "sql": "CREATE TABLE \"public\".\"finance_budgets\" (\n  \"amount_cents\" int4 NOT NULL,\n  \"company_id\" uuid NOT NULL,\n  \"id\" uuid NOT NULL,\n  \"line_key\" character varying(80) NOT NULL,\n  \"month\" date NOT NULL,\n  \"updated_at\" timestamptz NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"finance_budget_valid_b2bc389b\" CHECK (amount_cents >= 0 AND extract(day from month) = 1)\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"finance_budgets\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"finance_budgets\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.finance_categories",
+    "label": "Create table \"finance_categories\"",
+    "summary": "Creates table \"finance_categories\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "finance_categories"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"finance_categories\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"finance_categories\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"finance_categories\"",
+        "sql": "CREATE TABLE \"public\".\"finance_categories\" (\n  \"company_id\" uuid NOT NULL,\n  \"created_at\" timestamptz DEFAULT (now()) NOT NULL,\n  \"id\" uuid NOT NULL,\n  \"is_active\" bool DEFAULT true NOT NULL,\n  \"name\" character varying(80) NOT NULL,\n  \"updated_at\" timestamptz NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"finance_categories\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"finance_categories\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.finance_entries",
+    "label": "Create table \"finance_entries\"",
+    "summary": "Creates table \"finance_entries\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "finance_entries"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"finance_entries\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"finance_entries\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"finance_entries\"",
+        "sql": "CREATE TABLE \"public\".\"finance_entries\" (\n  \"amount_cents\" int4 NOT NULL,\n  \"category_id\" uuid,\n  \"company_id\" uuid NOT NULL,\n  \"created_at\" timestamptz DEFAULT (now()) NOT NULL,\n  \"created_by_user_id\" uuid NOT NULL,\n  \"entry_date\" date NOT NULL,\n  \"id\" uuid NOT NULL,\n  \"kind\" character varying(20) NOT NULL,\n  \"note\" character varying(500) NOT NULL,\n  \"updated_at\" timestamptz NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"finance_entry_valid_e8f2b45d\" CHECK (amount_cents > 0 AND ((kind = 'expense' AND category_id IS NOT NULL) OR (kind = 'other_revenue' AND category_id IS NULL)))\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"finance_entries\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"finance_entries\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.finance_budgets.finance_budgets_company_id_month_line_key_key",
+    "label": "Add unique constraint on \"finance_budgets\" (company_id, month, line_key)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "finance_budgets_company_id_month_line_key_key",
+        "table": "finance_budgets"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"finance_budgets_company_id_month_line_key_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "finance_budgets_company_id_month_line_key_key",
+          "public",
+          "\"public\".\"finance_budgets\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"finance_budgets_company_id_month_line_key_key\"",
+        "sql": "ALTER TABLE \"public\".\"finance_budgets\" ADD CONSTRAINT \"finance_budgets_company_id_month_line_key_key\" UNIQUE (\"company_id\", \"month\", \"line_key\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"finance_budgets_company_id_month_line_key_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "finance_budgets_company_id_month_line_key_key",
+          "public",
+          "\"public\".\"finance_budgets\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.finance_categories.finance_categories_company_id_id_key",
+    "label": "Add unique constraint on \"finance_categories\" (company_id, id)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "finance_categories_company_id_id_key",
+        "table": "finance_categories"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"finance_categories_company_id_id_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "finance_categories_company_id_id_key",
+          "public",
+          "\"public\".\"finance_categories\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"finance_categories_company_id_id_key\"",
+        "sql": "ALTER TABLE \"public\".\"finance_categories\" ADD CONSTRAINT \"finance_categories_company_id_id_key\" UNIQUE (\"company_id\", \"id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"finance_categories_company_id_id_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "finance_categories_company_id_id_key",
+          "public",
+          "\"public\".\"finance_categories\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.finance_categories.finance_categories_company_id_name_key",
+    "label": "Add unique constraint on \"finance_categories\" (company_id, name)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "finance_categories_company_id_name_key",
+        "table": "finance_categories"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"finance_categories_company_id_name_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "finance_categories_company_id_name_key",
+          "public",
+          "\"public\".\"finance_categories\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"finance_categories_company_id_name_key\"",
+        "sql": "ALTER TABLE \"public\".\"finance_categories\" ADD CONSTRAINT \"finance_categories_company_id_name_key\" UNIQUE (\"company_id\", \"name\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"finance_categories_company_id_name_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "finance_categories_company_id_name_key",
+          "public",
+          "\"public\".\"finance_categories\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.finance_budgets.finance_budgets_company_id_idx_1303a718",
+    "label": "Create index \"finance_budgets_company_id_idx_1303a718\" on \"finance_budgets\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "finance_budgets_company_id_idx_1303a718",
+        "table": "finance_budgets"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"finance_budgets_company_id_idx_1303a718\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"finance_budgets_company_id_idx_1303a718\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"finance_budgets_company_id_idx_1303a718\"",
+        "sql": "CREATE INDEX \"finance_budgets_company_id_idx_1303a718\" ON \"public\".\"finance_budgets\" (\"company_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"finance_budgets_company_id_idx_1303a718\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"finance_budgets_company_id_idx_1303a718\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.finance_categories.finance_categories_company_id_idx_1303a718",
+    "label": "Create index \"finance_categories_company_id_idx_1303a718\" on \"finance_categories\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "finance_categories_company_id_idx_1303a718",
+        "table": "finance_categories"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"finance_categories_company_id_idx_1303a718\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"finance_categories_company_id_idx_1303a718\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"finance_categories_company_id_idx_1303a718\"",
+        "sql": "CREATE INDEX \"finance_categories_company_id_idx_1303a718\" ON \"public\".\"finance_categories\" (\"company_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"finance_categories_company_id_idx_1303a718\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"finance_categories_company_id_idx_1303a718\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.finance_entries.finance_entries_company_id_category_id_idx_3ef78666",
+    "label": "Create index \"finance_entries_company_id_category_id_idx_3ef78666\" on \"finance_entries\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "finance_entries_company_id_category_id_idx_3ef78666",
+        "table": "finance_entries"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"finance_entries_company_id_category_id_idx_3ef78666\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"finance_entries_company_id_category_id_idx_3ef78666\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"finance_entries_company_id_category_id_idx_3ef78666\"",
+        "sql": "CREATE INDEX \"finance_entries_company_id_category_id_idx_3ef78666\" ON \"public\".\"finance_entries\" (\"company_id\", \"category_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"finance_entries_company_id_category_id_idx_3ef78666\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"finance_entries_company_id_category_id_idx_3ef78666\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.finance_entries.finance_entries_company_id_created_by_user_id_idx_fd5eba49",
+    "label": "Create index \"finance_entries_company_id_created_by_user_id_idx_fd5eba49\" on \"finance_entries\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "finance_entries_company_id_created_by_user_id_idx_fd5eba49",
+        "table": "finance_entries"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"finance_entries_company_id_created_by_user_id_idx_fd5eba49\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"finance_entries_company_id_created_by_user_id_idx_fd5eba49\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"finance_entries_company_id_created_by_user_id_idx_fd5eba49\"",
+        "sql": "CREATE INDEX \"finance_entries_company_id_created_by_user_id_idx_fd5eba49\" ON \"public\".\"finance_entries\" (\"company_id\", \"created_by_user_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"finance_entries_company_id_created_by_user_id_idx_fd5eba49\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"finance_entries_company_id_created_by_user_id_idx_fd5eba49\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.finance_entries.finance_entries_company_id_entry_date_idx_cf43456b",
+    "label": "Create index \"finance_entries_company_id_entry_date_idx_cf43456b\" on \"finance_entries\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "finance_entries_company_id_entry_date_idx_cf43456b",
+        "table": "finance_entries"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"finance_entries_company_id_entry_date_idx_cf43456b\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"finance_entries_company_id_entry_date_idx_cf43456b\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"finance_entries_company_id_entry_date_idx_cf43456b\"",
+        "sql": "CREATE INDEX \"finance_entries_company_id_entry_date_idx_cf43456b\" ON \"public\".\"finance_entries\" (\"company_id\", \"entry_date\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"finance_entries_company_id_entry_date_idx_cf43456b\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"finance_entries_company_id_entry_date_idx_cf43456b\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.finance_entries.finance_entries_company_id_idx_1303a718",
+    "label": "Create index \"finance_entries_company_id_idx_1303a718\" on \"finance_entries\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "finance_entries_company_id_idx_1303a718",
+        "table": "finance_entries"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"finance_entries_company_id_idx_1303a718\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"finance_entries_company_id_idx_1303a718\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"finance_entries_company_id_idx_1303a718\"",
+        "sql": "CREATE INDEX \"finance_entries_company_id_idx_1303a718\" ON \"public\".\"finance_entries\" (\"company_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"finance_entries_company_id_idx_1303a718\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"finance_entries_company_id_idx_1303a718\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.finance_budgets.finance_budgets_company_id_fkey",
+    "label": "Add foreign key \"finance_budgets_company_id_fkey\" on \"finance_budgets\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "finance_budgets_company_id_fkey",
+        "table": "finance_budgets"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"finance_budgets_company_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "finance_budgets_company_id_fkey",
+          "public",
+          "\"public\".\"finance_budgets\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"finance_budgets_company_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"finance_budgets\"\nADD CONSTRAINT \"finance_budgets_company_id_fkey\"\nFOREIGN KEY (\"company_id\")\nREFERENCES \"public\".\"companies\" (\"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"finance_budgets_company_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "finance_budgets_company_id_fkey",
+          "public",
+          "\"public\".\"finance_budgets\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.finance_categories.finance_categories_company_id_fkey",
+    "label": "Add foreign key \"finance_categories_company_id_fkey\" on \"finance_categories\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "finance_categories_company_id_fkey",
+        "table": "finance_categories"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"finance_categories_company_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "finance_categories_company_id_fkey",
+          "public",
+          "\"public\".\"finance_categories\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"finance_categories_company_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"finance_categories\"\nADD CONSTRAINT \"finance_categories_company_id_fkey\"\nFOREIGN KEY (\"company_id\")\nREFERENCES \"public\".\"companies\" (\"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"finance_categories_company_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "finance_categories_company_id_fkey",
+          "public",
+          "\"public\".\"finance_categories\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.finance_entries.finance_entries_company_id_fkey",
+    "label": "Add foreign key \"finance_entries_company_id_fkey\" on \"finance_entries\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "finance_entries_company_id_fkey",
+        "table": "finance_entries"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"finance_entries_company_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "finance_entries_company_id_fkey",
+          "public",
+          "\"public\".\"finance_entries\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"finance_entries_company_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"finance_entries\"\nADD CONSTRAINT \"finance_entries_company_id_fkey\"\nFOREIGN KEY (\"company_id\")\nREFERENCES \"public\".\"companies\" (\"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"finance_entries_company_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "finance_entries_company_id_fkey",
+          "public",
+          "\"public\".\"finance_entries\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.finance_entries.finance_entries_company_id_category_id_fkey",
+    "label": "Add foreign key \"finance_entries_company_id_category_id_fkey\" on \"finance_entries\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "finance_entries_company_id_category_id_fkey",
+        "table": "finance_entries"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"finance_entries_company_id_category_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "finance_entries_company_id_category_id_fkey",
+          "public",
+          "\"public\".\"finance_entries\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"finance_entries_company_id_category_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"finance_entries\"\nADD CONSTRAINT \"finance_entries_company_id_category_id_fkey\"\nFOREIGN KEY (\"company_id\", \"category_id\")\nREFERENCES \"public\".\"finance_categories\" (\"company_id\", \"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"finance_entries_company_id_category_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "finance_entries_company_id_category_id_fkey",
+          "public",
+          "\"public\".\"finance_entries\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.finance_entries.finance_entries_company_id_created_by_user_id_fkey",
+    "label": "Add foreign key \"finance_entries_company_id_created_by_user_id_fkey\" on \"finance_entries\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "finance_entries_company_id_created_by_user_id_fkey",
+        "table": "finance_entries"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"finance_entries_company_id_created_by_user_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "finance_entries_company_id_created_by_user_id_fkey",
+          "public",
+          "\"public\".\"finance_entries\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"finance_entries_company_id_created_by_user_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"finance_entries\"\nADD CONSTRAINT \"finance_entries_company_id_created_by_user_id_fkey\"\nFOREIGN KEY (\"company_id\", \"created_by_user_id\")\nREFERENCES \"public\".\"users\" (\"company_id\", \"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"finance_entries_company_id_created_by_user_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "finance_entries_company_id_created_by_user_id_fkey",
+          "public",
+          "\"public\".\"finance_entries\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rowLevelSecurity.public.finance_budgets",
+    "label": "Enable row-level security on \"finance_budgets\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rowLevelSecurity",
+        "name": "finance_budgets"
+      }
+    },
+    "precheck": [
+      {
+        "description": "check RLS is not already enabled on \"finance_budgets\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND NOT (\"c\".\"relrowsecurity\"))) AS \"result\"",
+        "params": [
+          "public",
+          "finance_budgets"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "enable row-level security on \"finance_budgets\"",
+        "sql": "ALTER TABLE \"public\".\"finance_budgets\" ENABLE ROW LEVEL SECURITY"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify row-level security is enabled on \"finance_budgets\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"c\".\"relrowsecurity\")) AS \"result\"",
+        "params": [
+          "public",
+          "finance_budgets"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rowLevelSecurity.public.finance_categories",
+    "label": "Enable row-level security on \"finance_categories\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rowLevelSecurity",
+        "name": "finance_categories"
+      }
+    },
+    "precheck": [
+      {
+        "description": "check RLS is not already enabled on \"finance_categories\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND NOT (\"c\".\"relrowsecurity\"))) AS \"result\"",
+        "params": [
+          "public",
+          "finance_categories"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "enable row-level security on \"finance_categories\"",
+        "sql": "ALTER TABLE \"public\".\"finance_categories\" ENABLE ROW LEVEL SECURITY"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify row-level security is enabled on \"finance_categories\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"c\".\"relrowsecurity\")) AS \"result\"",
+        "params": [
+          "public",
+          "finance_categories"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rowLevelSecurity.public.finance_entries",
+    "label": "Enable row-level security on \"finance_entries\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rowLevelSecurity",
+        "name": "finance_entries"
+      }
+    },
+    "precheck": [
+      {
+        "description": "check RLS is not already enabled on \"finance_entries\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND NOT (\"c\".\"relrowsecurity\"))) AS \"result\"",
+        "params": [
+          "public",
+          "finance_entries"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "enable row-level security on \"finance_entries\"",
+        "sql": "ALTER TABLE \"public\".\"finance_entries\" ENABLE ROW LEVEL SECURITY"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify row-level security is enabled on \"finance_entries\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"c\".\"relrowsecurity\")) AS \"result\"",
+        "params": [
+          "public",
+          "finance_entries"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.finance_budgets.finance_budgets_delete_f027a2a9",
+    "label": "Create RLS policy \"finance_budgets_delete_f027a2a9\" on \"finance_budgets\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "finance_budgets_delete_f027a2a9",
+        "table": "finance_budgets"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"finance_budgets_delete_f027a2a9\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "finance_budgets",
+          "finance_budgets_delete_f027a2a9"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"finance_budgets_delete_f027a2a9\"",
+        "sql": "CREATE POLICY \"finance_budgets_delete_f027a2a9\" ON \"public\".\"finance_budgets\" AS PERMISSIVE FOR DELETE TO stockledger_app USING (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"finance_budgets_delete_f027a2a9\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "finance_budgets",
+          "finance_budgets_delete_f027a2a9"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.finance_budgets.finance_budgets_insert_1c87de9a",
+    "label": "Create RLS policy \"finance_budgets_insert_1c87de9a\" on \"finance_budgets\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "finance_budgets_insert_1c87de9a",
+        "table": "finance_budgets"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"finance_budgets_insert_1c87de9a\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "finance_budgets",
+          "finance_budgets_insert_1c87de9a"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"finance_budgets_insert_1c87de9a\"",
+        "sql": "CREATE POLICY \"finance_budgets_insert_1c87de9a\" ON \"public\".\"finance_budgets\" AS PERMISSIVE FOR INSERT TO stockledger_app WITH CHECK (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"finance_budgets_insert_1c87de9a\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "finance_budgets",
+          "finance_budgets_insert_1c87de9a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.finance_budgets.finance_budgets_select_10e0fa81",
+    "label": "Create RLS policy \"finance_budgets_select_10e0fa81\" on \"finance_budgets\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "finance_budgets_select_10e0fa81",
+        "table": "finance_budgets"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"finance_budgets_select_10e0fa81\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "finance_budgets",
+          "finance_budgets_select_10e0fa81"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"finance_budgets_select_10e0fa81\"",
+        "sql": "CREATE POLICY \"finance_budgets_select_10e0fa81\" ON \"public\".\"finance_budgets\" AS PERMISSIVE FOR SELECT TO stockledger_app USING (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"finance_budgets_select_10e0fa81\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "finance_budgets",
+          "finance_budgets_select_10e0fa81"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.finance_budgets.finance_budgets_update_2c24cb4c",
+    "label": "Create RLS policy \"finance_budgets_update_2c24cb4c\" on \"finance_budgets\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "finance_budgets_update_2c24cb4c",
+        "table": "finance_budgets"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"finance_budgets_update_2c24cb4c\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "finance_budgets",
+          "finance_budgets_update_2c24cb4c"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"finance_budgets_update_2c24cb4c\"",
+        "sql": "CREATE POLICY \"finance_budgets_update_2c24cb4c\" ON \"public\".\"finance_budgets\" AS PERMISSIVE FOR UPDATE TO stockledger_app USING (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid) WITH CHECK (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"finance_budgets_update_2c24cb4c\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "finance_budgets",
+          "finance_budgets_update_2c24cb4c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.finance_categories.finance_categories_delete_f027a2a9",
+    "label": "Create RLS policy \"finance_categories_delete_f027a2a9\" on \"finance_categories\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "finance_categories_delete_f027a2a9",
+        "table": "finance_categories"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"finance_categories_delete_f027a2a9\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "finance_categories",
+          "finance_categories_delete_f027a2a9"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"finance_categories_delete_f027a2a9\"",
+        "sql": "CREATE POLICY \"finance_categories_delete_f027a2a9\" ON \"public\".\"finance_categories\" AS PERMISSIVE FOR DELETE TO stockledger_app USING (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"finance_categories_delete_f027a2a9\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "finance_categories",
+          "finance_categories_delete_f027a2a9"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.finance_categories.finance_categories_insert_1c87de9a",
+    "label": "Create RLS policy \"finance_categories_insert_1c87de9a\" on \"finance_categories\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "finance_categories_insert_1c87de9a",
+        "table": "finance_categories"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"finance_categories_insert_1c87de9a\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "finance_categories",
+          "finance_categories_insert_1c87de9a"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"finance_categories_insert_1c87de9a\"",
+        "sql": "CREATE POLICY \"finance_categories_insert_1c87de9a\" ON \"public\".\"finance_categories\" AS PERMISSIVE FOR INSERT TO stockledger_app WITH CHECK (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"finance_categories_insert_1c87de9a\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "finance_categories",
+          "finance_categories_insert_1c87de9a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.finance_categories.finance_categories_select_10e0fa81",
+    "label": "Create RLS policy \"finance_categories_select_10e0fa81\" on \"finance_categories\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "finance_categories_select_10e0fa81",
+        "table": "finance_categories"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"finance_categories_select_10e0fa81\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "finance_categories",
+          "finance_categories_select_10e0fa81"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"finance_categories_select_10e0fa81\"",
+        "sql": "CREATE POLICY \"finance_categories_select_10e0fa81\" ON \"public\".\"finance_categories\" AS PERMISSIVE FOR SELECT TO stockledger_app USING (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"finance_categories_select_10e0fa81\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "finance_categories",
+          "finance_categories_select_10e0fa81"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.finance_categories.finance_categories_update_2c24cb4c",
+    "label": "Create RLS policy \"finance_categories_update_2c24cb4c\" on \"finance_categories\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "finance_categories_update_2c24cb4c",
+        "table": "finance_categories"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"finance_categories_update_2c24cb4c\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "finance_categories",
+          "finance_categories_update_2c24cb4c"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"finance_categories_update_2c24cb4c\"",
+        "sql": "CREATE POLICY \"finance_categories_update_2c24cb4c\" ON \"public\".\"finance_categories\" AS PERMISSIVE FOR UPDATE TO stockledger_app USING (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid) WITH CHECK (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"finance_categories_update_2c24cb4c\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "finance_categories",
+          "finance_categories_update_2c24cb4c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.finance_entries.finance_entries_delete_f027a2a9",
+    "label": "Create RLS policy \"finance_entries_delete_f027a2a9\" on \"finance_entries\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "finance_entries_delete_f027a2a9",
+        "table": "finance_entries"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"finance_entries_delete_f027a2a9\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "finance_entries",
+          "finance_entries_delete_f027a2a9"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"finance_entries_delete_f027a2a9\"",
+        "sql": "CREATE POLICY \"finance_entries_delete_f027a2a9\" ON \"public\".\"finance_entries\" AS PERMISSIVE FOR DELETE TO stockledger_app USING (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"finance_entries_delete_f027a2a9\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "finance_entries",
+          "finance_entries_delete_f027a2a9"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.finance_entries.finance_entries_insert_1c87de9a",
+    "label": "Create RLS policy \"finance_entries_insert_1c87de9a\" on \"finance_entries\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "finance_entries_insert_1c87de9a",
+        "table": "finance_entries"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"finance_entries_insert_1c87de9a\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "finance_entries",
+          "finance_entries_insert_1c87de9a"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"finance_entries_insert_1c87de9a\"",
+        "sql": "CREATE POLICY \"finance_entries_insert_1c87de9a\" ON \"public\".\"finance_entries\" AS PERMISSIVE FOR INSERT TO stockledger_app WITH CHECK (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"finance_entries_insert_1c87de9a\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "finance_entries",
+          "finance_entries_insert_1c87de9a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.finance_entries.finance_entries_select_10e0fa81",
+    "label": "Create RLS policy \"finance_entries_select_10e0fa81\" on \"finance_entries\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "finance_entries_select_10e0fa81",
+        "table": "finance_entries"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"finance_entries_select_10e0fa81\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "finance_entries",
+          "finance_entries_select_10e0fa81"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"finance_entries_select_10e0fa81\"",
+        "sql": "CREATE POLICY \"finance_entries_select_10e0fa81\" ON \"public\".\"finance_entries\" AS PERMISSIVE FOR SELECT TO stockledger_app USING (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"finance_entries_select_10e0fa81\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "finance_entries",
+          "finance_entries_select_10e0fa81"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.finance_entries.finance_entries_update_2c24cb4c",
+    "label": "Create RLS policy \"finance_entries_update_2c24cb4c\" on \"finance_entries\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "finance_entries_update_2c24cb4c",
+        "table": "finance_entries"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"finance_entries_update_2c24cb4c\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "finance_entries",
+          "finance_entries_update_2c24cb4c"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"finance_entries_update_2c24cb4c\"",
+        "sql": "CREATE POLICY \"finance_entries_update_2c24cb4c\" ON \"public\".\"finance_entries\" AS PERMISSIVE FOR UPDATE TO stockledger_app USING (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid) WITH CHECK (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"finance_entries_update_2c24cb4c\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "finance_entries",
+          "finance_entries_update_2c24cb4c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "finance_budgets.runtime_grants",
+    "label": "Grant tenant finance access to finance_budgets",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres"
+    },
+    "precheck": [
+      {
+        "description": "Finance grants need applying",
+        "sql": "SELECT NOT has_table_privilege('stockledger_app', 'public.finance_budgets', 'SELECT, INSERT, UPDATE, DELETE') AS result"
+      }
+    ],
+    "execute": [
+      {
+        "description": "Grant runtime finance access",
+        "sql": "GRANT SELECT, INSERT, UPDATE, DELETE ON public.finance_budgets TO stockledger_app"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "Finance grants exist",
+        "sql": "SELECT has_table_privilege('stockledger_app', 'public.finance_budgets', 'SELECT, INSERT, UPDATE, DELETE') AS result"
+      }
+    ]
+  },
+  {
+    "id": "finance_categories.runtime_grants",
+    "label": "Grant tenant finance access to finance_categories",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres"
+    },
+    "precheck": [
+      {
+        "description": "Finance grants need applying",
+        "sql": "SELECT NOT has_table_privilege('stockledger_app', 'public.finance_categories', 'SELECT, INSERT, UPDATE, DELETE') AS result"
+      }
+    ],
+    "execute": [
+      {
+        "description": "Grant runtime finance access",
+        "sql": "GRANT SELECT, INSERT, UPDATE, DELETE ON public.finance_categories TO stockledger_app"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "Finance grants exist",
+        "sql": "SELECT has_table_privilege('stockledger_app', 'public.finance_categories', 'SELECT, INSERT, UPDATE, DELETE') AS result"
+      }
+    ]
+  },
+  {
+    "id": "finance_entries.runtime_grants",
+    "label": "Grant tenant finance access to finance_entries",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres"
+    },
+    "precheck": [
+      {
+        "description": "Finance grants need applying",
+        "sql": "SELECT NOT has_table_privilege('stockledger_app', 'public.finance_entries', 'SELECT, INSERT, UPDATE, DELETE') AS result"
+      }
+    ],
+    "execute": [
+      {
+        "description": "Grant runtime finance access",
+        "sql": "GRANT SELECT, INSERT, UPDATE, DELETE ON public.finance_entries TO stockledger_app"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "Finance grants exist",
+        "sql": "SELECT has_table_privilege('stockledger_app', 'public.finance_entries', 'SELECT, INSERT, UPDATE, DELETE') AS result"
+      }
+    ]
+  }
+]

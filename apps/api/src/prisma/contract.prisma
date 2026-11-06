@@ -830,3 +830,126 @@ policy_update sale_return_request_finish {
   using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid AND status = 'prepared'"
   withCheck = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid AND status IN ('applied','cancelled')"
 }
+
+model FinanceCategory {
+  id Uuid @id @default(uuid())
+  companyId Uuid @map("company_id")
+  name VarChar(80)
+  isActive Boolean @default(true) @map("is_active")
+  createdAt TimestamptzString @default(now()) @map("created_at")
+  updatedAt temporal.updatedAtString() @map("updated_at")
+  company Company @relation(fields:[companyId], references:[id], onDelete: Restrict, onUpdate: Cascade)
+  @@unique([companyId, id])
+  @@unique([companyId, name])
+  @@rls
+  @@map("finance_categories")
+}
+
+model FinanceEntry {
+  id Uuid @id @default(uuid())
+  companyId Uuid @map("company_id")
+  categoryId Uuid? @map("category_id")
+  kind VarChar(20)
+  entryDate DateString @map("entry_date")
+  amountCents Int @map("amount_cents")
+  note VarChar(500)
+  createdByUserId Uuid @map("created_by_user_id")
+  createdAt TimestamptzString @default(now()) @map("created_at")
+  updatedAt temporal.updatedAtString() @map("updated_at")
+  company Company @relation(fields:[companyId], references:[id], onDelete: Restrict, onUpdate: Cascade)
+  category FinanceCategory? @relation(fields:[companyId, categoryId], references:[companyId, id], onDelete: Restrict, onUpdate: Cascade)
+  actor User @relation(fields:[companyId, createdByUserId], references:[companyId, id], onDelete: Restrict, onUpdate: Cascade)
+  @@check(expression: "amount_cents > 0 AND ((kind = 'expense' AND category_id IS NOT NULL) OR (kind = 'other_revenue' AND category_id IS NULL))", name: "finance_entry_valid")
+  @@index([companyId, entryDate])
+  @@rls
+  @@map("finance_entries")
+}
+
+model FinanceBudget {
+  id Uuid @id @default(uuid())
+  companyId Uuid @map("company_id")
+  month DateString
+  lineKey VarChar(80) @map("line_key")
+  amountCents Int @map("amount_cents")
+  updatedAt temporal.updatedAtString() @map("updated_at")
+  company Company @relation(fields:[companyId], references:[id], onDelete: Restrict, onUpdate: Cascade)
+  @@unique([companyId, month, lineKey])
+  @@check(expression: "amount_cents >= 0 AND extract(day from month) = 1", name: "finance_budget_valid")
+  @@rls
+  @@map("finance_budgets")
+}
+
+policy_select finance_budgets_select {
+  target = FinanceBudget
+  roles =[stockledger_app]
+  using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+}
+
+policy_insert finance_budgets_insert {
+  target = FinanceBudget
+  roles =[stockledger_app]
+  withCheck = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+}
+
+policy_update finance_budgets_update {
+  target = FinanceBudget
+  roles =[stockledger_app]
+  using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+  withCheck = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+}
+
+policy_delete finance_budgets_delete {
+  target = FinanceBudget
+  roles =[stockledger_app]
+  using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+}
+
+policy_select finance_categories_select {
+  target = FinanceCategory
+  roles =[stockledger_app]
+  using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+}
+
+policy_insert finance_categories_insert {
+  target = FinanceCategory
+  roles =[stockledger_app]
+  withCheck = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+}
+
+policy_update finance_categories_update {
+  target = FinanceCategory
+  roles =[stockledger_app]
+  using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+  withCheck = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+}
+
+policy_delete finance_categories_delete {
+  target = FinanceCategory
+  roles =[stockledger_app]
+  using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+}
+
+policy_select finance_entries_select {
+  target = FinanceEntry
+  roles =[stockledger_app]
+  using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+}
+
+policy_insert finance_entries_insert {
+  target = FinanceEntry
+  roles =[stockledger_app]
+  withCheck = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+}
+
+policy_update finance_entries_update {
+  target = FinanceEntry
+  roles =[stockledger_app]
+  using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+  withCheck = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+}
+
+policy_delete finance_entries_delete {
+  target = FinanceEntry
+  roles =[stockledger_app]
+  using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+}

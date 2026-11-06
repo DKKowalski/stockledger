@@ -81,11 +81,21 @@ try {
     for(const table of ['sale_return_requests','sale_returns','sale_return_allocations'])assert.equal((await client.query(`SELECT count(*)::int n FROM ${table}`)).rows[0].n,0);
     // The deals switch only adds an off-by-default column; every existing business stays on single prices.
     const beforeSwitch = await legacySnapshot(client);
-    migrate();
+    migrate(['--to', '5ccb1739876988e11fc0dc2dfeb65052a75dbaebb1d4f138d285b2c9f8d8ecb6']);
     const afterSwitch = await legacySnapshot(client);
     assert.ok(afterSwitch.companies.every((company) => company.hybrid_pricing_enabled === false), 'Existing businesses must start with deals switched off');
     afterSwitch.companies = afterSwitch.companies.map(({ hybrid_pricing_enabled: _switch, ...company }) => company);
     assert.deepEqual(afterSwitch, beforeSwitch, 'Deals switch migration changed business records');
+    // Finance only adds empty, tenant-protected tables; populated workspaces are left untouched.
+    const beforeFinance = await legacySnapshot(client);
+    migrate();
+    assert.deepEqual(await legacySnapshot(client), beforeFinance, 'Finance migration changed business records');
+    for (const table of ['finance_categories', 'finance_entries', 'finance_budgets']) {
+      assert.equal((await client.query(`SELECT count(*)::int AS n FROM ${table}`)).rows[0].n, 0);
+      const { relrowsecurity } = (await client.query('SELECT relrowsecurity FROM pg_class WHERE oid = $1::regclass', [`public.${table}`])).rows[0];
+      assert.equal(relrowsecurity, true, `${table} must enforce row-level security`);
+      assert.equal((await client.query('SELECT count(*)::int AS n FROM pg_policies WHERE tablename = $1', [table])).rows[0].n, 4, `${table} needs select, insert, update and delete policies`);
+    }
     console.log('Populated upgrade preserved old movements, null costs, completed sales, verified checkpoints and exact valuation entries.');
   } finally {
     await client.end();
