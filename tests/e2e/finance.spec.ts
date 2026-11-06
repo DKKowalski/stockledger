@@ -467,3 +467,46 @@ for (const width of [390, 1440]) test(`editing a distant expense brings its cont
   await expect(edit).toBeFocused(); await expect(edit).toBeInViewport();
   await expect(page.getByLabel('Entry amount')).toHaveValue('37.50');
 });
+
+
+test('copies a budget only to named months and preserves the source draft', async ({ page }) => {
+  await session(page, { report: report(10000) });
+  const saved: FinanceBudgetInput[] = [];
+  await page.route('**/finance/budgets', route => { saved.push(route.request().postDataJSON()); return route.fulfill({ status: 201, json: {} }); });
+  await page.goto('/finance');
+  await page.getByRole('button', { name: 'Set budget', exact: true }).click();
+  await page.getByLabel('Sales Revenue budget').fill('123.45');
+  await page.getByRole('button', { name: 'Copy this month…' }).click();
+  await page.getByLabel('January (replace budget)', { exact: true }).check();
+  await page.getByLabel('March (replace budget)', { exact: true }).check();
+  await expect(page.getByRole('status').filter({ hasText: 'Selected:' })).toHaveText('Selected: January (replace), March (replace).');
+  await page.getByRole('button', { name: 'Copy to 2 selected months' }).click();
+  await expect.poll(() => saved.length).toBe(2);
+  expect(saved.map(body => body.month)).toEqual(['2026-01-01', '2026-03-01']);
+  for (const body of saved) { expect(body.copyToYear).toBe(false); expect(body.lines.find(line => line.lineKey === 'sales')?.amountCents).toBe(12345); }
+  await expect(page.getByLabel('Sales Revenue budget')).toHaveValue('123.45');
+});
+
+test('retained Finance reads are labelled stale and retry without resubmitting', async ({ page }) => {
+  await session(page, { report: report(10000) });
+  let failReads = false, writes = 0;
+  await page.route('**/finance?**', route => route.fulfill(failReads ? { status: 503, json: {} } : { json: report(10000) }));
+  await page.route('**/finance/entries?**', route => route.fulfill(failReads ? { status: 503, json: {} } : { json: { entries: [{ id: 'old', kind: 'expense', categoryId: rent, entryDate: '2026-09-01', amountCents: 500, note: 'Retained entry' }], truncated: false, limit: 500 } }));
+  await page.route('**/finance/entries', route => { writes++; failReads = true; return route.fulfill({ status: 201, json: {} }); });
+  await page.goto('/finance');
+  await page.getByRole('button', { name: 'Add expense', exact: true }).click();
+  await expect(page.getByRole('row').filter({ hasText: 'Retained entry' })).toBeVisible();
+  await page.getByLabel('Entry amount').fill('10');
+  await page.getByRole('button', { name: 'Record entry' }).click();
+  await expect(page.getByText('Displayed report is out of date.', { exact: false })).toBeVisible();
+  await expect(page.getByText('Displayed entries are out of date.', { exact: false })).toBeVisible();
+  await expect(page.getByRole('row').filter({ hasText: 'Retained entry' })).toBeVisible();
+  await expect(page.locator('.finance-answer-net')).toContainText('30.00');
+  failReads = false;
+  await page.getByRole('button', { name: 'Retry entries', exact: true }).click();
+  await expect(page.getByText('Displayed entries are out of date.', { exact: false })).toHaveCount(0);
+  await expect(page.getByText('Displayed report is out of date.', { exact: false })).toBeVisible();
+  await page.getByRole('button', { name: 'Retry report', exact: true }).click();
+  await expect(page.getByText('Displayed report is out of date.', { exact: false })).toHaveCount(0);
+  expect(writes).toBe(1);
+});

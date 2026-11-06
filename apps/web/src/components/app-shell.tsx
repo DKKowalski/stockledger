@@ -36,8 +36,10 @@ export function AppShell({ navigation }: { navigation: readonly NavigationItem[]
         else if (!event.shiftKey && index === stops.length - 1) { event.preventDefault(); stops[0]?.focus(); }
       }
     };
+    const resize = () => { if (window.innerWidth > 960) { setMenuOpen(false); main.current?.focus(); } };
     document.addEventListener('keydown', keyboard);
-    return () => document.removeEventListener('keydown', keyboard);
+    window.addEventListener('resize', resize);
+    return () => { document.removeEventListener('keydown', keyboard); window.removeEventListener('resize', resize); };
   }, [menuOpen]);
   const activateRoute = () => { setMenuOpen(false); requestAnimationFrame(() => main.current?.focus()); };
 

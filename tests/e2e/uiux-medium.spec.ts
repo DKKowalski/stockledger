@@ -112,3 +112,33 @@ test('purchase safeguards automatically expose required delivery details', async
   await expect(page.getByLabel('Reference', { exact: true })).toBeVisible();
   await expect(page.getByLabel('Reference', { exact: true })).toHaveAttribute('required', '');
 });
+
+
+test('compact navigation names appear on keyboard focus and tablet menus retain labels', async ({ page }) => {
+  await mediumSession(page);
+  await page.setViewportSize({ width: 1100, height: 900 });
+  await page.goto('/items');
+  const finance = page.locator('.top-nav').getByRole('link', { name: 'Finance', exact: true });
+  await page.keyboard.press('Tab'); await finance.focus();
+  await expect(finance.locator('span')).toHaveCSS('opacity', '1');
+  await page.setViewportSize({ width: 800, height: 900 });
+  await page.getByRole('button', { name: 'Open navigation', exact: true }).click();
+  await expect(finance.locator('span')).toBeVisible();
+  await expect(finance.locator('span')).toHaveCSS('position', 'static');
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await expect(page.locator('.nav-scrim')).toHaveCount(0);
+  await expect(page.locator('#main-content')).toBeFocused();
+});
+
+test('View all alerts opens low stock and transfer actions retain the destination', async ({ page }) => {
+  const snapshot = await mediumSession(page);
+  snapshot.positions = Array.from({ length: 7 }, (_, index) => ({ ...snapshot.positions[0], item: { ...snapshot.items[0], id: `item-${index}`, name: `Item ${index}` } }));
+  await page.goto('/');
+  await page.getByRole('button', { name: '7 low-stock alerts', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'View all 7 alerts' }).click();
+  await expect(page).toHaveURL('/reports?tab=low');
+  await expect(page.getByRole('tab', { name: 'Low stock (7)' })).toHaveAttribute('aria-selected', 'true');
+  await page.goto('/movements?type=transfer&item=target&destination=shop');
+  await expect(page.getByRole('combobox', { name: 'Movement type' })).toHaveText('Transfer');
+  await expect(page.getByRole('combobox', { name: 'To', exact: true })).toHaveText('Main shop');
+});
