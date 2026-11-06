@@ -212,12 +212,24 @@ for (const view of ['Month', 'Yearly']) {
       return found;
     });
     expect(problems).toEqual([]);
+    await row(page, 'Sales Revenue').scrollIntoViewIfNeeded();
     await expect(row(page, 'Sales Revenue').locator('td[data-col="variance"]')).toBeInViewport();
-    await expect(row(page, 'Sales Revenue').locator('td[data-col="variance"]')).toContainText('Variance so far');
+    await expect(row(page, 'Sales Revenue').locator('td[data-col="variance"]')).toHaveAttribute('data-label', 'Variance so far');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     expect(await page.locator('.finance-statement-table').first().evaluate(table => table.scrollWidth <= table.clientWidth)).toBe(true);
   });
 }
+
+test('keeps the budget and variance columns in the phone month summary', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await session(page, { report: runningYear(10000, 40000) });
+  await page.goto('/finance');
+  await page.getByRole('tab', { name: 'All months' }).click();
+  await page.getByRole('row', { name: /^Full-year budget/ }).scrollIntoViewIfNeeded();
+  await expect(page.getByRole('row', { name: /^Full-year budget/ }).locator('td').nth(4)).toBeInViewport();
+  await expect(page.locator('.finance-month-summary tbody tr').nth(10).locator('td').nth(5)).toBeInViewport();
+  expect(await page.locator('.finance-month-summary').evaluate(table => table.scrollWidth <= table.clientWidth)).toBe(true);
+});
 
 test('tells the owner when the entry list is cut off and that totals are unaffected', async ({ page }) => {
   await session(page, { report: report(10000) });

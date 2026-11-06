@@ -1842,9 +1842,10 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px soli
   .finance-basis { margin-inline: 16px; }
   .finance-sticky thead th:first-child { background: var(--indigo); }
   .finance-month-summary table { min-width: 0; }
-  .finance-month-summary th:nth-child(3), .finance-month-summary td:nth-child(3), .finance-month-summary th:nth-child(4), .finance-month-summary td:nth-child(4), .finance-month-summary th:nth-child(6), .finance-month-summary td:nth-child(6) { display: none; }
-  .finance-month-summary tbody tr:not(.finance-section-row) th { min-width: 88px; max-width: none; }
-  .finance-month-summary th, .finance-month-summary td { padding-inline: 6px; }
+  .finance-month-summary th:nth-child(2), .finance-month-summary td:nth-child(2), .finance-month-summary th:nth-child(3), .finance-month-summary td:nth-child(3), .finance-month-summary th:nth-child(4), .finance-month-summary td:nth-child(4) { display: none; }
+  .finance-month-summary tbody tr:not(.finance-section-row) th { min-width: 76px; max-width: none; }
+  .finance-month-summary th, .finance-month-summary td { padding-inline: 4px; font-size: 11.5px; }
+  .finance-month-summary thead th { white-space: normal; font-size: 10px; }
   .finance-budget-form, .finance-entry-form, .finance-category-add, .finance-category-list, .finance-entry-filter { padding-inline: 16px; }
   .finance-budget-grid { grid-template-columns: 1fr 1fr; }
   .finance-entry-form { grid-template-columns: 1fr 1fr; }
