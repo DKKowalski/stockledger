@@ -181,7 +181,9 @@ test('compares the running year with elapsed months and shows the full-year budg
 });
 
 test('shows a finished year as a plain statement', async ({ page }) => {
-  await session(page, { report: { ...report(10000), year: 2025 } });
+  const base = report(10000);
+  const finished: FinanceReport = { ...base, year: 2025, yearly: { ...base.yearly, from: '2025-01-01', to: '2025-12-31', actualsTo: '2025-12-31' }, months: base.months.map(month => ({ ...month, month: month.month.replace(`${year}`, '2025'), from: month.from.replace(`${year}`, '2025'), to: month.to.replace(`${year}`, '2025') })) };
+  await session(page, { report: finished });
   await page.goto('/finance');
   await page.getByRole('combobox', { name: 'Finance year' }).click();
   await page.getByRole('option', { name: '2025', exact: true }).click();
