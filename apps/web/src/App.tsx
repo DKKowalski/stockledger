@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { ApiError, api } from './api';
 import { InventoryProvider } from './app/inventory-store';
-import { CompanySettingsProvider } from './app/company-settings-store';
+import { CompanySettingsProvider, useCompanySettings } from './app/company-settings-store';
 import { RoleWorkspace } from './app/role-workspace';
 import { useAuth } from './auth-context';
 import { StockLedgerMark } from './components/stockledger-mark';
@@ -115,7 +115,13 @@ function OwnerGate({ accessToken }: { accessToken: string }) {
 }
 
 function WorkspaceProviders({ children }: { children: ReactNode }) {
-  return <CompanySettingsProvider><InventoryProvider>{children}</InventoryProvider></CompanySettingsProvider>;
+  return <CompanySettingsProvider><CompanyWorkspace>{children}</CompanyWorkspace></CompanySettingsProvider>;
+}
+
+// Forms must mount after the company time zone is known so their default day is correct.
+function CompanyWorkspace({ children }: { children: ReactNode }) {
+  const { loading } = useCompanySettings();
+  return loading ? <AppLoader /> : <InventoryProvider>{children}</InventoryProvider>;
 }
 
 function AppLoader() {

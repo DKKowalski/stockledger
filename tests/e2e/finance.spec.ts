@@ -1,3 +1,4 @@
+import { clickDay, openCustom } from './helpers/calendar';
 import { expect, test, type Page } from '@playwright/test';
 import type { FinanceBudgetInput, FinanceLine, FinanceReport } from '../../apps/web/src/features/finance/finance-types';
 
@@ -239,4 +240,37 @@ test('tells the owner when the entry list is cut off and that totals are unaffec
   await page.goto('/finance');
   await page.getByRole('button', { name: 'Expenses and other revenue' }).click();
   await expect(page.getByRole('status').filter({ hasText: 'Showing the latest 500 entries' })).toContainText('report totals are not affected');
+});
+
+test('selects an old entry date with the shared calendar and submits the exact business day', async ({ page }) => {
+  await session(page, { report: report(10000) });
+  let saved: { entryDate: string; amountCents: number } | undefined;
+  await page.route('**/finance/entries', route => { saved = route.request().postDataJSON(); return route.fulfill({ status: 201, json: { id: 'calendar-entry' } }); });
+  await page.goto('/finance');
+  await page.getByRole('button', { name: 'Expenses and other revenue' }).click();
+  await page.getByRole('button', { name: /^Entry date:/ }).click();
+  await clickDay(page, '2020-02-29');
+  await expect(page.getByRole('button', { name: 'Entry date: 29 Feb 2020', exact: true })).toBeFocused();
+  await page.getByLabel('Entry amount').fill('12.34');
+  await page.getByRole('button', { name: 'Record entry', exact: true }).click();
+  await expect.poll(() => saved?.entryDate).toBe('2020-02-29');
+  expect(saved?.amountCents).toBe(1234);
+});
+
+test('finance entries use the custom calendar range only after Apply and print no popup', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await session(page, { report: report(10000) });
+  await page.goto('/finance');
+  await page.getByRole('button', { name: 'Expenses and other revenue' }).click();
+  await openCustom(page, 'Finance entry period');
+  await clickDay(page, '2026-10-30');
+  await clickDay(page, '2026-11-03');
+  const applied = page.waitForRequest(request => request.url().includes('/finance/entries?') && request.url().includes('from=2026-10-30') && request.url().includes('to=2026-11-03'));
+  await page.getByRole('button', { name: 'Apply dates' }).click();
+  await applied;
+  await expect(page.getByRole('button', { name: 'Finance entry period: 30 Oct 2026 – 3 Nov 2026', exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.getByRole('button', { name: /^Entry date:/ }).click();
+  await page.emulateMedia({ media: 'print' });
+  await expect(page.locator('.calendar-positioner')).toBeHidden();
 });

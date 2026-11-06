@@ -1,3 +1,4 @@
+import { DatePicker } from '../../components/ui/date-picker';
 import { companyDay } from '../../lib/date-range';
 import { ClipboardCheck } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
@@ -55,7 +56,7 @@ export function StockCountsPage() {
         <label><span>{terms.Item}</span><SelectControl aria-label={terms.Item} required value={form.itemId} onValueChange={(itemId) => setForm({ ...form, itemId })} options={[{ value: '', label: `Select ${terms.item}` }, ...items.map((item) => ({ value: item.id, label: item.name }))]} /></label>
         <label><span>Ledger quantity</span><InputControl readOnly value={expected === null ? `Select an ${terms.item} and place` : String(expected)} /></label>
         <label><span>Counted quantity</span><InputControl type="number" min="0" required value={form.countedQuantity} onValueChange={(countedQuantity) => setForm({ ...form, countedQuantity })} /></label>
-        <label><span>Count date</span><InputControl type="date" required value={form.countedAt} onValueChange={(countedAt) => setForm({ ...form, countedAt })} /></label>
+        <label><span>Count date</span><DatePicker label="Count date" required value={form.countedAt} onValueChange={(countedAt) => setForm({ ...form, countedAt })} /></label>
         <label><span>Reason or note</span><InputControl maxLength={500} required={Boolean(settings?.requireAdjustmentReason && variance !== null && variance !== 0)} value={form.note} onValueChange={(note) => setForm({ ...form, note })} /></label>
         <div className={`stock-count-variance ${variance === null || variance === 0 ? '' : variance > 0 ? 'positive' : 'negative'}`}><span>Variance</span><strong>{variance === null ? '—' : `${variance > 0 ? '+' : ''}${variance}`}</strong></div>
         <AsyncActionButton disabled={busy || !items.length} idleLabel="Save count" pendingLabel="Saving" state={countAction.state} successLabel="Count saved" />

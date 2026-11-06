@@ -1713,15 +1713,13 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px soli
 .category-field-label { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .category-field-label .link-button { padding: 0; border: 0; color: var(--violet); background: none; font-size: 12px; font-weight: 600; cursor: pointer; }
 
-.date-range-picker { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 10px; max-width: 100%; }
+.date-range-picker { --date-label-size: 12px; --date-label-weight: 600; --date-label-spacing: inherit; display: flex; align-items: flex-end; flex-wrap: wrap; gap: 10px; max-width: 100%; }
 .date-range-picker > .select-trigger { width: auto; min-width: 9.5rem; }
-.date-range-preset { display: grid; gap: 7px; min-width: 0; flex: 0 1 220px; color: var(--muted); font-size: 9px; font-weight: 650; letter-spacing: .02em; }
+.date-range-preset { display: grid; gap: 7px; min-width: 0; flex: 0 1 220px; color: var(--muted); font-size: var(--date-label-size); font-weight: var(--date-label-weight); letter-spacing: var(--date-label-spacing); }
 .date-range-fields { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 10px; min-width: 0; }
-.date-range-fields label { display: grid; gap: 5px; width: auto; min-width: 0; color: var(--muted); font-size: 12px; }
 .date-range-preset:focus-within > span { color: var(--violet-dark); }
-.profit-filter-grid .date-range-fields label { color: var(--muted); }
-.date-range-fields .text-input { min-width: 140px; }
-.date-range-fields .button { height: 42px; }
+.profit-filter-grid .date-range-picker { --date-label-size: 9px; --date-label-weight: 650; --date-label-spacing: .02em; }
+.profit-filter-grid label { color: var(--muted); }
 .date-range-error { flex-basis: 100%; color: var(--danger); font-size: 12px; }
 .profit-filter-grid .date-range-picker.is-custom { grid-column: 1 / -1; }
 .profit-filter-grid .date-range-picker:not(.is-custom) { display: block; }
@@ -1807,9 +1805,6 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px soli
 .finance-category-row.is-archived .text-input { color: var(--muted); }
 @media screen and (max-width: 760px) {
   .date-range-picker, .date-range-fields { width: 100%; }
-  .date-range-fields label { flex: 1 1 130px; }
-  .date-range-fields .text-input { width: 100%; min-width: 0; }
-  .date-range-fields .button { flex: 1 1 100%; }
   .date-range-picker > .select-trigger, .date-range-preset { flex: 1 1 100%; }
   .sales-period-filter { padding-inline: 16px; }
   .finance-toolbar { padding: 14px 16px; gap: 12px; }
@@ -1884,4 +1879,68 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px soli
   .finance-table thead { display: table-header-group; }
   .finance-table tr { break-inside: avoid; }
   .finance-footnote { font-size: 8.5px; color: var(--ink-soft); }
+}
+
+/* StockLedger calendars share the field geometry and theme tokens of SelectControl. */
+.date-picker-field { position: relative; display: grid; gap: 5px; min-width: 0; }
+.date-trigger { padding-right: 12px; font-weight: inherit; }
+.date-trigger > svg { flex: 0 0 auto; color: var(--muted); }
+.date-trigger[aria-invalid='true'] { border-color: var(--danger); }
+.date-trigger:disabled { color: var(--muted); background: var(--canvas); cursor: not-allowed; }
+.date-placeholder { color: var(--muted); }
+.date-validation-input { position: absolute; bottom: 0; left: 0; width: 1px; height: 1px; padding: 0; border: 0; opacity: 0; pointer-events: none; }
+.date-range-field { display: grid; gap: 7px; min-width: 0; color: var(--muted); font-size: var(--date-label-size); font-weight: var(--date-label-weight); letter-spacing: var(--date-label-spacing); }
+.date-range-field .date-trigger { min-width: 260px; font-size: 14px; font-weight: 400; letter-spacing: -.012em; }
+.calendar-positioner { z-index: 180; outline: none; overflow-anchor: none; }
+.calendar-caption-positioner { z-index: 190; }
+.calendar-popup { width: max-content; max-width: calc(100vw - 24px); max-height: var(--available-height); padding: 14px; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--border); border-radius: 14px; color: var(--ink); background: var(--card); box-shadow: var(--shadow); outline: none; transform-origin: var(--transform-origin); transition: opacity 120ms ease, transform 150ms var(--ease-out); }
+.calendar-popup[data-starting-style], .calendar-popup[data-ending-style] { opacity: 0; transform: translateY(-3px); }
+.calendar-content { min-height: 0; overflow: auto; }
+.calendar-instruction { margin: 0 0 10px; color: var(--muted); font-size: 12px; }
+.stock-calendar { position: relative; width: max-content; font-size: 13px; font-weight: 400; letter-spacing: -.012em; }
+.stock-calendar .rdp-months { position: relative; display: flex; gap: 20px; }
+.stock-calendar .rdp-month { position: relative; width: 280px; }
+.stock-calendar .rdp-month_caption { height: 42px; margin: 0 40px 8px; display: flex; align-items: center; justify-content: center; }
+.stock-calendar .rdp-dropdowns { display: flex; gap: 4px; min-width: 0; }
+.stock-calendar .calendar-caption-select { width: auto; height: 40px; padding: 6px 24px 6px 7px; gap: 0; border-color: var(--border); border-radius: 8px; background: var(--card-pure); font-size: 12px; font-weight: 600; }
+.stock-calendar .calendar-caption-select .select-icon { right: 5px; }
+.stock-calendar .calendar-caption-select .select-value { overflow: visible; }
+.stock-calendar .rdp-button_previous, .stock-calendar .rdp-button_next { position: absolute; top: 0; width: 40px; height: 40px; padding: 0; display: grid; place-items: center; border: 1px solid var(--border); border-radius: 8px; color: var(--ink); background: var(--card-pure); cursor: pointer; }
+.stock-calendar .rdp-button_previous { left: 0; }
+.stock-calendar .rdp-button_next { right: 0; }
+.stock-calendar .rdp-button_previous:disabled, .stock-calendar .rdp-button_next:disabled { color: var(--muted); cursor: not-allowed; }
+.stock-calendar .rdp-month_grid { width: 280px; margin: 0; border: 0; border-collapse: collapse; table-layout: fixed; }
+.stock-calendar .rdp-weekday { width: 40px; height: 30px; padding: 0; border: 0; color: var(--muted); background: transparent; font-size: 11px; font-weight: 500; text-align: center; text-transform: none; letter-spacing: inherit; }
+.stock-calendar .rdp-week { background: transparent; }
+.stock-calendar .rdp-day { position: relative; width: 40px; height: 40px; padding: 0; border: 0; color: var(--ink); background: transparent; text-align: center; }
+.stock-calendar .rdp-day_button { position: relative; width: 40px; height: 40px; padding: 0; display: grid; place-items: center; border: 0; border-radius: 8px; color: inherit; background: transparent; font: inherit; cursor: pointer; }
+.stock-calendar .rdp-day_button:hover { background: var(--violet-soft); }
+.stock-calendar .rdp-range_middle { background: var(--violet-soft); }
+.stock-calendar .rdp-range_middle .rdp-day_button { border-radius: 0; }
+.stock-calendar .rdp-selected:not(.rdp-range_middle) .rdp-day_button { color: var(--card-pure); background: var(--violet); font-weight: 650; }
+.stock-calendar .rdp-today .rdp-day_button::after { position: absolute; bottom: 5px; left: calc(50% - 2px); width: 4px; height: 4px; border-radius: 50%; background: currentColor; content: ''; }
+.stock-calendar .rdp-today:not(.rdp-selected) { color: var(--violet-dark); font-weight: 650; }
+.stock-calendar .rdp-disabled .rdp-day_button { color: var(--muted); background: var(--canvas); cursor: not-allowed; text-decoration: line-through; }
+.stock-calendar .rdp-hidden { visibility: hidden; }
+.stock-calendar .rdp-day_button:focus-visible { z-index: 1; outline: 3px solid var(--focus-ring); outline-offset: -3px; }
+.calendar-range-summary { margin-top: 12px; padding-top: 12px; display: flex; gap: 24px; border-top: 1px solid var(--border); }
+.calendar-range-summary > span { flex: 1; display: grid; gap: 5px; }
+.calendar-range-summary small { color: var(--muted); font-size: 12px; font-weight: 600; }
+.calendar-range-summary strong { font-size: 13px; font-weight: 600; }
+.calendar-popup .date-range-error { max-width: 280px; margin: 10px 0 0; line-height: 1.4; }
+.calendar-footer { flex-shrink: 0; margin-top: 14px; display: flex; justify-content: flex-end; gap: 8px; }
+.calendar-footer .button { min-height: 40px; }
+@media (max-width: 640px) {
+  .date-range-fields, .date-range-field { width: 100%; }
+  .date-range-field .date-trigger { width: 100%; min-width: 0; }
+  .calendar-caption-positioner .select-item { min-height: 40px; }
+  .calendar-popup { padding: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .calendar-popup, .date-trigger { transition: none; }
+}
+@media print {
+  .calendar-positioner, .calendar-caption-positioner, .date-validation-input { display: none !important; }
+  .date-trigger { height: auto; padding: 0; border: 0; box-shadow: none; background: transparent; }
+  .date-trigger > svg { display: none; }
 }

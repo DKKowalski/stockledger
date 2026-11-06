@@ -1,3 +1,4 @@
+import { DatePicker } from '../../components/ui/date-picker';
 import { useEffect, useState, type FormEvent } from 'react';
 import { api } from '../../api';
 import { useAuth } from '../../auth-context';
@@ -349,7 +350,7 @@ function CustomerReturns() {
                     ))}
                   <label>
                     <span>Return date</span>
-                    <InputControl required type="date" value={date} onValueChange={setDate} />
+                    <DatePicker label="Return date" required value={date} onValueChange={setDate} />
                   </label>
                   <label>
                     <span>Return reference</span>
@@ -672,7 +673,7 @@ function StockOperations() {
                   )}
                   <label>
                     <span>Change date</span>
-                    <InputControl required type="date" value={date} onValueChange={setDate} />
+                    <DatePicker label="Change date" required value={date} onValueChange={setDate} />
                   </label>
                   <label>
                     <span>Stock change reference</span>

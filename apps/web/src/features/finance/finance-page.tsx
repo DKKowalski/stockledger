@@ -1,3 +1,4 @@
+import { DatePicker } from '../../components/ui/date-picker';
 import { CircleAlert, Download, Printer } from 'lucide-react';
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
@@ -267,7 +268,7 @@ function EntryEditor({ report, revision, busy, readOnly, save, remove }: { repor
     <form className="finance-entry-form" onSubmit={submit}>
       <label><span>Entry type</span><SelectControl aria-label="Entry type" value={form.kind} onValueChange={value => setForm({ ...form, kind: value as FinanceEntry['kind'] })} options={[{ value: 'expense', label: 'Operating expense' }, { value: 'other_revenue', label: 'Other revenue' }]} /></label>
       {form.kind === 'expense' && <label><span>Expense category</span><SelectControl aria-label="Expense category" required value={form.categoryId} onValueChange={categoryId => setForm({ ...form, categoryId })} options={options} /></label>}
-      <label><span>Date</span><InputControl aria-label="Entry date" type="date" required value={form.entryDate} onValueChange={entryDate => setForm({ ...form, entryDate })} /></label>
+      <label><span>Date</span><DatePicker label="Entry date" aria-label="Entry date" required value={form.entryDate} onValueChange={entryDate => setForm({ ...form, entryDate })} /></label>
       <label><span>Amount ({report.company.currency})</span><InputControl aria-label="Entry amount" type="number" inputMode="decimal" required min="0.01" max="21474836.47" step="0.01" value={form.amount} onValueChange={amount => setForm({ ...form, amount })} /></label>
       <label className="finance-entry-note"><span>Note</span><InputControl aria-label="Entry note" maxLength={500} value={form.note} onValueChange={note => setForm({ ...form, note })} /></label>
       <div className="finance-entry-actions"><button className="button" disabled={busy || readOnly}>{editing ? 'Save changes' : 'Record entry'}</button>{editing && <button type="button" className="button secondary" onClick={() => { setEditing(undefined); setForm({ ...blank, kind: form.kind }); }}>Cancel</button>}</div>

@@ -11,15 +11,18 @@ export type SelectOption = {
 type SelectControlProps = {
   'aria-label': string;
   className?: string;
+  popupClassName?: string;
   disabled?: boolean;
   name?: string;
   onValueChange: (value: string) => void;
+  onOpenChangeComplete?: (open: boolean) => void;
+  onOpenChange?: (open: boolean) => void;
   options: readonly SelectOption[];
   required?: boolean;
   value: string;
 };
 
-export function SelectControl({ className, disabled, name, onValueChange, options, required, value, ...props }: SelectControlProps) {
+export function SelectControl({ className, popupClassName, disabled, name, onValueChange, onOpenChange, onOpenChangeComplete, options, required, value, ...props }: SelectControlProps) {
   const optionLabel = (label: ReactNode) => <span className="select-option-label">{label}</span>;
   const items = options.map((option) => ({ label: optionLabel(option.label), value: option.value || null }));
 
@@ -27,6 +30,8 @@ export function SelectControl({ className, disabled, name, onValueChange, option
     disabled={disabled}
     items={items}
     name={name}
+    onOpenChange={onOpenChange}
+    onOpenChangeComplete={onOpenChangeComplete}
     onValueChange={(nextValue) => onValueChange(nextValue ?? '')}
     required={required}
     value={value || null}
@@ -36,7 +41,7 @@ export function SelectControl({ className, disabled, name, onValueChange, option
       <Select.Icon className="select-icon"><ChevronDown aria-hidden="true" size={15} strokeWidth={1.8} /></Select.Icon>
     </Select.Trigger>
     <Select.Portal>
-      <Select.Positioner alignItemWithTrigger={false} className="select-positioner" sideOffset={6}>
+      <Select.Positioner alignItemWithTrigger={false} className={['select-positioner', popupClassName].filter(Boolean).join(' ')} sideOffset={6}>
         <Select.Popup className="select-popup">
           <Select.ScrollUpArrow className="select-scroll-arrow"><ChevronUp size={14} /></Select.ScrollUpArrow>
           <Select.List className="select-list">

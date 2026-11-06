@@ -1,3 +1,4 @@
+import { DatePicker } from '../../components/ui/date-picker';
 import { DateRangePicker } from '../../components/ui/date-range-picker';
 import { companyDay, rangeQuery, type DateRangeValue } from '../../lib/date-range';
 import { HybridOperationsPanels } from './hybrid-operations-panels';
@@ -115,7 +116,7 @@ export function MovementsPage() {
         <label><span>Quantity</span><InputControl type="number" min="1" max={returnableQuantity} required value={form.quantity} onValueChange={(quantity) => setForm({ ...form, quantity })} /></label>
         {form.type === 'purchase' && <label><span>Unit cost</span><InputControl type="number" min="0" step="0.01" required value={form.unitCost} onValueChange={(unitCost) => setForm({ ...form, unitCost })} /></label>}
         {form.type === 'purchase' && <label><span>Supplier</span><SelectControl aria-label="Supplier" value={form.supplierId} onValueChange={(supplierId) => setForm({ ...form, supplierId })} options={[{ value: '', label: 'No supplier' }, ...suppliers.filter((supplier) => supplier.isActive).map((supplier) => ({ value: supplier.id, label: supplier.name }))]} /></label>}
-        <label><span>Date</span><InputControl type="date" required value={form.movementDate} onValueChange={(movementDate) => setForm({ ...form, movementDate })} /></label>
+        <label><span>Date</span><DatePicker label="Date" required value={form.movementDate} onValueChange={(movementDate) => setForm({ ...form, movementDate })} /></label>
         <label><span>Reference</span><InputControl required={Boolean(form.type === 'purchase' && settings?.requirePurchaseSource && !form.supplierId)} value={form.reference} onValueChange={(reference) => setForm({ ...form, reference })} /></label>
         <label><span>Note</span><InputControl required={Boolean(form.type === 'damage' && settings?.requireAdjustmentReason)} value={form.note} onValueChange={(note) => setForm({ ...form, note })} /></label>
         <AsyncActionButton disabled={busy || !items.length} idleLabel="Save movement" pendingLabel="Saving" state={saveAction.state} successLabel="Saved" />

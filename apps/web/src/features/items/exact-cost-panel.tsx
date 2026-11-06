@@ -1,3 +1,6 @@
+import { companyDay } from '../../lib/date-range';
+import { useCompanySettings } from '../../app/company-settings-store';
+import { DatePicker } from '../../components/ui/date-picker';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { api } from '../../api';
 import { useAuth } from '../../auth-context';
@@ -29,6 +32,7 @@ export function ExactCostPanel() {
 }
 
 function ExactCostWorkspace() {
+  const { settings } = useCompanySettings();
   const { accessToken, user } = useAuth();
   const { snapshot, refresh } = useInventoryStore();
   const storageKey = `stockledger:exact-cost-request:${user!.companyId}:${user!.id}`;
@@ -42,7 +46,7 @@ function ExactCostWorkspace() {
   const [value, setValue] = useState('');
   const [quantity, setQuantity] = useState('');
   const [locationId, setLocationId] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().slice(0,10));
+  const [date, setDate] = useState(companyDay(settings?.timeZone));
   const [reference, setReference] = useState('');
   const [reason, setReason] = useState('');
   const [free, setFree] = useState(false);
@@ -165,7 +169,7 @@ function ExactCostWorkspace() {
             {!opening && mode === 'receipt' && <>
               <label><span>Receive at</span><SelectControl aria-label="Receive at" required value={locationId} onValueChange={setLocationId} options={state.positions.map(p=>({value:p.locationId,label:p.name}))} /></label>
               <label><span>Purchase quantity</span><InputControl inputMode="numeric" required value={quantity} onValueChange={setQuantity} /></label>
-              <label><span>Purchase date</span><InputControl type="date" required value={date} onValueChange={setDate} /></label>
+              <label><span>Purchase date</span><DatePicker label="Purchase date" required value={date} onValueChange={setDate} /></label>
             </>}
             <label><span>{!opening && mode === 'receipt' ? 'Unit purchase cost' : 'Verified total stock value'} ({state.currency})</span><InputControl inputMode="decimal" required value={value} onValueChange={setValue} /></label>
             {opening && <p>Use the total supported by your records. The displayed rounded unit cost cannot verify an opening value.</p>}

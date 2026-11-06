@@ -1,3 +1,5 @@
+import { calendarDateValue, parseCalendarDate } from './calendar-date';
+
 export type DatePreset = 'today' | 'this_month' | 'last_month';
 // A named preset is resolved to dates when picked, and keeps its name so the picker can show it.
 export type DateRangeValue = { days: number | null; from?: string; to?: string; preset?: DatePreset };
@@ -10,9 +12,9 @@ export function presetRange(preset: DatePreset, timeZone?: string, now = new Dat
   const today = companyDay(timeZone, now);
   if (preset === 'today') return { from: today, to: today };
   if (preset === 'this_month') return { from: `${today.slice(0, 7)}-01`, to: today };
-  const lastDay = new Date(`${today.slice(0, 7)}-01T12:00:00Z`);
-  lastDay.setUTCDate(0);
-  const to = lastDay.toISOString().slice(0, 10);
+  const lastDay = parseCalendarDate(`${today.slice(0, 7)}-01`)!;
+  lastDay.setDate(0);
+  const to = calendarDateValue(lastDay);
   return { from: `${to.slice(0, 7)}-01`, to };
 }
 
@@ -20,7 +22,7 @@ export function rangeQuery(value: DateRangeValue, timeZone?: string): { from?: s
   if (value.from && value.to) return { from: value.from, to: value.to };
   if (value.days === null) return {};
   const to = companyDay(timeZone);
-  const start = new Date(`${to}T12:00:00Z`);
-  start.setUTCDate(start.getUTCDate() - value.days);
-  return { from: start.toISOString().slice(0, 10), to };
+  const start = parseCalendarDate(to)!;
+  start.setDate(start.getDate() - value.days);
+  return { from: calendarDateValue(start), to };
 }
