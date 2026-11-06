@@ -146,7 +146,7 @@ export function Checkout({ enabled }: { enabled: boolean }) {
       </div> : <form className="form-grid" onSubmit={review}>
         <fieldset disabled={busy || inventoryBusy || settingsLoading || !settings || !!inventoryError || !enabled}>
           <label><span>{terms.Item}</span><ProductPicker items={snapshot?.items.filter(item => item.isActive) ?? []} locationId={user?.locationId} selling required value={itemId} onValueChange={(value) => { setItemId(value); setQuote(null); }} /></label>
-          <label><span>Quantity{selected && <small className="selected-availability">{selected.closing} {selected.item.unit} available at {shopName}</small>}</span><InputControl aria-label="Quantity" type="number" min="1" max={selected?.closing} required value={quantity} onValueChange={(value) => { setQuantity(value); setQuote(null); }} /></label>
+          <label><span className="quantity-label">Quantity{selected && <small className="selected-availability">{selected.closing} {selected.item.unit} available at {shopName}</small>}</span><InputControl aria-label="Quantity" type="number" min="1" max={selected?.closing} required value={quantity} onValueChange={(value) => { setQuantity(value); setQuote(null); }} /></label>
           <button className="button secondary" disabled={!selected} type="submit">Review sale</button>
         </fieldset>
       </form>}

@@ -2045,3 +2045,5 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px soli
 @media print { .phone-stock-list { display: none; } .desktop-stock-table { display: block; } }
 
 .sell-form fieldset { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); gap: 16px; min-width: 0; padding: 0; margin: 0; border: 0; }
+
+.form-grid label > .quantity-label:first-child { display: block; }

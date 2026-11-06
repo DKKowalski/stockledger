@@ -158,7 +158,7 @@ function RetailSalePage({ onResolved }: { onResolved?: () => void }) {
       {stocked.length || recovery.pending ? <form className="form-grid sell-form" onSubmit={(event) => void submit(event).catch(() => {})}>
         <fieldset disabled={!!recovery.pending || !!recovery.error || busy}>
         <label><span>{terms.Item}</span><ProductPicker items={snapshot?.items.filter(item => item.isActive) ?? []} locationId={user?.locationId} selling required value={form.itemId} onValueChange={(itemId) => setForm({ itemId, quantity: '' })} /></label>
-        <label><span>Quantity{selected && <small className="selected-availability">{selected.closing} {selected.item.unit} available at {shop?.name ?? 'your shop'}</small>}</span><InputControl aria-label="Quantity" type="number" min="1" max={selected?.closing} required value={form.quantity} onValueChange={(quantity) => setForm({ ...form, quantity })} /></label>
+        <label><span className="quantity-label">Quantity{selected && <small className="selected-availability">{selected.closing} {selected.item.unit} available at {shop?.name ?? 'your shop'}</small>}</span><InputControl aria-label="Quantity" type="number" min="1" max={selected?.closing} required value={form.quantity} onValueChange={(quantity) => setForm({ ...form, quantity })} /></label>
         <label><span>Unit price</span><InputControl readOnly value={unitPriceCents == null ? 'Not set' : money(unitPriceCents)} /></label>
         <label><span>Total</span><output className="sale-total" aria-live="polite">{totalCents == null ? '—' : money(totalCents)}</output></label>
         </fieldset>
