@@ -52,7 +52,7 @@ for (const width of [360, 390, 1440]) {
       expect(focus.width).toBeGreaterThanOrEqual(3);
       expect(focus.ratio).toBeGreaterThanOrEqual(3);
       if (width !== 360) await uiuxEvidence(page, 'ux05-overview');
-      for (const [route, selector] of [['/reports', 'thead th'], ['/team', 'thead th'], ['/profitability', '.profit-filter-grid label > span']] as const) {
+      for (const [route, selector] of [['/reports', width < 600 ? '.phone-stock-identity span' : 'thead th'], ['/team', 'thead th'], ['/profitability', '.profit-filter-grid label > span']] as const) {
         await page.evaluate(target => { history.pushState({}, '', target); dispatchEvent(new PopStateEvent('popstate')); }, route);
         await page.locator(selector).first().waitFor();
         await page.evaluate(value => { document.documentElement.dataset.accent = value; }, theme);

@@ -1,12 +1,12 @@
 import { Dialog } from '@base-ui/react/dialog';
-import { ArrowRight, Save, X } from 'lucide-react';
+import { ArrowRight, Save, Search, X } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../../api';
 import { useInventoryStore } from '../../app/inventory-store';
 import { useCompanySettings } from '../../app/company-settings-store';
 import { useAuth } from '../../auth-context';
-import { EmptyState, PageHeader, PageState, Panel, SelectControl } from '../../components/inventory-ui';
+import { EmptyState, PageHeader, PageState, Panel, PhoneStockRows, SelectControl } from '../../components/inventory-ui';
 import { InputControl } from '../../components/ui/input-control';
 import { AsyncActionButton } from '../../components/ui/async-action-button';
 import { useAsyncActionState } from '../../components/ui/use-async-action-state';
@@ -42,12 +42,14 @@ export function ManagerItemsPage() {
 export function ShopCatalogPage() {
   const { snapshot } = useInventoryStore();
   const { money, terms } = useCompanySettings();
-  const rows = snapshot?.positions ?? [];
+  const [search, setSearch] = useState('');
+  const rows = (snapshot?.positions ?? []).filter(position => position.item.isActive && `${position.item.name} ${position.item.sku}`.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()));
   const shop = snapshot?.locations.find((place) => place.id === snapshot.locationId);
   return <PageState>
     <PageHeader title={`${terms.Shop} catalog`} subtitle={`${terms.Items} available at ${shop?.name ?? `your assigned ${terms.shop}`}.`} />
     <Panel title={`On the shelf (${rows.length})`}>
-      {rows.length ? <div className="table-wrap"><table><thead><tr><th>{terms.Item}</th><th>Category</th><th>Unit</th><th className="num">Selling price</th><th className="num">On hand</th><th>Status</th></tr></thead><tbody>{rows.map((position) => <tr key={position.item.id}><td><b>{position.item.name}</b><small>{position.item.sku}</small></td><td>{position.item.category}</td><td>{position.item.unit}</td><td className="num">{position.item.sellingPriceCents == null ? 'Not set' : money(position.item.sellingPriceCents)}</td><td className="num"><b>{position.closing}</b></td><td>{position.isLowStock ? <span className="badge">low</span> : 'Available'}</td></tr>)}</tbody></table></div> : <EmptyState text={`No ${terms.items} are stocked at this ${terms.shop} yet.`} />}
+      <CatalogSearch value={search} onChange={setSearch} />
+      {rows.length ? <><PhoneStockRows positions={rows} canSell /><div className="table-wrap desktop-stock-table"><table><thead><tr><th>{terms.Item}</th><th>Category</th><th>Unit</th><th className="num">Selling price</th><th className="num">On hand</th><th>Status</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>{rows.map((position) => <tr key={position.item.id}><td><b>{position.item.name}</b><small>{position.item.sku}</small></td><td>{position.item.category}</td><td>{position.item.unit}</td><td className="num">{position.item.sellingPriceCents == null ? 'Not set' : money(position.item.sellingPriceCents)}</td><td className="num"><b>{position.closing}</b></td><td>{position.closing <= 0 ? 'Out of stock' : position.isLowStock ? <span className="badge">low</span> : 'Available'}</td><td>{position.closing > 0 && position.item.sellingPriceCents != null && <Link className="button secondary" to={`/sell?item=${encodeURIComponent(position.item.id)}`}>Sell {position.item.name}</Link>}</td></tr>)}</tbody></table></div></> : <EmptyState text={search.trim() ? `No ${terms.items} match this name or code.` : `No ${terms.items} are stocked at this ${terms.shop} yet.`} />}
     </Panel>
   </PageState>;
 }
@@ -179,6 +181,12 @@ export function ItemEditDialog({ item, onClose }: { item: Item; onClose: () => v
 function OperationsCatalog() {
   const { snapshot } = useInventoryStore();
   const { money, terms } = useCompanySettings();
-  const rows = snapshot?.positions ?? [];
-  return <Panel title={`Stock by place (${rows.length})`} className="spaced">{rows.length ? <div className="table-wrap"><table><thead><tr><th>{terms.Item}</th><th>Place</th><th>Category</th><th>Unit</th><th className="num">Reorder</th><th className="num">Cost</th><th className="num">Selling price</th><th className="num">Closing</th><th className="num">Value</th></tr></thead><tbody>{rows.map((position) => <tr key={`${position.location.id}-${position.item.id}`}><td><b>{position.item.name}</b><small>{position.item.sku}</small></td><td>{position.location.name}</td><td>{position.item.category}</td><td>{position.item.unit}</td><td className="num">{position.item.reorderLevel}</td><td className="num">{money(position.item.unitCostCents)}</td><td className="num">{position.item.sellingPriceCents == null ? 'Not set' : money(position.item.sellingPriceCents)}</td><td className="num"><b>{position.closing}</b></td><td className="num">{money(position.valueCents)}</td></tr>)}</tbody></table></div> : <EmptyState text={`No ${terms.items} yet.`} />}</Panel>;
+  const [search, setSearch] = useState('');
+  const rows = (snapshot?.positions ?? []).filter(position => position.item.isActive && `${position.item.name} ${position.item.sku}`.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()));
+  return <Panel title={`Stock by place (${rows.length})`} className="spaced"><CatalogSearch value={search} onChange={setSearch} />{rows.length ? <><PhoneStockRows positions={rows} showValue /><div className="table-wrap desktop-stock-table"><table><thead><tr><th>{terms.Item}</th><th>Place</th><th>Category</th><th>Unit</th><th className="num">Reorder</th><th className="num">Cost</th><th className="num">Selling price</th><th className="num">Closing</th><th className="num">Value</th></tr></thead><tbody>{rows.map((position) => <tr key={`${position.location.id}-${position.item.id}`}><td><b>{position.item.name}</b><small>{position.item.sku}</small></td><td>{position.location.name}</td><td>{position.item.category}</td><td>{position.item.unit}</td><td className="num">{position.item.reorderLevel}</td><td className="num">{money(position.item.unitCostCents)}</td><td className="num">{position.item.sellingPriceCents == null ? 'Not set' : money(position.item.sellingPriceCents)}</td><td className="num"><b>{position.closing}</b></td><td className="num">{money(position.valueCents)}</td></tr>)}</tbody></table></div></> : <EmptyState text={search.trim() ? `No ${terms.items} match this name or code.` : `No ${terms.items} yet.`} />}</Panel>;
+}
+
+function CatalogSearch({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const { terms } = useCompanySettings();
+  return <label className="catalog-search staff-catalog-search"><Search size={18} aria-hidden="true" /><input type="search" aria-label={`Search ${terms.items} by name or code`} placeholder="Search name or code" value={value} onChange={event => onChange(event.target.value)} /></label>;
 }

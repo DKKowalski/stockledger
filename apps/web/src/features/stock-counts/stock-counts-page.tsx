@@ -1,3 +1,4 @@
+import { ProductPicker } from '../../components/ui/product-picker';
 import { DatePicker } from '../../components/ui/date-picker';
 import { companyDay } from '../../lib/date-range';
 import { ClipboardCheck } from 'lucide-react';
@@ -71,7 +72,7 @@ export function StockCountsPage() {
       {previewError && <div role="alert">{previewError} <button className="button secondary" onClick={() => setPreviewVersion(value => value + 1)}>Retry ledger quantity</button></div>}
       <form className="form-grid stock-count-form" onSubmit={(event) => void submit(event).catch(() => {})}>
         <label><span>Place</span><SelectControl aria-label="Place" required value={form.locationId} onValueChange={(locationId) => setForm({ ...form, locationId })} options={[{ value: '', label: 'Select place' }, ...places.map((place) => ({ value: place.id, label: place.name }))]} /></label>
-        <label><span>{terms.Item}</span><SelectControl aria-label={terms.Item} required value={form.itemId} onValueChange={(itemId) => setForm({ ...form, itemId })} options={[{ value: '', label: `Select ${terms.item}` }, ...items.map((item) => ({ value: item.id, label: item.name }))]} /></label>
+        <label><span>{terms.Item}</span><ProductPicker items={items} locationId={form.locationId} required value={form.itemId} onValueChange={(itemId) => setForm({ ...form, itemId })} /></label>
         <label><span>Ledger quantity</span><InputControl readOnly value={expected === null ? form.itemId && form.locationId ? 'Loading quantity for count date' : `Select an ${terms.item} and place` : String(expected)} /></label>
         <label><span>Counted quantity</span><InputControl type="number" min="0" required value={form.countedQuantity} onValueChange={(countedQuantity) => setForm({ ...form, countedQuantity })} /></label>
         <label><span>Count date</span><DatePicker label="Count date" required value={form.countedAt} onValueChange={(countedAt) => setForm({ ...form, countedAt })} /></label>

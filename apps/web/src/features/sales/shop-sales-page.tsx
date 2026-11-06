@@ -1,3 +1,5 @@
+import { useSearchParams } from 'react-router-dom';
+import { ProductPicker } from '../../components/ui/product-picker';
 import { companyDay } from '../../lib/date-range';
 import { InventoryDateRangeFilter } from '../../components/inventory-date-range-filter';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
@@ -6,8 +8,7 @@ import { api, ApiError } from '../../api';
 import { useInventoryStore } from '../../app/inventory-store';
 import { useCompanySettings } from '../../app/company-settings-store';
 import { useAuth } from '../../auth-context';
-import { EmptyState, PageHeader, PageState, Panel, SelectControl } from '../../components/inventory-ui';
-import { InfoTooltip } from '../../components/ui/info-tooltip';
+import { EmptyState, PageHeader, PageState, Panel } from '../../components/inventory-ui';
 import { InputControl } from '../../components/ui/input-control';
 import { AsyncActionButton } from '../../components/ui/async-action-button';
 import type { User } from '../../types';
@@ -68,7 +69,8 @@ function RetailSalePage({ onResolved }: { onResolved?: () => void }) {
     try { return { pending: readRetailAttempt(storageKey), error: null as string | null }; }
     catch { return { pending: null, error: 'Pending sale recovery is unavailable. Keep this browser data and contact support before recording another sale.' }; }
   });
-  const [form, setForm] = useState(() => ({ itemId: recovery.pending?.body.itemId ?? '', quantity: recovery.pending ? String(recovery.pending.body.quantity) : '' }));
+  const [searchParams] = useSearchParams();
+  const [form, setForm] = useState(() => ({ itemId: recovery.pending?.body.itemId ?? searchParams.get('item') ?? '', quantity: recovery.pending ? String(recovery.pending.body.quantity) : '' }));
   const [message, setMessage] = useState<string | null>(null);
   const running = useRef(false);
   const [initialGeneration] = useState(() => { try { return localStorage.getItem(generationKey); } catch { return null; } });
@@ -155,8 +157,8 @@ function RetailSalePage({ onResolved }: { onResolved?: () => void }) {
       {recovery.pending && <p role="status">The last sale needs confirmation: {recovery.pending.body.quantity} {recovery.pending.unit} of {recovery.pending.itemName}. Retry this request before starting another sale.</p>}
       {stocked.length || recovery.pending ? <form className="form-grid sell-form" onSubmit={(event) => void submit(event).catch(() => {})}>
         <fieldset disabled={!!recovery.pending || !!recovery.error || busy}>
-        <label><span>{terms.Item}</span><SelectControl aria-label={terms.Item} required value={form.itemId} onValueChange={(itemId) => setForm({ itemId, quantity: '' })} options={[{ value: '', label: `Select ${terms.item}` }, ...stocked.map((position) => ({ value: position.item.id, label: position.item.name }))]} /></label>
-        <label><span className="label-row"><span>Quantity</span><InfoTooltip label="Stock on hand">{selected ? `${selected.closing} ${selected.item.unit} on hand` : `Choose a ${terms.item} to see what is on hand`}</InfoTooltip></span><InputControl aria-label="Quantity" type="number" min="1" max={selected?.closing} required value={form.quantity} onValueChange={(quantity) => setForm({ ...form, quantity })} /></label>
+        <label><span>{terms.Item}</span><ProductPicker items={snapshot?.items.filter(item => item.isActive) ?? []} locationId={user?.locationId} selling required value={form.itemId} onValueChange={(itemId) => setForm({ itemId, quantity: '' })} /></label>
+        <label><span>Quantity{selected && <small className="selected-availability">{selected.closing} {selected.item.unit} available at {shop?.name ?? 'your shop'}</small>}</span><InputControl aria-label="Quantity" type="number" min="1" max={selected?.closing} required value={form.quantity} onValueChange={(quantity) => setForm({ ...form, quantity })} /></label>
         <label><span>Unit price</span><InputControl readOnly value={unitPriceCents == null ? 'Not set' : money(unitPriceCents)} /></label>
         <label><span>Total</span><output className="sale-total" aria-live="polite">{totalCents == null ? '—' : money(totalCents)}</output></label>
         </fieldset>

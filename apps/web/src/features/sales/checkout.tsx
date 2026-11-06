@@ -1,10 +1,12 @@
+import { useSearchParams } from 'react-router-dom';
+import { ProductPicker } from '../../components/ui/product-picker';
 import { companyDay } from '../../lib/date-range';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { api, ApiError } from '../../api';
 import { useAuth } from '../../auth-context';
 import { useInventoryStore } from '../../app/inventory-store';
 import { useCompanySettings } from '../../app/company-settings-store';
-import { PageHeader, PageState, Panel, SelectControl } from '../../components/inventory-ui';
+import { PageHeader, PageState, Panel } from '../../components/inventory-ui';
 import { InputControl } from '../../components/ui/input-control';
 import { safeErrorMessage } from '../../lib/user-facing-error';
 import { formatMoney } from '../../lib/presentation';
@@ -38,7 +40,8 @@ export function Checkout({ enabled }: { enabled: boolean }) {
   const { user, accessToken } = useAuth();
   const { snapshot, mutate, busy: inventoryBusy, error: inventoryError } = useInventoryStore();
   const { settings, loading: settingsLoading, terms } = useCompanySettings();
-  const [itemId, setItemId] = useState('');
+  const [searchParams] = useSearchParams();
+  const [itemId, setItemId] = useState(searchParams.get('item') ?? '');
   const [quantity, setQuantity] = useState('');
   const [quote, setQuote] = useState<SaleQuote | null>(null);
   const [pending, setPending] = useState<Pending | null>(null);
@@ -142,8 +145,8 @@ export function Checkout({ enabled }: { enabled: boolean }) {
         <button className="button secondary" disabled={busy} onClick={() => void run(() => send(pending))}>Retry same sale</button>
       </div> : <form className="form-grid" onSubmit={review}>
         <fieldset disabled={busy || inventoryBusy || settingsLoading || !settings || !!inventoryError || !enabled}>
-          <label><span>{terms.Item}</span><SelectControl aria-label={terms.Item} value={itemId} onValueChange={(value) => { setItemId(value); setQuote(null); }} options={[{ value: '', label: `Select ${terms.item}` }, ...positions.map((position) => ({ value: position.item.id, label: position.item.name }))]} /></label>
-          <label><span>Quantity</span><InputControl aria-label="Quantity" type="number" min="1" max={selected?.closing} required value={quantity} onValueChange={(value) => { setQuantity(value); setQuote(null); }} /></label>
+          <label><span>{terms.Item}</span><ProductPicker items={snapshot?.items.filter(item => item.isActive) ?? []} locationId={user?.locationId} selling required value={itemId} onValueChange={(value) => { setItemId(value); setQuote(null); }} /></label>
+          <label><span>Quantity{selected && <small className="selected-availability">{selected.closing} {selected.item.unit} available at {shopName}</small>}</span><InputControl aria-label="Quantity" type="number" min="1" max={selected?.closing} required value={quantity} onValueChange={(value) => { setQuantity(value); setQuote(null); }} /></label>
           <button className="button secondary" disabled={!selected} type="submit">Review sale</button>
         </fieldset>
       </form>}

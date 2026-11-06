@@ -1,3 +1,4 @@
+import { ProductPicker } from '../../components/ui/product-picker';
 import { DatePicker } from '../../components/ui/date-picker';
 import { useEffect, useState, type FormEvent } from 'react';
 import { api } from '../../api';
@@ -543,20 +544,7 @@ function StockOperations() {
           <>
             <label>
               <span>Item</span>
-              <SelectControl
-                aria-label="Exact stock item"
-                value={itemId}
-                disabled={pending.busy}
-                onValueChange={(id) => {
-                  setItemId(id);
-                  setCurrent(null);
-                  setError(null);
-                }}
-                options={[
-                  { value: '', label: 'Select exact-cost item' },
-                  ...items.map((i) => ({ value: i.id, label: i.name })),
-                ]}
-              />
+              <ProductPicker items={items} locationId={place} label="Exact stock item" value={itemId} disabled={pending.busy} onValueChange={id => { setItemId(id); setCurrent(null); setError(null); }} />
             </label>
             {current && (
               <form className="cost-review-form" onSubmit={submit}>
