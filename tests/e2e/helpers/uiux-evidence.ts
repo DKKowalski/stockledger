@@ -7,10 +7,11 @@ export async function uiuxEvidence(page: Page, screen: string) {
   const directory = process.env.UIUX_EVIDENCE_DIR;
   if (!directory) return;
   await mkdir(directory, { recursive: true });
-  await page.evaluate(async () => { await document.fonts.ready; window.scrollTo(0, 0); });
+  const popupOpen = await page.getByRole('dialog').count() > 0;
+  await page.evaluate(async popup => { await document.fonts.ready; if (!popup) window.scrollTo(0, 0); }, popupOpen);
   for (const theme of ['violet', 'cobalt']) {
     await page.evaluate(value => { document.documentElement.dataset.accent = value; }, theme);
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    await page.screenshot({ path: join(directory, `${screen}-${page.viewportSize()!.width}-${theme}.png`), fullPage: await page.getByRole('dialog').count() === 0, animations: 'disabled' });
+    await page.screenshot({ path: join(directory, `${screen}-${page.viewportSize()!.width}-${theme}.png`), fullPage: !popupOpen, animations: 'disabled' });
   }
 }

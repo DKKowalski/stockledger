@@ -2,10 +2,10 @@ import { expect, test, type Page } from '@playwright/test';
 import { uiuxEvidence } from './helpers/uiux-evidence';
 
 const targetName = 'Milo Malt Chocolate Drink Large Family Tin 400g';
-async function session(page: Page, role = 'shop_attendant', deals = false) {
+async function session(page: Page, role = 'shop_attendant', deals = false, precise = false) {
   const shop = { id: 'shop', name: 'Main shop', type: 'shop' };
   const store = { id: 'store', name: 'Warehouse', type: 'warehouse' };
-  const target = { id: 'target', name: targetName, sku: 'MIL400-A', category: 'Drinks', unit: 'tin', isActive: true, sellingPriceCents: 4200, unitCostCents: 3200, reorderLevel: 2 };
+  const target = { id: 'target', name: targetName, sku: 'MIL400-A', category: 'Drinks', unit: 'tin', isActive: true, sellingPriceCents: 4200, unitCostCents: 3200, reorderLevel: 2, preciseCosting: precise };
   const items = [target, { ...target, id: 'duplicate', sku: 'MIL400-B' }, { ...target, id: 'empty', name: 'Empty shelf product', sku: 'EMPTY' }, ...Array.from({ length: 150 }, (_, i) => ({ ...target, id: `item-${i}`, name: `Household product ${i}`, sku: `HH-${i}` }))];
   const positions = items.map((item, index) => ({ item, location: shop, closing: index === 2 ? 0 : index === 0 ? 7 : 9, opening: 10, purchases: 0, returnsIn: 0, transferredIn: 0, transferredOut: 0, returnsOut: 0, damaged: 0, sales: 3, adjustmentsIn: 0, adjustmentsOut: 0, valueCents: 22400, isLowStock: false, velocity: 'fast', outLastPeriod: 3, lastOutDate: null }));
   await page.route('http://localhost:3100/**', route => route.fulfill({ json: [] }));
@@ -130,3 +130,19 @@ test.describe('phone touch lookup', () => {
     expect(await page.evaluate(() => navigator.maxTouchPoints)).toBeGreaterThan(0);
   });
 });
+
+for (const width of [390, 1440]) {
+  test(`exact stock forms use the shared searchable picker at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await session(page, 'inventory_manager', false, true);
+    await page.route('**/inventory/stock-operations', route => route.fulfill({ json: { available: true, hasEnrolledItems: true } }));
+    await page.goto('/movements');
+    await page.getByRole('combobox', { name: 'Exact stock item', exact: true }).click();
+    await page.getByRole('combobox', { name: 'Search items by name or code' }).fill('MIL400-A');
+    await expect(page.getByRole('option', { name: targetName, exact: true })).toHaveCount(1);
+    await expect(page.getByRole('option', { name: targetName, exact: true })).toContainText('MIL400-A');
+    await uiuxEvidence(page, 'ux01-exact-stock-picker');
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('combobox', { name: 'Exact stock item', exact: true })).toBeFocused();
+  });
+}
