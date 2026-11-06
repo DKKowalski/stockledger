@@ -26,7 +26,7 @@ export function OwnerSetupChecklist() {
     status.completed,
     status.counts.locations > 0,
     status.counts.items > 0,
-    Boolean(snapshot?.positions.some(position => position.closing > 0)),
+    status.counts.movements > 0 || Boolean(snapshot?.positions.some(position => position.closing > 0 || position.opening > 0)),
     Boolean(snapshot?.items.some(item => item.isActive && item.sellingPriceCents != null && item.sellingPriceCents > 0)),
     status.counts.teammates > 0,
   ] : [], [status, snapshot]);

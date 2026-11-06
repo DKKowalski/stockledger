@@ -16,7 +16,6 @@ import { companyDay } from '../../lib/date-range';
 
 export function OperationsDashboardPage() {
   const { snapshot, refresh, loading } = useInventoryStore();
-  const { user } = useAuth();
   return <PageState>{snapshot && <DashboardBody
     title="Inventory"
     accent="overview"
@@ -24,7 +23,7 @@ export function OperationsDashboardPage() {
     positions={snapshot.positions}
     movements={snapshot.periodMovements}
     summary={snapshot.summary}
-    setup={<><OwnerSetupChecklist />{user?.role === 'administrator' && snapshot.positions.some(position => position.closing > 0 && position.item.isActive && position.item.sellingPriceCents != null && position.item.sellingPriceCents > 0) && <DealsWhatsNew />}</>}
+    setup={<OwnerSetupChecklist />}
   />}</PageState>;
 }
 
@@ -88,6 +87,7 @@ function DashboardBody({ title, accent, actions, positions, movements, summary, 
     <PageHeader title={title} accent={accent} actions={owner ? undefined : actions} />
     {setup}
     {owner && <><OwnerTodayMoney /><div className="actions dashboard-controls">{actions}</div></>}
+    {owner && positions.some(position => position.closing > 0 && position.item.isActive && (position.item.sellingPriceCents ?? 0) > 0) && <DealsWhatsNew />}
     <section className="kpi-grid">
       <Kpi icon={Warehouse} label="Closing stock" value={summary.closingUnits.toLocaleString()} note={`${money(summary.stockValueCents)} at cost`} />
       <Kpi icon={TriangleAlert} label={`Low stock ${terms.items}`} value={String(summary.lowStockItems)} note="At or below reorder level" tone="warning" />

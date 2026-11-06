@@ -4,9 +4,11 @@ import { uiuxEvidence } from './helpers/uiux-evidence';
 async function checkText(page: Page, selector: string, minimumSize = 12) {
   const measured = await page.locator(selector).evaluateAll(elements => {
     const rgba = (value: string) => {
-      const channels = value.match(/[\d.]+/g)!.map(Number);
-      if (value.includes('%')) channels[3] /= 100;
-      return channels;
+      const canvas = document.createElement('canvas'); canvas.width = canvas.height = 1;
+      const context = canvas.getContext('2d')!;
+      context.fillStyle = value; context.fillRect(0, 0, 1, 1);
+      const [r, g, b, a] = context.getImageData(0, 0, 1, 1).data;
+      return [r, g, b, a / 255];
     };
     const over = (front: number[], back: number[]) => front.slice(0, 3).map((value, i) => value * (front[3] ?? 1) + back[i] * (1 - (front[3] ?? 1)));
     const background = (element: Element): number[] => over(rgba(getComputedStyle(element).backgroundColor), element.parentElement ? background(element.parentElement) : [255, 255, 255]);
