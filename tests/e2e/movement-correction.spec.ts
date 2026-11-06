@@ -27,6 +27,8 @@ for (const width of [390, 1440]) {
     await expect(dialog).toContainText('PO-123');
     await expect(dialog).toContainText('Stock decreases by 12 at Main shop');
     await expect(dialog).toContainText('32.00');
+    await expect(dialog).toContainText('Receipt amount to remove');
+    await expect(dialog).toContainText('384.00');
     await expect(dialog.getByRole('button', { name: 'Cancel', exact: true })).toBeFocused();
     expect(calls).toBe(0);
     await uiuxEvidence(page, 'ux04-receipt-confirmation');
@@ -43,6 +45,20 @@ for (const width of [390, 1440]) {
     await expect(dialog).toBeHidden();
     await expect(trigger).toHaveCount(0);
     await expect(page.getByRole('heading', { name: /^Movement ledger/ })).toBeFocused();
+    expect(calls).toBe(2);
+    // Transfers affect both places; outgoing damage restores stock when removed.
+    removed = false;
+    Object.assign(movement, { type: 'transfer', quantity: 4, destination: { id: 'other', name: 'Other shop' }, destinationLocationId: 'other' });
+    await page.reload();
+    await trigger.click();
+    await expect(dialog).toContainText('Stock increases by 4 at Main shop and decreases by 4 at Other shop');
+    await uiuxEvidence(page, 'ux04-transfer-confirmation');
+    await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+    Object.assign(movement, { type: 'damage', quantity: 3, destination: null, destinationLocationId: null, sign: -1 });
+    await page.reload();
+    await trigger.click();
+    await expect(dialog).toContainText('Stock increases by 3 at Main shop');
+    await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
     expect(calls).toBe(2);
   });
 }

@@ -148,6 +148,7 @@ export function MovementsPage() {
               {deleting.reference && <div><dt>Reference</dt><dd>{deleting.reference}</dd></div>}
               {deleting.note && <div><dt>Note</dt><dd>{deleting.note}</dd></div>}
               {deleting.unitCostCents !== null && <div><dt>Recorded unit cost</dt><dd>{money(deleting.unitCostCents)}</dd></div>}
+              {deleting.type === 'purchase' && deleting.unitCostCents !== null && <div><dt>Receipt amount to remove</dt><dd>{money(deleting.costTotalCents ?? deleting.unitCostCents * deleting.quantity)}</dd></div>}
               {deleting.saleTotalCents !== null && <div><dt>Recorded sale total to remove</dt><dd>{money(deleting.saleTotalCents)}</dd></div>}
             </dl>
             <p className="movement-correction-effect">{deleting.type === 'transfer'
