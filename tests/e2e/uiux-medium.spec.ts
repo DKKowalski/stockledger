@@ -139,6 +139,17 @@ test('View all alerts opens low stock and transfer actions retain the destinatio
   await expect(page).toHaveURL('/reports?tab=low');
   await expect(page.getByRole('tab', { name: 'Low stock (7)' })).toHaveAttribute('aria-selected', 'true');
   await page.goto('/movements?type=transfer&item=target&destination=shop');
-  await expect(page.getByRole('combobox', { name: 'Movement type' })).toHaveText('Transfer');
+  await expect(page.getByRole('combobox', { name: 'Movement type', exact: true })).toHaveText('Transfer');
   await expect(page.getByRole('combobox', { name: 'To', exact: true })).toHaveText('Main shop');
+});
+
+
+test('an item with no opening stock has no health verdict and still needs its first receipt', async ({ page }) => {
+  const snapshot = await mediumSession(page);
+  snapshot.positions = [{ ...snapshot.positions[0], closing: 0, opening: 0, sales: 0, outLastPeriod: 0 }];
+  await page.route('**/onboarding', route => route.fulfill({ json: { completed: true, company: { name: 'Shop', inventorySource: 'starting_fresh' }, counts: { locations: 1, items: 1, movements: 0, teammates: 0 } } }));
+  await page.goto('/');
+  await expect(page.locator('.owner-setup-next')).toHaveText('Receive your first stock');
+  await expect(page.locator('.health-panel')).toContainText('Stock health will appear after you add stock.');
+  await expect(page.getByText('All levels look good', { exact: true })).toHaveCount(0);
 });

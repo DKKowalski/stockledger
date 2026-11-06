@@ -149,10 +149,14 @@ function StockLevels({ positions }: { positions: Position[] }) {
   </Panel>;
 }
 
+function hasStockActivity(positions: Position[]) {
+  return positions.some(position => [position.closing, position.opening, position.purchases, position.returnsIn, position.transferredIn, position.transferredOut, position.returnsOut, position.damaged, position.sales, position.adjustmentsIn, position.adjustmentsOut].some(quantity => quantity !== 0));
+}
+
 function StockHealth({ positions }: { positions: Position[] }) {
   const { terms } = useCompanySettings();
   const total = positions.length;
-  if (!total) return <Panel title="Inventory health" className="health-panel"><div className="health-empty">Stock health will appear after you add stock.</div></Panel>;
+  if (!hasStockActivity(positions)) return <Panel title="Inventory health" className="health-panel"><div className="health-empty">Stock health will appear after you add stock.</div></Panel>;
   const low = positions.filter((position) => position.isLowStock).length;
   const healthy = Math.max(total - low, 0);
   const healthPercent = total ? Math.round((healthy / total) * 100) : 0;
@@ -162,7 +166,7 @@ function StockHealth({ positions }: { positions: Position[] }) {
 
 function LowStock({ positions }: { positions: Position[] }) {
   const { terms } = useCompanySettings();
-  if (!positions.length) return <EmptyState text="Add stock to see which lines need attention." />;
+  if (!hasStockActivity(positions)) return <EmptyState text="Add stock to see which lines need attention." />;
   const rows = positions.filter((position) => position.isLowStock).slice(0, 5);
   if (!rows.length) return <div className="all-clear"><span><Check size={17} /></span><div><b>All levels look good</b><small>No {terms.items} need reordering.</small></div></div>;
   return <div className="low-stock-list">{rows.map((position) => { const percent = Math.min((position.closing / Math.max(position.item.reorderLevel, 1)) * 100, 100); return <div className="low-stock-row" key={`${position.location.id}-${position.item.id}`}><div><b>{position.item.name}</b><small>{position.location.name} · {position.closing} of {position.item.reorderLevel} {position.item.unit}</small></div><span className="stock-progress"><i style={{ width: `${percent}%` }} /></span></div>; })}</div>;
