@@ -120,9 +120,11 @@ function RetailSalePage({ onResolved }: { onResolved?: () => void }) {
     try {
       await saleAction.run(async () => {
         if (!navigator.locks) throw new Error('Use an up-to-date browser to record sales safely.');
-        const attempt = await navigator.locks.request(storageKey, () => {
+        // Keep the lock through acknowledgement. Otherwise a late response from
+        // another tab could erase a newer pending attempt in the shared slot.
+        await navigator.locks.request(storageKey, async () => {
           const existing = readRetailAttempt(storageKey);
-          if (existing) return existing;
+          if (existing) { setRecovery({ pending: existing, error: null }); await send(existing); return; }
           if (generation.current !== localStorage.getItem(generationKey)) {
             throw new Error('Another tab recorded a sale. Reload and review your entries before starting the next sale.');
           }
@@ -136,9 +138,9 @@ function RetailSalePage({ onResolved }: { onResolved?: () => void }) {
           localStorage.setItem(generationKey, nextGeneration);
           localStorage.setItem(storageKey, JSON.stringify(next));
           generation.current = nextGeneration;
-          return next;
+          setRecovery({ pending: next, error: null });
+          await send(next);
         });
-        if (attempt) { setRecovery({ pending: attempt, error: null }); await send(attempt); }
       });
     } catch (caught) {
       setRecovery(current => ({ ...current, error: current.pending ? current.error : caught instanceof Error ? caught.message : 'Could not record this sale. Review your entries and try again.' }));

@@ -5,7 +5,7 @@ const userId = '41000000-0000-4000-8000-000000000099';
 const shopId = '32000000-0000-4000-8000-000000000099';
 const itemId = '51000000-0000-4000-8000-000000000099';
 
-async function prepared(context: BrowserContext, suspendStorageEvents = false) {
+async function prepared(context: BrowserContext, suspendStorageEvents = false, retail = false) {
   // UI coordination boundary only. Separate HTTP/live tests verify actual financial persistence.
   const item = { id: itemId, sku: 'TEST', name: 'Test product', category: 'Test', unit: 'pcs', unitCostCents: 1000, sellingPriceCents: 1500, reorderLevel: 0, isActive: true };
   const shop = { id: shopId, name: 'Shop', type: 'shop' };
@@ -16,7 +16,7 @@ async function prepared(context: BrowserContext, suspendStorageEvents = false) {
   await context.route('**/onboarding', route => route.fulfill({ json: { completed: true, company: { id: companyId, name: 'Test', businessType: 'mixed', inventorySource: 'paper' }, counts: { locations: 1, items: 1, movements: 1, teammates: 1 } } }));
   await context.route('**/settings', route => route.fulfill({ json: { id: companyId, name: 'Test', currency: 'GHS', timeZone: 'Africa/Accra', itemTerm: 'item', shopTerm: 'shop', warehouseTerm: 'warehouse' } }));
   await context.route('**/inventory/snapshot**', route => route.fulfill({ json: snapshot }));
-  await context.route('**/inventory/sale-completion', route => route.fulfill({ json: { available: true, developmentOnly: true } }));
+  await context.route('**/inventory/sale-completion', route => route.fulfill({ json: { available: !retail, developmentOnly: true } }));
   await context.route('**/inventory/pricing-preview/quote', route => route.fulfill({ json: { ...quote, previewOnly: true, canComplete: false } }));
   await context.route('**/inventory/sales/quote', route => route.fulfill({ json: { ...quote, canComplete: true, developmentOnly: true, quoteToken: 'synthetic.quote', expiresAt: '2099-01-01T00:00:00Z' } }));
   const pages = [await context.newPage(), await context.newPage()];
@@ -24,8 +24,11 @@ async function prepared(context: BrowserContext, suspendStorageEvents = false) {
   for (const page of pages) {
     await page.goto('/sell');
     await page.getByRole('combobox', { name: 'Item', exact: true }).click(); await page.getByRole('option', { name: item.name, exact: true }).click();
-    await page.getByLabel('Quantity', { exact: true }).fill('15'); await page.getByRole('button', { name: 'Review sale', exact: true }).click();
-    await expect(page.locator('.checkout-pay dd')).toContainText('185.00');
+    await page.getByLabel('Quantity', { exact: true }).fill('15');
+    if (!retail) {
+      await page.getByRole('button', { name: 'Review sale', exact: true }).click();
+      await expect(page.locator('.checkout-pay dd')).toContainText('185.00');
+    }
   }
   return { pages, quote };
 }
@@ -54,6 +57,41 @@ test('two tabs queued together persist one pending intent and send one completio
   } finally { releaseResponse(); }
   await expect.poll(async () => pages[0]!.evaluate(() => Object.keys(localStorage).filter(key => key.startsWith('stockledger:sale-request:')).length)).toBe(0);
   expect(writes).toBe(1);
+});
+
+test('retail tabs serialize acknowledgement before another sale can use the pending storage slot', async ({ context }) => {
+  const { pages } = await prepared(context, false, true);
+  const lockName = `stockledger:retail-sale:${companyId}:${userId}:${shopId}`;
+  await pages[0]!.evaluate(name => new Promise<void>(acquired => {
+    void navigator.locks.request(name, async () => {
+      acquired(); await new Promise<void>(release => { (window as unknown as { releaseRetailLock: () => void }).releaseRetailLock = release; });
+    });
+  }), lockName);
+  let releaseResponse!: () => void;
+  const responseGate = new Promise<void>(resolve => { releaseResponse = resolve; });
+  const keys: string[] = [];
+  await context.route('**/inventory/movements', async route => {
+    keys.push(route.request().postDataJSON().idempotencyKey);
+    await responseGate;
+    await route.fulfill({ status: 201, json: { id: 'retail-movement' } });
+  });
+  await Promise.all(pages.map(page => page.getByRole('button', { name: 'Sell', exact: true }).evaluate((button: HTMLButtonElement) => button.click())));
+  await expect.poll(async () => (await pages[0]!.evaluate(() => navigator.locks.query())).pending?.filter(lock => lock.name === lockName).length).toBe(2);
+  await pages[0]!.evaluate(() => (window as unknown as { releaseRetailLock: () => void }).releaseRetailLock());
+  try {
+    await expect.poll(() => keys.length).toBe(1);
+    await expect.poll(async () => (await pages[0]!.evaluate(() => navigator.locks.query())).pending?.filter(lock => lock.name === lockName).length).toBe(1);
+  } finally { releaseResponse(); }
+  await expect(pages[0]!.getByRole('status').filter({ hasText: 'Sale recorded once' })).toBeVisible();
+  await expect.poll(async () => (await pages[0]!.evaluate(() => navigator.locks.query())).pending?.filter(lock => lock.name === lockName).length).toBe(0);
+  expect(keys).toHaveLength(1);
+  expect(await pages[0]!.evaluate(key => localStorage.getItem(key), lockName)).toBeNull();
+  await pages[0]!.getByRole('combobox', { name: 'Item', exact: true }).click();
+  await pages[0]!.getByRole('option', { name: 'Test product', exact: true }).click();
+  await pages[0]!.getByLabel('Quantity', { exact: true }).fill('2');
+  await pages[0]!.getByRole('button', { name: 'Sell', exact: true }).click();
+  await expect.poll(() => keys.length).toBe(2);
+  expect(keys[1]).not.toBe(keys[0]);
 });
 
 

@@ -25,7 +25,7 @@ test('retail sale recovers a committed lost response after reload and a new sale
     await page.getByPlaceholder('Enter your password').fill(password);
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
     await expect(page).toHaveURL('/');
-    await page.getByRole('link', { name: 'Sell', exact: true }).click();
+    await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link', { name: 'Sell', exact: true }).click();
     const choose = async () => {
       await page.getByRole('combobox', { name: 'Item', exact: true }).click();
       await page.getByRole('option', { name: 'Recovery product', exact: true }).click();
