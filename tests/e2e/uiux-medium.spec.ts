@@ -43,3 +43,16 @@ for (const width of [390, 1440]) test(`stock charts expose full identities and h
   expect(await page.locator('.chart-group').last().locator('.chart-bar.closing').evaluate(element => (element as HTMLElement).style.height)).toBe('0%');
   await uiuxEvidence(page, 'ux09-overview');
 });
+
+for (const width of [390, 1440]) test(`first-run guidance leads with the next task at ${width}px`, async ({ page }) => {
+  await page.setViewportSize({ width, height: 900 });
+  await mediumSession(page, true);
+  await page.goto('/');
+  await expect(page.locator('.owner-setup-next')).toHaveText('Create your first inventory item');
+  await expect(page.locator('.owner-setup-card')).toBeInViewport();
+  await expect(page.getByText('Box and quantity deals', { exact: true })).toHaveCount(0);
+  await expect(page.locator('.health-panel')).toHaveText('Inventory healthStock health will appear after you add stock.');
+  await expect(page.getByText('All levels look good', { exact: true })).toHaveCount(0);
+  await expect(page.locator('.health-panel')).not.toContainText('0%');
+  await uiuxEvidence(page, 'ux10-first-run');
+});
