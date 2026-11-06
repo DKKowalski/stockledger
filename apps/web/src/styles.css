@@ -2096,3 +2096,5 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px soli
   .topbar-inner { gap: 10px; }
   .navbar-account { gap: 4px; }
 }
+
+.finance-read-error { margin: 16px; display: grid; justify-items: start; gap: 10px; }

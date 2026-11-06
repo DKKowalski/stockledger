@@ -57,18 +57,22 @@ function FinanceWorkspacePage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [revision, setRevision] = useState(0);
+  const [reportRetry, setReportRetry] = useState(0);
+  const [reportUpdated, setReportUpdated] = useState<Date | null>(null);
+  const [reportLoading, setReportLoading] = useState(false);
   const month = `${year}-${monthNumber}`;
   const readOnly = Boolean(user?.isDemo);
 
   useEffect(() => {
     if (!accessToken) return;
     let active = true;
-    void api.finance(accessToken, year).then(result => { if (active) { setReport(result); setError(null); } }).catch(caught => {
+    setReportLoading(true);
+    void api.finance(accessToken, year).then(result => { if (active) { setReport(result); setReportUpdated(new Date()); setError(null); } }).catch(caught => {
       if (caught instanceof ApiError && caught.status === 401) signOut();
-      else if (active) { setReport(null); setError(safeErrorMessage(caught, 'Could not load finance report')); }
-    });
+      else if (active) setError(safeErrorMessage(caught, 'Could not load finance report'));
+    }).finally(() => { if (active) setReportLoading(false); });
     return () => { active = false; };
-  }, [accessToken, year, revision, signOut]);
+  }, [accessToken, year, revision, reportRetry, signOut]);
 
   const save = useCallback(async (action: () => Promise<unknown>) => {
     setBusy(true);
@@ -118,7 +122,7 @@ function FinanceWorkspacePage() {
       </section>
     </div>
     {Object.keys(drafts).some(key => key !== 'entryEditing') && <p className="finance-draft-status finance-controls" role="status">Unsaved Finance drafts are kept while you switch editors, views and months. Save or discard them in their editor. Leaving Finance or reloading clears them.</p>}
-    {error && <p role="alert" className="form-error">{error}</p>}
+    {error && <div role="alert" className="form-error finance-read-error"><p>Finance report could not load. Check your connection, then retry this report.</p>{loaded && reportUpdated && <p>Displayed report is out of date. Last loaded {reportUpdated.toLocaleTimeString()}.</p>}<p>{error}</p><button className="button secondary" type="button" disabled={reportLoading} onClick={() => setReportRetry(value => value + 1)}>{reportLoading ? 'Retrying…' : 'Retry report'}</button></div>}
     {loaded && selectedMonth && <>
       <div className="finance-controls">
         {editor === 'budget' && <BudgetEditor key={`${month}:${revision}`} report={loaded} month={month} setMonth={setMonthNumber} busy={busy} readOnly={readOnly} save={bodies => save(async () => { for (const body of bodies) await api.saveFinanceBudget(accessToken!, body); })} />}
@@ -297,14 +301,20 @@ function EntryEditor({ report, revision, busy, readOnly, save, remove }: { repor
   const [invalid, setInvalid] = useState(false);
   const [range, setRange] = useState<DateRangeValue>({ days: null, from: `${report.year}-01-01`, to: `${report.year}-12-31` });
   const [list, setList] = useState<FinanceEntryList | null>(null);
-  const rows = list?.entries ?? null;
+  const rangeKey = JSON.stringify(range);
+  const [listScope, setListScope] = useState('');
+  const rows = listScope === rangeKey ? list?.entries ?? null : null;
+  const [entriesRetry, setEntriesRetry] = useState(0);
+  const [entriesLoading, setEntriesLoading] = useState(false);
+  const [entriesUpdated, setEntriesUpdated] = useState<Date | null>(null);
   const [loadError, setLoadError] = useState(false);
   useEffect(() => {
     if (!accessToken) return;
     let active = true;
-    void api.financeEntries(accessToken, rangeQuery(range, report.company.timeZone)).then(next => { if (active) { setList(next); setLoadError(false); } }).catch(() => { if (active) setLoadError(true); });
+    setEntriesLoading(true);
+    void api.financeEntries(accessToken, rangeQuery(range, report.company.timeZone)).then(next => { if (active) { setList(next); setListScope(rangeKey); setEntriesUpdated(new Date()); setLoadError(false); } }).catch(() => { if (active) setLoadError(true); }).finally(() => { if (active) setEntriesLoading(false); });
     return () => { active = false; };
-  }, [accessToken, range, report.company.timeZone, revision]);
+  }, [accessToken, range, rangeKey, report.company.timeZone, revision, entriesRetry]);
   const submit = (event: FormEvent) => {
     event.preventDefault();
     const amountCents = parseMoneyCents(form.amount);
@@ -326,7 +336,8 @@ function EntryEditor({ report, revision, busy, readOnly, save, remove }: { repor
     </form>
     <div className="finance-entry-filter"><DateRangePicker allowAll value={range} onChange={setRange} label="Finance entry period" /></div>
     {list?.truncated && <div className="finance-entry-filter"><Notice title={`Showing the latest ${list.limit} entries`}>Older entries in this period are not listed, so narrow the dates to find them. The report totals are not affected and include every entry.</Notice></div>}
-    {loadError ? <p className="form-error" role="alert">Could not load entries. Try again.</p> : rows === null ? <EmptyState text="Loading entries" /> : rows.length ? <div className="table-wrap"><table><thead><tr><th>Date</th><th>Category</th><th>Note</th><th className="num">Amount</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>{rows.map(entry => <tr key={entry.id}><td>{calendarDate(entry.entryDate)}</td><td>{entry.kind === 'other_revenue' ? 'Other Revenue' : report.categories.find(category => category.id === entry.categoryId)?.name}</td><td>{entry.note || '—'}</td><td className="num">{money(entry.amountCents)}</td><td className="finance-row-actions">{deleting === entry.id
+    {loadError && <div className="form-error finance-read-error" role="alert"><p>Entries could not load. Check your connection, then retry the entry list. Your draft is kept.</p>{rows && entriesUpdated && <p>Displayed entries are out of date. Last loaded {entriesUpdated.toLocaleTimeString()}.</p>}<button className="button secondary" type="button" disabled={entriesLoading} onClick={() => setEntriesRetry(value => value + 1)}>{entriesLoading ? 'Retrying…' : 'Retry entries'}</button></div>}
+    {rows === null ? !loadError && <EmptyState text="Loading entries" /> : rows.length ? <div className="table-wrap"><table><thead><tr><th>Date</th><th>Category</th><th>Note</th><th className="num">Amount</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>{rows.map(entry => <tr key={entry.id}><td>{calendarDate(entry.entryDate)}</td><td>{entry.kind === 'other_revenue' ? 'Other Revenue' : report.categories.find(category => category.id === entry.categoryId)?.name}</td><td>{entry.note || '—'}</td><td className="num">{money(entry.amountCents)}</td><td className="finance-row-actions">{deleting === entry.id
       ? <><button type="button" className="text-button negative" disabled={busy || readOnly} onClick={() => { setDeleting(null); void remove(entry.id).catch(() => {}); }}>Confirm delete</button><button type="button" className="text-button" onClick={() => setDeleting(null)}>Keep</button></>
       : <><button type="button" className="text-button" disabled={busy} onClick={() => { const key = `entry:${entry.id}`; if (!(key in drafts)) setDrafts(current => ({ ...current, [key]: { kind: entry.kind, categoryId: entry.categoryId ?? blank.categoryId, entryDate: entry.entryDate, amount: (entry.amountCents / 100).toFixed(2), note: entry.note } })); setEditing(entry.id); }}>Edit</button><button type="button" className="text-button negative" disabled={busy} onClick={() => setDeleting(entry.id)}>Delete</button></>}</td></tr>)}</tbody></table></div> : <EmptyState text="No entries in this period." />}
   </Panel>;

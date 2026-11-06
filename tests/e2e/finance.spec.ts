@@ -409,3 +409,25 @@ for (const width of [390, 1440]) test(`simple budget shows used lines and live p
   await page.getByLabel('December (no budget)', { exact: true }).check();
   await expect(page.getByRole('status').filter({ hasText: 'Selected:' })).toHaveText('Selected: December (new).');
 });
+
+for (const width of [390, 1440]) test(`Finance retries failed reads without losing a draft at ${width}px`, async ({ page }) => {
+  await page.setViewportSize({ width, height: 900 });
+  await session(page, { report: report(10000) });
+  let reportReads = 0, entryReads = 0, writes = 0;
+  await page.route('**/finance?**', route => { reportReads++; return reportReads === 1 ? route.fulfill({ status: 503, json: { message: 'Offline' } }) : route.fulfill({ json: report(10000) }); });
+  await page.route('**/finance/entries?**', route => { entryReads++; return entryReads === 1 ? route.fulfill({ status: 503, json: {} }) : route.fulfill({ json: { entries: [], truncated: false, limit: 500 } }); });
+  page.on('request', request => { if (request.method() !== 'GET' && request.url().includes('/finance')) writes++; });
+  await page.goto('/finance');
+  await page.getByRole('button', { name: 'Retry report', exact: true }).click();
+  await expect(page.locator('.finance-answer')).toBeVisible();
+  await page.getByRole('button', { name: 'Add expense', exact: true }).click();
+  await page.getByLabel('Entry amount').fill('37.50');
+  await page.getByLabel('Entry note').fill('Keep this draft');
+  await expect(page.getByRole('alert').filter({ hasText: 'Entries could not load' })).toBeVisible();
+  await uiuxEvidence(page, 'ux12-entry-retry');
+  await page.getByRole('button', { name: 'Retry entries', exact: true }).click();
+  await expect(page.getByText('No entries in this period.')).toBeVisible();
+  await expect(page.getByLabel('Entry amount')).toHaveValue('37.50');
+  await expect(page.getByLabel('Entry note')).toHaveValue('Keep this draft');
+  expect(reportReads).toBe(2); expect(entryReads).toBe(2); expect(writes).toBe(0);
+});
