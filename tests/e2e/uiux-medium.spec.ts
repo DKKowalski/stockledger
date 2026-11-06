@@ -56,3 +56,34 @@ for (const width of [390, 1440]) test(`first-run guidance leads with the next ta
   await expect(page.locator('.health-panel')).not.toContainText('0%');
   await uiuxEvidence(page, 'ux10-first-run');
 });
+
+for (const width of [390, 1440]) test(`top navigation and item tabs support keyboard at ${width}px`, async ({ page }) => {
+  await page.setViewportSize({ width, height: 900 });
+  await mediumSession(page);
+  await page.goto('/items');
+  await expect(page.getByRole('button', { name: 'Close navigation', exact: true })).toHaveCount(0);
+  const skip = page.getByRole('link', { name: 'Skip to main content' });
+  await skip.focus();
+  await expect(skip).toBeInViewport();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#main-content')).toBeFocused();
+  if (width === 390) {
+    await page.getByRole('button', { name: 'Open navigation', exact: true }).click();
+    await expect(page.locator('.top-nav a').first()).toBeFocused();
+    await page.keyboard.press('Shift+Tab');
+    await expect(page.getByRole('button', { name: 'Close navigation', exact: true }).first()).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('button', { name: 'Open navigation', exact: true })).toBeFocused();
+    await expect(page.locator('.nav-scrim')).toHaveCount(0);
+  } else {
+    for (const label of ['Finance', 'Profit', 'Reports']) await expect(page.locator('.top-nav').getByText(label, { exact: true })).toBeVisible();
+  }
+  await page.locator('.catalog-row').filter({ hasText: 'Milo Family' }).click();
+  await page.getByRole('tab', { name: 'Stock', exact: true }).focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.getByRole('tab', { name: 'Pricing', exact: true })).toBeFocused();
+  await expect(page.getByRole('tabpanel', { name: 'Pricing', exact: true })).toBeVisible();
+  await page.keyboard.press('End');
+  await expect(page.getByRole('tab', { name: 'History', exact: true })).toHaveAttribute('aria-selected', 'true');
+  await uiuxEvidence(page, 'ux11-navigation-tabs');
+});

@@ -1,5 +1,5 @@
 import { Archive, Check, CircleHelp, Info, Pencil, Plus, RotateCcw, Search, X } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../../api';
 import { useInventoryStore } from '../../app/inventory-store';
@@ -183,6 +183,7 @@ function ItemPanel({ row, tone }: { row: CatalogRow; tone: string }) {
     if (tabParam === 'pricing') setTab('pricing');
   }
   const { item } = row;
+  const tabId = useId();
   const tabs: Array<{ key: ItemTab; label: string }> = [{ key: 'stock', label: 'Stock' }, { key: 'pricing', label: 'Pricing' }, { key: 'history', label: 'History' }];
   return <>
     <div className="item-panel-header">
@@ -197,9 +198,9 @@ function ItemPanel({ row, tone }: { row: CatalogRow; tone: string }) {
       </div>
     </div>
     <div className="item-tabs" role="tablist" aria-label={`${terms.Item} sections`}>
-      {tabs.map((option) => <button aria-selected={tab === option.key} className={tab === option.key ? 'is-active' : ''} key={option.key} onClick={() => setTab(option.key)} role="tab" type="button">{option.label}</button>)}
+      {tabs.map((option, index) => <button id={`${tabId}-${option.key}`} aria-controls={`${tabId}-panel`} tabIndex={tab === option.key ? 0 : -1} onKeyDown={event => { const next = event.key === 'ArrowRight' ? (index + 1) % tabs.length : event.key === 'ArrowLeft' ? (index + tabs.length - 1) % tabs.length : event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : null; if (next === null) return; event.preventDefault(); setTab(tabs[next].key); document.getElementById(`${tabId}-${tabs[next].key}`)?.focus(); }} aria-selected={tab === option.key} className={tab === option.key ? 'is-active' : ''} key={option.key} onClick={() => setTab(option.key)} role="tab" type="button">{option.label}</button>)}
     </div>
-    <div className="item-panel-body" role="tabpanel">
+    <div id={`${tabId}-panel`} className="item-panel-body" role="tabpanel" aria-labelledby={`${tabId}-${tab}`} tabIndex={0}>
       {tab === 'stock' && <StockTab row={row} />}
       {tab === 'pricing' && <PricingTab item={item} />}
       {tab === 'history' && <HistoryTab item={item} />}

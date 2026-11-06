@@ -2080,3 +2080,19 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px soli
 @media (max-width: 760px) { .stock-chart-panel .stock-chart { display: none; } .stock-ranked-list { padding-inline: 16px; } }
 
 .health-empty { padding: 24px; color: var(--on-indigo-muted); line-height: 1.6; }
+
+.skip-link { position: fixed; top: 8px; left: 12px; z-index: 200; padding: 12px 18px; color: var(--card-pure); background: var(--violet); border-radius: 8px; transform: translateY(-150%); }
+.skip-link:focus { transform: translateY(0); }
+@media (min-width: 1280px) {
+  .topbar-inner { gap: 16px; padding-inline: 24px; }
+  .top-nav { position: static; transform: none; margin-left: auto; }
+  .nav-link, .nav-link.active { width: auto; padding-inline: 9px; }
+  .nav-link span, .nav-link.active span { max-width: none; margin-left: 6px; opacity: 1; }
+  .topbar-user-copy { display: none; }
+}
+@media (max-width: 760px) {
+  .menu-button, .notification-trigger { min-width: 44px; min-height: 44px; }
+  .topbar-user { min-width: 44px; min-height: 44px; }
+  .topbar-inner { gap: 10px; }
+  .navbar-account { gap: 4px; }
+}
