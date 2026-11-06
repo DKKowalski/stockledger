@@ -18,7 +18,7 @@ import { InputControl } from '../../components/ui/input-control';
 import { AsyncActionButton } from '../../components/ui/async-action-button';
 import { useAsyncActionState } from '../../components/ui/use-async-action-state';
 import { safeErrorMessage } from '../../lib/user-facing-error';
-import { movementMeta } from '../../lib/presentation';
+import { movementMeta, parseMoneyCents } from '../../lib/presentation';
 import type { Movement, MovementType, ReturnableSale, Supplier } from '../../types';
 
 const LEDGER_PAGE = 50;
@@ -35,9 +35,9 @@ export function MovementsPage() {
   const [searchParams] = useSearchParams();
   const [form, setForm] = useState({
     itemId: searchParams.get('item') ?? '',
-    locationId: '',
-    destinationLocationId: '',
-    type: 'purchase' as MovementType,
+    locationId: searchParams.get('place') ?? '',
+    destinationLocationId: searchParams.get('destination') ?? '',
+    type: (searchParams.get('type') === 'transfer' ? 'transfer' : 'purchase') as MovementType,
     quantity: '',
     movementDate: companyDay(settings?.timeZone),
     reference: '',
@@ -48,6 +48,13 @@ export function MovementsPage() {
   });
   const items = snapshot?.items.filter((item) => item.isActive) ?? [];
   const places = snapshot?.locations ?? [];
+  const selectedItem = items.find(item => item.id === form.itemId);
+  const selectedPlace = places.find(place => place.id === form.locationId);
+  const currentStock = snapshot?.positions.find(position => position.item.id === form.itemId && position.location.id === form.locationId)?.closing ?? 0;
+  const receiptQuantity = Number(form.quantity);
+  const receiptUnitCost = parseMoneyCents(form.unitCost);
+  const receiptTotal = Number.isSafeInteger(receiptQuantity) && receiptQuantity > 0 && receiptUnitCost !== null ? receiptQuantity * receiptUnitCost : null;
+  const receiptReady = Boolean(selectedItem && selectedPlace && receiptTotal !== null && Number.isSafeInteger(receiptTotal));
   const [ledger, setLedger] = useState<{ rows: Movement[]; total: number } | null>(null);
   const [deleting, setDeleting] = useState<Movement | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -114,20 +121,21 @@ export function MovementsPage() {
   return <PageState>
     <PageHeader title="Stock movements" actions={<><NavLink className="button secondary" to="/stock-counts">Count stock</NavLink><NavLink className="button secondary" to="/suppliers">Suppliers</NavLink></>} />
     {/* The everyday form stays first; flagged workflows load afterwards without pushing it down. */}
-    <Panel title="Record movement">
+    <Panel title={form.type === 'purchase' ? 'Receive stock' : 'Record movement'}>
       <form className="form-grid movement-form" onSubmit={(event) => void submit(event).catch(() => {})}>
         <label><span>{terms.Item}</span><ProductPicker items={items} locationId={form.locationId} required value={form.itemId} disabled={form.type === 'return_in'} onValueChange={(itemId) => setForm({ ...form, itemId })} /></label>
-        <label><span className="label-row"><span>Movement type</span><InfoTooltip label="About movement type">{movementMeta[form.type].hint}</InfoTooltip></span><SelectControl aria-label="Movement type" value={form.type} onValueChange={(value) => setForm({ ...form, type: value as MovementType, destinationLocationId: '', relatedMovementId: '', itemId: value === 'return_in' ? '' : form.itemId, locationId: value === 'return_in' ? '' : form.locationId })} options={(Object.entries(movementMeta) as [MovementType, { label: string; hint: string }][]).filter(([value]) => value !== 'sale' && value !== 'adjustment_in' && value !== 'adjustment_out').map(([value, meta]) => ({ value, label: meta.label }))} /></label>
+        <label><span className="label-row"><span>Movement type</span><InfoTooltip label="About movement type">{movementMeta[form.type].hint}</InfoTooltip></span><SelectControl aria-label="Movement type" value={form.type} onValueChange={(value) => setForm({ ...form, type: value as MovementType, destinationLocationId: '', relatedMovementId: '', itemId: value === 'return_in' ? '' : form.itemId, locationId: value === 'return_in' ? '' : form.locationId })} options={(Object.entries(movementMeta) as [MovementType, { label: string; hint: string }][]).filter(([value]) => value !== 'sale' && value !== 'adjustment_in' && value !== 'adjustment_out').map(([value, meta]) => ({ value, label: value === 'purchase' ? 'Receive stock' : meta.label }))} /></label>
         {form.type === 'return_in' && <label><span>Original sale</span><SelectControl aria-label="Original sale" required value={form.relatedMovementId} onValueChange={(relatedMovementId) => { const sale = sales.find((candidate) => candidate.id === relatedMovementId); setForm({ ...form, relatedMovementId, itemId: sale?.itemId ?? '', locationId: sale?.locationId ?? '', quantity: '' }); }} options={[{ value: '', label: 'Select sale' }, ...sales.map((sale) => ({ value: sale.id, label: `${sale.item?.name ?? 'Deleted item'} · ${sale.returnableQuantity} returnable · ${sale.movementDate}` }))]} /></label>}
         <label><span>{form.type === 'transfer' ? 'From' : 'Place'}</span><SelectControl aria-label={form.type === 'transfer' ? 'From' : 'Place'} required value={form.locationId} disabled={form.type === 'return_in'} onValueChange={(locationId) => setForm({ ...form, locationId })} options={[{ value: '', label: 'Select place' }, ...places.map((place) => ({ value: place.id, label: place.name }))]} /></label>
         {form.type === 'transfer' && <label><span>To</span><SelectControl aria-label="To" required value={form.destinationLocationId} onValueChange={(destinationLocationId) => setForm({ ...form, destinationLocationId })} options={[{ value: '', label: 'Select place' }, ...places.filter((place) => place.id !== form.locationId).map((place) => ({ value: place.id, label: place.name }))]} /></label>}
-        <label><span>Quantity</span><InputControl type="number" min="1" max={returnableQuantity} required value={form.quantity} onValueChange={(quantity) => setForm({ ...form, quantity })} /></label>
-        {form.type === 'purchase' && <label><span>Unit cost</span><InputControl type="number" min="0" step="0.01" required value={form.unitCost} onValueChange={(unitCost) => setForm({ ...form, unitCost })} /></label>}
-        {form.type === 'purchase' && <label><span>Supplier</span><SelectControl aria-label="Supplier" value={form.supplierId} onValueChange={(supplierId) => setForm({ ...form, supplierId })} options={[{ value: '', label: 'No supplier' }, ...suppliers.filter((supplier) => supplier.isActive).map((supplier) => ({ value: supplier.id, label: supplier.name }))]} /></label>}
+        <label><span>{form.type === 'purchase' ? `Quantity received${selectedItem ? ` (${selectedItem.unit})` : ''}` : 'Quantity'}</span><InputControl type="number" min="1" max={returnableQuantity} required value={form.quantity} onValueChange={(quantity) => setForm({ ...form, quantity })} /></label>
+        {form.type === 'purchase' && <label><span>{selectedItem ? `Cost per ${selectedItem.unit} (${settings?.currency ?? 'GHS'})` : 'Unit cost'}</span><InputControl type="number" min="0" step="0.01" required value={form.unitCost} onValueChange={(unitCost) => setForm({ ...form, unitCost })} /></label>}
         <label><span>Date</span><DatePicker label="Date" required value={form.movementDate} onValueChange={(movementDate) => setForm({ ...form, movementDate })} /></label>
-        <label><span>Reference</span><InputControl required={Boolean(form.type === 'purchase' && settings?.requirePurchaseSource && !form.supplierId)} value={form.reference} onValueChange={(reference) => setForm({ ...form, reference })} /></label>
-        <label><span>Note</span><InputControl required={Boolean(form.type === 'damage' && settings?.requireAdjustmentReason)} value={form.note} onValueChange={(note) => setForm({ ...form, note })} /></label>
-        <AsyncActionButton disabled={busy || !items.length} idleLabel="Save movement" pendingLabel="Saving" state={saveAction.state} successLabel="Saved" />
+        {form.type === 'purchase' ? <>
+          <div className="receipt-save-bar"><div role="status" aria-label="Receipt preview">{receiptReady ? <><b>{receiptQuantity} {selectedItem!.unit} × {money(receiptUnitCost!)} = {money(receiptTotal!)}</b><p>{selectedPlace!.name}: {currentStock} → {currentStock + receiptQuantity} {selectedItem!.unit}</p><small>Current stock preview. The receipt is recorded on the selected date.</small></> : <p>Choose an item and place, then enter quantity and cost to preview this receipt.</p>}</div><AsyncActionButton disabled={busy || !items.length} idleLabel="Save receipt" pendingLabel="Saving receipt" state={saveAction.state} successLabel="Saved" /></div>
+          <details className="delivery-details" open={settings?.requirePurchaseSource || undefined}><summary>{settings?.requirePurchaseSource ? 'Delivery details — supplier or reference required' : 'Optional delivery details'}</summary><div className="form-grid"><label><span>Supplier</span><SelectControl aria-label="Supplier" value={form.supplierId} onValueChange={(supplierId) => setForm({ ...form, supplierId })} options={[{ value: '', label: 'No supplier' }, ...suppliers.filter((supplier) => supplier.isActive).map((supplier) => ({ value: supplier.id, label: supplier.name }))]} /></label><label><span>Reference</span><InputControl required={Boolean(settings?.requirePurchaseSource && !form.supplierId)} value={form.reference} onValueChange={(reference) => setForm({ ...form, reference })} /></label><label><span>Note</span><InputControl value={form.note} onValueChange={(note) => setForm({ ...form, note })} /></label></div></details>
+        </> : <><label><span>Reference</span><InputControl value={form.reference} onValueChange={(reference) => setForm({ ...form, reference })} /></label><label><span>Note</span><InputControl required={Boolean(form.type === 'damage' && settings?.requireAdjustmentReason)} value={form.note} onValueChange={(note) => setForm({ ...form, note })} /></label><AsyncActionButton disabled={busy || !items.length} idleLabel="Save movement" pendingLabel="Saving" state={saveAction.state} successLabel="Saved" /></>}
+
       </form>
     </Panel>
     <HybridOperationsPanels />

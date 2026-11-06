@@ -87,3 +87,28 @@ for (const width of [390, 1440]) test(`top navigation and item tabs support keyb
   await expect(page.getByRole('tab', { name: 'History', exact: true })).toHaveAttribute('aria-selected', 'true');
   await uiuxEvidence(page, 'ux11-navigation-tabs');
 });
+
+for (const width of [390, 1440]) test(`receiving stock previews units, money and destination at ${width}px`, async ({ page }) => {
+  await page.setViewportSize({ width, height: 900 });
+  await mediumSession(page, false, 'inventory_manager');
+  let saved: { quantity: number; unitCostCents: number; locationId: string } | undefined;
+  await page.route('**/inventory/movements', route => { saved = route.request().postDataJSON(); return route.fulfill({ status: 201, json: {} }); });
+  await page.goto('/movements?item=target&place=shop');
+  await expect(page.getByRole('heading', { name: 'Receive stock', exact: true })).toBeVisible();
+  await page.getByLabel('Quantity received (tin)', { exact: true }).fill('20');
+  await page.getByLabel('Cost per tin (GHS)', { exact: true }).fill('1.50');
+  await expect(page.getByRole('status', { name: 'Receipt preview' })).toContainText('20 tin × GH₵1.50 = GH₵30.00');
+  await expect(page.getByRole('status', { name: 'Receipt preview' })).toContainText('Main shop: 7 → 27 tin');
+  await expect(page.getByLabel('Reference', { exact: true })).toBeHidden();
+  await uiuxEvidence(page, 'ux13-receive-stock');
+  await page.getByRole('button', { name: 'Save receipt', exact: true }).click();
+  await expect.poll(() => saved?.quantity).toBe(20);
+  expect(saved?.unitCostCents).toBe(150); expect(saved?.locationId).toBe('shop');
+});
+
+test('purchase safeguards automatically expose required delivery details', async ({ page }) => {
+  await mediumSession(page, false, 'inventory_manager', true);
+  await page.goto('/movements?item=target&place=shop');
+  await expect(page.getByLabel('Reference', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('Reference', { exact: true })).toHaveAttribute('required', '');
+});

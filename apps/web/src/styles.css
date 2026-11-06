@@ -2098,3 +2098,11 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px soli
 }
 
 .finance-read-error { margin: 16px; display: grid; justify-items: start; gap: 10px; }
+
+.receipt-save-bar { grid-column: 1 / -1; position: sticky; bottom: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 14px; background: var(--card-pure); border: 1px solid var(--border); border-radius: 12px; }
+.receipt-save-bar b { display: block; font: 600 18px var(--font-number); }
+.receipt-save-bar p { margin-top: 6px; color: var(--ink-soft); }
+.receipt-save-bar small { display: block; margin-top: 6px; color: var(--muted); }
+.delivery-details { grid-column: 1 / -1; }
+.delivery-details summary { min-height: 44px; cursor: pointer; color: var(--violet-dark); font-weight: 600; }
+.delivery-details .form-grid { padding: 0; }

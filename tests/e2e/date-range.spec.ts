@@ -264,10 +264,10 @@ test('submits the selected single date from the movement form', async ({ page })
   await page.getByRole('option', { name: 'Calendar item', exact: true }).click();
   await page.getByRole('combobox', { name: 'Place', exact: true }).click();
   await page.getByRole('option', { name: 'Shop', exact: true }).click();
-  await page.getByLabel('Quantity', { exact: true }).fill('2');
-  await page.getByLabel('Unit cost', { exact: true }).fill('1');
+  await page.getByLabel(/^Quantity received/).fill('2');
+  await page.getByLabel(/Cost per .*\(GHS\)/).fill('1');
   await page.getByRole('button', { name: /^Date:/ }).click();
   await clickDay(page, '2026-10-31');
-  await page.getByRole('button', { name: 'Save movement', exact: true }).click();
+  await page.getByRole('button', { name: 'Save receipt', exact: true }).click();
   await expect.poll(() => movementDate).toBe('2026-10-31');
 });
