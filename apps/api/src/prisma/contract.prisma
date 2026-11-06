@@ -953,3 +953,37 @@ policy_delete finance_entries_delete {
   roles =[stockledger_app]
   using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
 }
+
+// Durable retail request receipts outlive correction/deletion of a movement.
+model RetailSaleRequest {
+  id              Uuid              @id @default(uuid())
+  companyId       Uuid              @map("company_id")
+  idempotencyKey  Uuid              @map("idempotency_key")
+  createdByUserId Uuid              @map("created_by_user_id")
+  locationId      Uuid              @map("location_id")
+  requestHash     VarChar(64)        @map("request_hash")
+  result          Jsonb
+  createdAt       TimestamptzString @default(now()) @map("created_at")
+
+  company         Company           @relation(fields:[companyId], references:[id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([companyId, idempotencyKey])
+  @@rls
+  @@map("retail_sale_requests")
+}
+
+policy_select retail_sale_request_read {
+  target = RetailSaleRequest
+  roles =[stockledger_app]
+  using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+}
+policy_insert retail_sale_request_write {
+  target = RetailSaleRequest
+  roles =[stockledger_app]
+  withCheck = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+}
+policy_delete retail_sale_request_workspace_delete {
+  target = RetailSaleRequest
+  roles =[stockledger_app]
+  using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid AND current_setting('app.workspace_deletion_company_id', true) = company_id::text"
+}

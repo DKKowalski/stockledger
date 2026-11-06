@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { dateRange } from '../../common/date-range.js';
 import { assertLegacyItem, valuationPools } from './valuation-ledger.js';
 import {
@@ -494,9 +495,38 @@ export class InventoryService {
       if (body.type === StockMovementType.ADJUSTMENT_IN || body.type === StockMovementType.ADJUSTMENT_OUT) {
         throw new BadRequestException('Use a stock count to record an inventory adjustment');
       }
+      if (body.idempotencyKey && body.type !== StockMovementType.SALE) {
+        throw new BadRequestException('Sale request keys can only be used for sales');
+      }
+      const key = body.idempotencyKey?.toLowerCase();
+      // Serialize attempts before item locks, including accidental reuse for another item.
+      // The durable receipt remains even if a manager later removes the movement.
+      const requestHash = createHash('sha256').update(JSON.stringify([
+        body.itemId, actor.locationId, body.type, body.quantity, body.movementDate,
+        body.expectedUnitPriceCents ?? null, body.destinationLocationId ?? null,
+        body.unitCostCents ?? null, body.supplierId ?? null, body.relatedMovementId ?? null,
+        body.reference?.trim() || null, body.note?.trim() || null,
+      ])).digest('hex') as Varchar<64>;
+      if (key) {
+        await tx.query(this.prisma.client.raw.sql`
+          SELECT true AS locked FROM pg_advisory_xact_lock(hashtextextended(${`${companyId}:retail:${key}`}, 0))
+        `.returnsRow({ locked: 'pg/bool@1' }).build());
+        const prior = await tx.orm.public.RetailSaleRequest.first({ companyId, idempotencyKey: key });
+        if (prior) {
+          if (prior.createdByUserId !== userId || prior.locationId !== actor.locationId || prior.requestHash !== requestHash) {
+            throw new ConflictException('This sale request was already used. Confirm the original sale before starting another.');
+          }
+          return prior.result as unknown as Awaited<ReturnType<InventoryService['recordMovement']>>;
+        }
+      }
       await this.lockItem(tx, companyId, body.itemId);
       await assertLegacyItem(tx,companyId,body.itemId);
-      return this.recordMovement(tx, actor, body);
+      const movement = await this.recordMovement(tx, actor, body);
+      if (key) {
+        await tx.orm.public.RetailSaleRequest.create({ companyId, idempotencyKey: key,
+          createdByUserId: userId, locationId: actor.locationId!, requestHash, result: movement });
+      }
+      return movement;
     });
   }
 

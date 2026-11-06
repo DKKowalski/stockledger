@@ -5,9 +5,8 @@ import pg from 'pg';
 import assert from 'node:assert/strict';
 
 const apiDirectory = fileURLToPath(new URL('../', import.meta.url));
-const repositoryDirectory = fileURLToPath(new URL('../../../', import.meta.url));
 const database = `stockledger_test_${randomUUID().replaceAll('-', '')}`;
-const ciAdminUrl = process.env.CI ? process.env.DATABASE_URL : undefined;
+const ciAdminUrl = process.env.CI ? process.env.DATABASE_URL : 'postgresql://stockledger:stockledger@127.0.0.1:5434/postgres';
 const url = ciAdminUrl
   ? databaseUrl(ciAdminUrl, database)
   : `postgresql://stockledger:stockledger@127.0.0.1:5434/${database}`;
@@ -21,19 +20,13 @@ const env = {
   DIRECT_DATABASE_URL: url,
   INVENTORY_TEST_DATABASE_URL: url,
 };
-const compose = (...args) => execFileSync('docker', ['compose', 'exec', '-T', 'postgres', ...args], {
-  cwd: repositoryDirectory,
-  stdio: 'inherit',
-});
-
 if (process.env.CI && !ciAdminUrl) throw new Error('DATABASE_URL is required in CI');
 if (new URL(url).hostname !== '127.0.0.1') throw new Error('Integration tests require an isolated localhost PostgreSQL server');
 
 // Every run gets a random database. Local development uses Compose; CI uses
 // the PostgreSQL service configured by the workflow. The developer database is
 // never migrated, truncated, or seeded by this test harness.
-if (ciAdminUrl) await createCiDatabase(ciAdminUrl, database);
-else compose('createdb', '-U', 'stockledger', database);
+await createCiDatabase(ciAdminUrl, database);
 try {
   migrate(['--to', 'af0f799e84bed462c8c7be7ef11cd3ccc5971603b3c727b8ef34b4b55918fb19']);
   const client = new pg.Client({ connectionString: url });
@@ -88,7 +81,7 @@ try {
     assert.deepEqual(afterSwitch, beforeSwitch, 'Deals switch migration changed business records');
     // Finance only adds empty, tenant-protected tables; populated workspaces are left untouched.
     const beforeFinance = await legacySnapshot(client);
-    migrate();
+    migrate(['--to', '13064f39dbe9249c0ad572d12a9b3febc3696026d4eb52c5baf475f2fe93bcf0']);
     assert.deepEqual(await legacySnapshot(client), beforeFinance, 'Finance migration changed business records');
     for (const table of ['finance_categories', 'finance_entries', 'finance_budgets']) {
       assert.equal((await client.query(`SELECT count(*)::int AS n FROM ${table}`)).rows[0].n, 0);
@@ -96,10 +89,33 @@ try {
       assert.equal(relrowsecurity, true, `${table} must enforce row-level security`);
       assert.equal((await client.query('SELECT count(*)::int AS n FROM pg_policies WHERE tablename = $1', [table])).rows[0].n, 4, `${table} needs select, insert, update and delete policies`);
     }
+    // 770df3a is the finance contract. Compare every existing tenant table,
+    // including populated immutable sale/valuation fixtures, across this upgrade.
+    const tables = (await client.query("SELECT relname FROM pg_class WHERE relnamespace='public'::regnamespace AND relkind='r' AND relrowsecurity ORDER BY relname")).rows.map(row => row.relname);
+    const allRows = async () => {
+      const rows = {};
+      for (const table of tables) rows[table] = (await client.query(`SELECT coalesce(jsonb_agg(to_jsonb(r) ORDER BY id), '[]'::jsonb) AS rows FROM public.${table} r`)).rows[0].rows;
+      return rows;
+    };
+    const baseline = await allRows();
+    migrate();
+    assert.deepEqual(await allRows(), baseline, 'Retail receipt upgrade changed existing rows from 770df3a');
+    assert.equal((await client.query('SELECT count(*)::int AS n FROM retail_sale_requests')).rows[0].n, 0);
+    assert.equal((await client.query("SELECT relrowsecurity FROM pg_class WHERE oid='public.retail_sale_requests'::regclass")).rows[0].relrowsecurity, true);
+    assert.equal((await client.query("SELECT count(*)::int AS n FROM pg_policies WHERE tablename='retail_sale_requests'")).rows[0].n, 3);
+    assert.equal((await client.query("SELECT has_table_privilege('stockledger_app','retail_sale_requests','SELECT,INSERT,DELETE') AND NOT has_table_privilege('stockledger_app','retail_sale_requests','UPDATE') AS ok")).rows[0].ok, true);
+    console.log(`770df3a upgrade preserved all rows in ${tables.length} tenant tables; retail receipt RLS and append-only grants verified.`);
     console.log('Populated upgrade preserved old movements, null costs, completed sales, verified checkpoints and exact valuation entries.');
   } finally {
     await client.end();
   }
+  const fresh = `stockledger_test_${randomUUID().replaceAll('-', '')}`;
+  await createCiDatabase(ciAdminUrl, fresh);
+  try {
+    const freshUrl = databaseUrl(ciAdminUrl, fresh);
+    migrate([], { ...env, DATABASE_URL: freshUrl, DIRECT_DATABASE_URL: freshUrl });
+    console.log('Fresh database migration passed.');
+  } finally { await dropCiDatabase(ciAdminUrl, fresh); }
   // HTTP tests load the built Nest module so decorator metadata matches the deployed API.
   execFileSync('npm', ['run', 'build'], { cwd: apiDirectory, env, stdio: 'inherit' });
   execFileSync('npm', ['exec', '--', 'vitest', 'run', '--config', 'vitest.integration.config.ts'], {
@@ -109,13 +125,12 @@ try {
   console.error(error.message);
   process.exitCode = typeof error.status === 'number' ? error.status : 1;
 } finally {
-  if (ciAdminUrl) await dropCiDatabase(ciAdminUrl, database);
-  else compose('dropdb', '--force', '-U', 'stockledger', database);
+  await dropCiDatabase(ciAdminUrl, database);
 }
 
-function migrate(extra = []) {
+function migrate(extra = [], migrationEnv = env) {
   const migrationOutput = execFileSync('npm', ['exec', '--', 'prisma', 'db', 'migrate', '--quiet', ...extra], {
-    cwd: apiDirectory, env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'],
+    cwd: apiDirectory, env: migrationEnv, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'],
   });
   const migrationResult = migrationOutput.trim().split('\n')
     .filter((line) => line.startsWith('{'))

@@ -193,6 +193,7 @@ export class SettingsService {
       await tx.query(this.prisma.client.raw.sql`
         SELECT set_config('app.workspace_deletion_company_id', ${companyId}, true) AS company_id
       `.returnsRow({ company_id: 'pg/text@1' }).build());
+      await tx.execute(this.prisma.client.raw.sql`DELETE FROM public.retail_sale_requests WHERE company_id = ${companyId}::uuid`.affectedCount().build());
       await tx.execute(this.prisma.client.raw.sql`DELETE FROM public.finance_entries WHERE company_id = ${companyId}::uuid`.affectedCount().build());
       await tx.execute(this.prisma.client.raw.sql`DELETE FROM public.finance_budgets WHERE company_id = ${companyId}::uuid`.affectedCount().build());
       await tx.execute(this.prisma.client.raw.sql`DELETE FROM public.finance_categories WHERE company_id = ${companyId}::uuid`.affectedCount().build());

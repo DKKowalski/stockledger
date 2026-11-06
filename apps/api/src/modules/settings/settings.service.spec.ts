@@ -269,8 +269,8 @@ describe('SettingsService', () => {
     })).resolves.toEqual({ deleted: true });
 
     expect(query).toHaveBeenCalledTimes(2);
-    expect(execute).toHaveBeenCalledTimes(24);
-    expect(rawStatement.affectedCount).toHaveBeenCalledTimes(24);
+    expect(execute).toHaveBeenCalledTimes(25);
+    expect(rawStatement.affectedCount).toHaveBeenCalledTimes(25);
   });
 
   it('keeps the workspace when its name does not match', async () => {

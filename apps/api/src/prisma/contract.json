@@ -56,6 +56,10 @@
       "model": "RefreshSession",
       "namespace": "public"
     },
+    "retail_sale_requests": {
+      "model": "RetailSaleRequest",
+      "namespace": "public"
+    },
     "sale_components": {
       "model": "SaleComponent",
       "namespace": "public"
@@ -2234,6 +2238,117 @@
               },
               "namespaceId": "public",
               "table": "refresh_sessions"
+            }
+          },
+          "RetailSaleRequest": {
+            "fields": {
+              "companyId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdByUserId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "idempotencyKey": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "locationId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "requestHash": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 64
+                  }
+                }
+              },
+              "result": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/jsonb@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "company": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "companyId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Company",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "companyId": {
+                  "column": "company_id"
+                },
+                "createdAt": {
+                  "column": "created_at"
+                },
+                "createdByUserId": {
+                  "column": "created_by_user_id"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "idempotencyKey": {
+                  "column": "idempotency_key"
+                },
+                "locationId": {
+                  "column": "location_id"
+                },
+                "requestHash": {
+                  "column": "request_hash"
+                },
+                "result": {
+                  "column": "result"
+                }
+              },
+              "namespaceId": "public",
+              "table": "retail_sale_requests"
             }
           },
           "Sale": {
@@ -4674,6 +4789,45 @@
               "using": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid",
               "withCheck": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
             },
+            "retail_sale_request_read": {
+              "kind": "policy",
+              "name": "retail_sale_request_read_10e0fa81",
+              "namespaceId": "public",
+              "operation": "select",
+              "permissive": true,
+              "prefix": "retail_sale_request_read",
+              "roles": [
+                "stockledger_app"
+              ],
+              "tableName": "retail_sale_requests",
+              "using": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+            },
+            "retail_sale_request_workspace_delete": {
+              "kind": "policy",
+              "name": "retail_sale_request_workspace_delete_336681c2",
+              "namespaceId": "public",
+              "operation": "delete",
+              "permissive": true,
+              "prefix": "retail_sale_request_workspace_delete",
+              "roles": [
+                "stockledger_app"
+              ],
+              "tableName": "retail_sale_requests",
+              "using": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid AND current_setting('app.workspace_deletion_company_id', true) = company_id::text"
+            },
+            "retail_sale_request_write": {
+              "kind": "policy",
+              "name": "retail_sale_request_write_1c87de9a",
+              "namespaceId": "public",
+              "operation": "insert",
+              "permissive": true,
+              "prefix": "retail_sale_request_write",
+              "roles": [
+                "stockledger_app"
+              ],
+              "tableName": "retail_sale_requests",
+              "withCheck": "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+            },
             "sale_component_read": {
               "kind": "policy",
               "name": "sale_component_read_10e0fa81",
@@ -5175,6 +5329,11 @@
               "kind": "rls",
               "namespaceId": "public",
               "tableName": "refresh_sessions"
+            },
+            "retail_sale_requests": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "retail_sale_requests"
             },
             "sale_components": {
               "kind": "rls",
@@ -7242,6 +7401,100 @@
                 {
                   "columns": [
                     "token_hash"
+                  ]
+                }
+              ]
+            },
+            "retail_sale_requests": {
+              "columns": {
+                "company_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "created_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "created_by_user_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "idempotency_key": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "location_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "request_hash": {
+                  "codecId": "sql/varchar@1",
+                  "nativeType": "character varying",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 64
+                  }
+                },
+                "result": {
+                  "codecId": "pg/jsonb@1",
+                  "nativeType": "jsonb",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "onDelete": "restrict",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "company_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "retail_sale_requests"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "companies"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "company_id"
+                  ],
+                  "name": "retail_sale_requests_company_id_idx_1303a718",
+                  "prefix": "retail_sale_requests_company_id_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "company_id",
+                    "idempotency_key"
                   ]
                 }
               ]
@@ -9454,10 +9707,10 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "13064f39dbe9249c0ad572d12a9b3febc3696026d4eb52c5baf475f2fe93bcf0"
+    "storageHash": "0a5e3f164465a966bac6eb041f64856deb7b954fac9c6b6640394913ac060faf"
   },
   "execution": {
-    "executionHash": "5445d0fab53f517d5157e8a51e8d0fde1ba90598948a7a715066f1f13f2a3e49",
+    "executionHash": "438fdd98bbe39b3fbbec169de7af55f8c94a9f97a8abd0580b38a7344ff205c8",
     "mutations": {
       "defaults": [
         {
@@ -9721,6 +9974,17 @@
             "column": "updated_at",
             "namespace": "public",
             "table": "refresh_sessions"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "uuidv4",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "id",
+            "namespace": "public",
+            "table": "retail_sale_requests"
           }
         },
         {

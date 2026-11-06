@@ -71,6 +71,65 @@ async function closing(f: Fixture) { const snap=await request('/inventory/snapsh
 async function counts(f: Fixture) { return {sales:(await db.orm.public.Sale.where({companyId:f.company.id}).all()).length,movements:(await db.orm.public.StockMovement.where({companyId:f.company.id}).all()).length}; }
 
 describe('durable development sale completion via real HTTP and restricted runtime role',()=>{
+  it('records concurrent identical retail sale attempts once and returns the original response', async () => {
+    const f = await fixture(20);
+    config.set('app.saleCompletionCompanyIds', []);
+    const body = { itemId: f.items[0]!.id, locationId: f.shop.id, type: 'sale', quantity: 2, movementDate: date, expectedUnitPriceCents: 1500, idempotencyKey: randomUUID() };
+    const results = await Promise.all([1, 2].map(() => request('/inventory/movements', f.attendant.token, 'POST', body)));
+    expect(results.map(r => r.status)).toEqual([201, 201]);
+    expect(results[1]!.body).toEqual(results[0]!.body);
+    expect(await closing(f)).toBe(18);
+    expect(await counts(f)).toEqual({ sales: 0, movements: 1 });
+    // A changed price must not prevent recovery of an already committed attempt.
+    await db.orm.public.InventoryItem.where({ id: body.itemId }).update({ sellingPriceCents: 1600 });
+    expect((await request('/inventory/movements', f.attendant.token, 'POST', body)).body).toEqual(results[0]!.body);
+    expect((await request('/inventory/movements', f.attendant.token, 'POST', { ...body, quantity: 3 })).status).toBe(409);
+    expect((await request('/inventory/movements', f.attendant.token, 'POST', { ...body, idempotencyKey: randomUUID(), expectedUnitPriceCents: 1600 })).status).toBe(201);
+    expect(await closing(f)).toBe(16);
+  });
+
+  it('enforces retail receipt uniqueness, tenant isolation and immutable recovery at the database boundary', async () => {
+    const f = await fixture(20), other = await fixture(20);
+    const body = { itemId: f.items[0]!.id, locationId: f.shop.id, type: 'sale', quantity: 2, movementDate: date, idempotencyKey: randomUUID() };
+    expect((await request('/inventory/movements', f.attendant.token, 'POST', body)).status).toBe(201);
+    const receipt = await db.orm.public.RetailSaleRequest.first({ companyId: f.company.id });
+    expect(receipt).not.toBeNull();
+    const { id: _id, ...duplicate } = receipt!;
+    await expect(db.orm.public.RetailSaleRequest.create(duplicate)).rejects.toThrow();
+    await sql.query('BEGIN');
+    try {
+      await sql.query('SET LOCAL ROLE stockledger_app');
+      expect((await sql.query('SELECT * FROM retail_sale_requests')).rows).toHaveLength(0);
+      await sql.query("SELECT set_config('app.current_company_id',$1,true)", [other.company.id]);
+      expect((await sql.query('SELECT * FROM retail_sale_requests')).rows).toHaveLength(0);
+      await sql.query("SELECT set_config('app.current_company_id',$1,true)", [f.company.id]);
+      expect((await sql.query('SELECT * FROM retail_sale_requests')).rows).toHaveLength(1);
+      expect((await sql.query('DELETE FROM retail_sale_requests')).rowCount).toBe(0);
+    } finally { await sql.query('ROLLBACK'); }
+    await sql.query('BEGIN');
+    try {
+      await sql.query('SET LOCAL ROLE stockledger_app');
+      await sql.query("SELECT set_config('app.current_company_id',$1,true)", [f.company.id]);
+      await expect(sql.query("UPDATE retail_sale_requests SET result='{}'")).rejects.toThrow('permission denied');
+    } finally { await sql.query('ROLLBACK'); }
+  });
+
+  it('scopes retail attempt keys to the company, keeps old clients working, and retains recovery after movement removal', async () => {
+    const f = await fixture(20), other = await fixture(20);
+    const key = randomUUID();
+    const body = { itemId: f.items[0]!.id, locationId: f.shop.id, type: 'sale', quantity: 2, movementDate: date, idempotencyKey: key };
+    const first = await request('/inventory/movements', f.attendant.token, 'POST', body);
+    expect(first.status).toBe(201);
+    expect((await request('/inventory/movements', other.attendant.token, 'POST', { ...body, itemId: other.items[0]!.id, locationId: other.shop.id })).status).toBe(201);
+    expect((await request('/inventory/movements', f.other.token, 'POST', body)).status).toBe(409);
+    expect((await request(`/inventory/movements/${first.body.id}`, f.admin.token, 'DELETE')).status).toBe(200);
+    expect((await request('/inventory/movements', f.attendant.token, 'POST', body)).body).toEqual(first.body);
+    expect(await closing(f)).toBe(20);
+    const { idempotencyKey: _key, ...legacy } = body;
+    expect((await request('/inventory/movements', f.attendant.token, 'POST', legacy)).status).toBe(201);
+    expect(await closing(f)).toBe(18);
+  });
+
   it('defaults off, requires authentication/enrollment, and refuses activation in production',async()=>{
     const f=await fixture();
     expect((await request('/inventory/sale-completion')).status).toBe(401);

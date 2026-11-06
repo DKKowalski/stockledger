@@ -163,7 +163,7 @@ export const api = {
     request<{ imported: number }>('/inventory/items/import', { method: 'POST', body: JSON.stringify(body) }, accessToken),
   updateSellingPrice: (accessToken: string, itemId: string, sellingPriceCents: number) =>
     request(`/inventory/items/${itemId}/selling-price`, { method: 'PATCH', body: JSON.stringify({ sellingPriceCents }) }, accessToken),
-  addMovement: (accessToken: string, body: { itemId: string; locationId: string; destinationLocationId?: string; type: MovementType; quantity: number; movementDate: string; reference?: string; note?: string; expectedUnitPriceCents?: number; unitCostCents?: number; supplierId?: string; relatedMovementId?: string }) =>
+  addMovement: (accessToken: string, body: { itemId: string; locationId: string; destinationLocationId?: string; type: MovementType; quantity: number; movementDate: string; reference?: string; note?: string; expectedUnitPriceCents?: number; unitCostCents?: number; supplierId?: string; relatedMovementId?: string; idempotencyKey?: string }) =>
     request('/inventory/movements', { method: 'POST', body: JSON.stringify(body) }, accessToken),
   movementLedger: (accessToken: string, query: { from?: string; to?: string; type?: MovementType; itemId?: string; offset: number; limit: number }) =>
     request<MovementLedger>(`/inventory/movements?${new URLSearchParams({ ...(query.from && query.to ? { from: query.from, to: query.to } : {}), ...(query.type ? { type: query.type } : {}), ...(query.itemId ? { itemId: query.itemId } : {}), offset: String(query.offset), limit: String(query.limit) })}`, undefined, accessToken),

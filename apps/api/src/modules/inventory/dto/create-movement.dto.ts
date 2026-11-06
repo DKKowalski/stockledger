@@ -14,6 +14,11 @@ import {
 import { StockMovementType } from '../inventory.types.js';
 
 export class CreateMovementDto {
+  // Optional during deployment so older clients can continue to sell.
+  @IsOptional()
+  @IsUUID()
+  idempotencyKey?: string;
+
   @IsUUID()
   itemId!: string;
 
