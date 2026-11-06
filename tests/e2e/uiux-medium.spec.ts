@@ -70,6 +70,7 @@ for (const width of [390, 1440]) test(`top navigation and item tabs support keyb
   if (width === 390) {
     await page.getByRole('button', { name: 'Open navigation', exact: true }).click();
     await expect(page.locator('.top-nav a').first()).toBeFocused();
+    await uiuxEvidence(page, 'ux11-open-navigation');
     await page.keyboard.press('Shift+Tab');
     await expect(page.getByRole('button', { name: 'Close navigation', exact: true }).first()).toBeFocused();
     await page.keyboard.press('Escape');

@@ -408,6 +408,7 @@ for (const width of [390, 1440]) test(`simple budget shows used lines and live p
   await page.getByRole('button', { name: 'Copy this month…' }).click();
   await page.getByLabel('December (no budget)', { exact: true }).check();
   await expect(page.getByRole('status').filter({ hasText: 'Selected:' })).toHaveText('Selected: December (new).');
+  await uiuxEvidence(page, 'ux07-copy-months');
 });
 
 for (const width of [390, 1440]) test(`Finance retries failed reads without losing a draft at ${width}px`, async ({ page }) => {
@@ -419,6 +420,7 @@ for (const width of [390, 1440]) test(`Finance retries failed reads without losi
   page.on('request', request => { if (request.method() !== 'GET' && request.url().includes('/finance')) writes++; });
   await page.goto('/finance');
   await expect(page.getByRole('button', { name: 'Retry report', exact: true })).toBeVisible();
+  await uiuxEvidence(page, 'ux12-report-retry');
   const initialReportReads = reportReads; reportFails = false;
   await page.getByRole('button', { name: 'Retry report', exact: true }).click();
   await expect(page.locator('.finance-answer')).toBeVisible();
