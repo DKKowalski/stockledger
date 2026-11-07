@@ -87,10 +87,12 @@ export class InventoryService {
       const rows = await tx.query(this.prisma.client.raw.sql`
         SELECT m.id, m.item_id AS "itemId", m.location_id AS "locationId", m.destination_location_id AS "destinationLocationId",
           m.type::text AS type, m.quantity, m.unit_price_cents AS "unitPriceCents", m.unit_cost_cents AS "unitCostCents",
+          m.cost_total_cents AS "costTotalCents", m.corrects_movement_id AS "correctsMovementId", correction.id AS "correctedByMovementId",
           m.supplier_id AS "supplierId", m.related_movement_id AS "relatedMovementId", m.stock_count_id AS "stockCountId",
           m.movement_date::text AS "movementDate", m.reference, m.note, m.created_at AS "createdAt",
           l.sale_id AS "saleId", c.sale_line_id AS "saleLineId", c.category::text AS "pricingCategory"
         FROM public.stock_movements m
+        LEFT JOIN public.stock_movements correction ON correction.company_id = m.company_id AND correction.corrects_movement_id = m.id
         LEFT JOIN public.sale_components c ON c.company_id = m.company_id AND c.movement_id = m.id
         LEFT JOIN public.sale_lines l ON l.company_id = c.company_id AND l.id = c.sale_line_id
         WHERE m.company_id = ${companyId}::uuid
@@ -102,6 +104,7 @@ export class InventoryService {
         LIMIT ${query.limit} OFFSET ${query.offset}
       `.returnsRow({ id: 'pg/uuid@1', itemId: 'pg/uuid@1', locationId: 'pg/uuid@1', destinationLocationId: 'pg/uuid@1',
         type: 'pg/text@1', quantity: 'pg/int4@1', unitPriceCents: 'pg/int4@1', unitCostCents: 'pg/int4@1', supplierId: 'pg/uuid@1',
+        costTotalCents: 'pg/int4@1', correctsMovementId: 'pg/uuid@1', correctedByMovementId: 'pg/uuid@1',
         relatedMovementId: 'pg/uuid@1', stockCountId: 'pg/uuid@1', movementDate: 'pg/text@1', reference: 'pg/text@1', note: 'pg/text@1',
         createdAt: 'pg/timestamptz-string@1', saleId: 'pg/uuid@1', saleLineId: 'pg/uuid@1', pricingCategory: 'pg/text@1' }).build());
       const totals = await tx.query(this.prisma.client.raw.sql`
@@ -120,7 +123,7 @@ export class InventoryService {
           const movement = row as unknown as MovementRecord;
           return { ...movement,
             saleTotalCents: (movement.type === StockMovementType.SALE || movement.type === StockMovementType.RETURN_IN) && movement.unitPriceCents !== null ? movement.unitPriceCents * movement.quantity : null,
-            costTotalCents: movement.unitCostCents === null ? null : movement.unitCostCents * movement.quantity,
+            costTotalCents: movementCost(movement),
             item: itemById.get(movement.itemId) ?? null, location: locationById.get(movement.locationId) ?? null,
             destination: movement.destinationLocationId ? locationById.get(movement.destinationLocationId) ?? null : null,
             sign: MOVEMENT_SIGN[movement.type],

@@ -1577,3 +1577,39 @@ describe('bounded report reads with representative local history', () => {
     expect(filtered.total).toBe(60); expect(filtered.movements).toHaveLength(50);
   });
 });
+
+describe('F01 compatibility with bounded ledger and profitability reads', () => {
+  it('retains correction links when the linked row is outside the selected ledger page or type', async () => {
+    const f = await fixture(10);
+    const purchase = await service.createMovement(f.admin.id, f.company.id, {
+      itemId: f.item.id, locationId: f.warehouse.id, type: Type.PURCHASE, quantity: 10, unitCostCents: 300, movementDate,
+    });
+    await service.deleteMovement(f.admin.id, f.company.id, purchase.id);
+    const correction = await db.orm.public.StockMovement.first({ companyId: f.company.id, correctsMovementId: purchase.id });
+    expect(correction).not.toBeNull();
+    const originalPage = await service.movementLedger(f.admin.id, f.company.id, { type: Type.PURCHASE, limit: 1, offset: 0 });
+    expect(originalPage.total).toBe(1);
+    expect(originalPage.movements[0]).toMatchObject({ id: purchase.id, correctedByMovementId: correction!.id, correctsMovementId: null, costTotalCents: 3000 });
+    const correctionPage = await service.movementLedger(f.admin.id, f.company.id, { type: Type.RETURN_OUT, limit: 1, offset: 0 });
+    expect(correctionPage.total).toBe(1);
+    expect(correctionPage.movements[0]).toMatchObject({ id: correction!.id, correctsMovementId: purchase.id, correctedByMovementId: null, costTotalCents: 3000 });
+    expect(await db.orm.public.StockMovement.first({ id: purchase.id })).toEqual(purchase);
+  });
+
+  it('preserves recorded fractional-cent totals in paged sales, period profit and year finance', async () => {
+    const f = await fixture(2);
+    await transfer(f, 2);
+    const original = await service.createMovement(f.attendant.id, f.company.id, { itemId: f.item.id, locationId: f.shop.id, type: Type.SALE, quantity: 1, movementDate });
+    await service.createMovement(f.admin.id, f.company.id, { itemId: f.item.id, locationId: f.warehouse.id, type: Type.PURCHASE, quantity: 1, unitCostCents: 300, movementDate });
+    await service.createMovement(f.admin.id, f.company.id, { itemId: f.item.id, locationId: f.shop.id, type: Type.RETURN_IN, quantity: 1, relatedMovementId: original.id, movementDate });
+    await transfer(f, 1);
+    const sale = await service.createMovement(f.attendant.id, f.company.id, { itemId: f.item.id, locationId: f.shop.id, type: Type.SALE, quantity: 3, movementDate });
+    expect(sale).toMatchObject({ unitCostCents: 167, costTotalCents: 500 });
+    const ledger = await service.movementLedger(f.admin.id, f.company.id, { type: Type.SALE, limit: 50, offset: 0 });
+    expect(ledger.movements.find(row => row.id === sale.id)).toMatchObject({ unitCostCents: 167, costTotalCents: 500 });
+    const report = await service.profitability(f.admin.id, f.company.id, { days: 30, from: movementDate, to: movementDate });
+    expect(report.summary).toMatchObject({ cogsCents: 500, netSalesCents: 525, grossProfitCents: 25 });
+    const finance = await new FinanceService(tenantPrisma(db), service).report(f.admin.id, f.company.id, { year: 2026 });
+    expect(finance.yearly.profitability).toMatchObject({ netSalesCents: 525, grossProfitCents: 25 });
+  });
+});
