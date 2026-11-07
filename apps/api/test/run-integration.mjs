@@ -104,7 +104,6 @@ try {
     const baseline = await allRows();
     migrate(['--to', '0a5e3f164465a966bac6eb041f64856deb7b954fac9c6b6640394913ac060faf']);
     assert.deepEqual(await allRows(), baseline, 'Retail receipt upgrade changed existing rows from 770df3a');
-    assert.equal((await client.query('SELECT count(*)::int AS n FROM sales WHERE tender_method IS NOT NULL OR amount_received_cents IS NOT NULL')).rows[0].n, 0, 'Old sales must not acquire invented tender');
     assert.equal((await client.query('SELECT count(*)::int AS n FROM retail_sale_requests')).rows[0].n, 0);
     assert.equal((await client.query("SELECT relrowsecurity FROM pg_class WHERE oid='public.retail_sale_requests'::regclass")).rows[0].relrowsecurity, true);
     assert.equal((await client.query("SELECT count(*)::int AS n FROM pg_policies WHERE tablename='retail_sale_requests'")).rows[0].n, 3);
@@ -115,7 +114,7 @@ try {
     await client.query("INSERT INTO retail_sale_requests(id,company_id,created_by_user_id,idempotency_key,location_id,request_hash,result) VALUES ($1,$2,$3,$4,$5,$6,'{\"id\":\"historical-response\"}')", [randomUUID(),tenant,actor,randomUUID(),place,'a'.repeat(64)]);
     const beforeF01 = await allRows();
     const started = performance.now();
-    migrate();
+    migrate(['--to', 'da8b67a64c6f11c18e09a8670d0b3755bd08da63a0764b5e848b416e77b2e62e']);
     const afterF01 = await allRows();
     for (const table of tables) {
       const previous = beforeF01[table];
@@ -129,6 +128,27 @@ try {
     assert.equal((await client.query('SELECT count(*)::int n FROM stock_movements WHERE cost_total_cents IS NOT NULL OR corrects_movement_id IS NOT NULL')).rows[0].n,0);
     assert.equal((await client.query('SELECT count(*)::int n FROM sale_lines WHERE prospective_cost')).rows[0].n,0);
     console.log(`F01 populated upgrade preserved all existing fields across ${tables.length} tables in ${Math.round(performance.now()-started)}ms; new pool/correction/total columns are null, sale-line marker false.`);
+    // Exercise the tender upgrade from populated CURRENT MAIN, including real F01
+    // fractional costs and a preserved purchase/correction pair. No backfill is allowed.
+    const pooledItem=randomUUID(),pooledSale=randomUUID(),pooledLine=randomUUID(),mainReceipt=randomUUID();
+    await client.query("INSERT INTO inventory_items(id,company_id,sku,name,category,unit,unit_cost_cents,selling_price_cents,pooled_value_cents,updated_at) VALUES ($1,$2,'MAIN-POOL','Current main pool','Test','pcs',167,200,167,now())",[pooledItem,tenant]);
+    await client.query('INSERT INTO location_stocks(id,company_id,item_id,location_id,opening_stock,updated_at) VALUES ($1,$2,$3,$4,3,now())',[randomUUID(),tenant,pooledItem,place]);
+    await client.query("INSERT INTO sales(id,company_id,location_id,created_by_user_id,idempotency_key,request_hash,currency,movement_date,gross_sales_cents,automatic_discount_cents,total_cents,cogs_cents) VALUES ($1,$2,$3,$4,$5,$6,'GHS','2026-11-07',400,0,400,333)",[pooledSale,tenant,place,actor,randomUUID(),'c'.repeat(64)]);
+    await client.query("INSERT INTO sale_lines(id,company_id,sale_id,item_id,position,item_name,sku,category,base_unit,quantity,retail_price_cents,unit_cost_cents,gross_sales_cents,automatic_discount_cents,total_cents,cogs_cents,pricing_snapshot,prospective_cost) VALUES ($1,$2,$3,$4,0,'Current main pool','MAIN-POOL','Test','pcs',2,200,167,400,0,400,333,'{}',true)",[pooledLine,tenant,pooledSale,pooledItem]);
+    for (const [position,cost] of [167,166].entries()) {
+      const movement=randomUUID();
+      await client.query("INSERT INTO stock_movements(id,company_id,item_id,location_id,type,quantity,unit_price_cents,unit_cost_cents,movement_date) VALUES ($1,$2,$3,$4,'sale',1,200,$5,'2026-11-07')",[movement,tenant,pooledItem,place,cost]);
+      await client.query("INSERT INTO sale_components(id,company_id,sale_line_id,movement_id,position,category,quantity,unit_price_cents,total_cents) VALUES ($1,$2,$3,$4,$5,'retail',1,200,200)",[randomUUID(),tenant,pooledLine,movement,position]);
+    }
+    await client.query("INSERT INTO stock_movements(id,company_id,item_id,location_id,type,quantity,unit_cost_cents,cost_total_cents,movement_date) VALUES ($1,$2,$3,$4,'purchase',2,100,200,'2026-11-07')",[mainReceipt,tenant,pooledItem,place]);
+    await client.query("INSERT INTO stock_movements(id,company_id,item_id,location_id,type,quantity,unit_cost_cents,cost_total_cents,corrects_movement_id,movement_date) VALUES ($1,$2,$3,$4,'return_out',2,100,200,$5,'2026-11-07')",[randomUUID(),tenant,pooledItem,place,mainReceipt]);
+    const beforeTender=await allRows();
+    migrate();
+    assert.deepEqual(await allRows(),beforeTender,'Tender migration changed current-main data, including F01 pool/correction values');
+    assert.equal((await client.query('SELECT count(*)::int n FROM sales WHERE tender_method IS NOT NULL OR amount_received_cents IS NOT NULL')).rows[0].n,0,'Old sales must not acquire invented tender');
+    assert.ok((await client.query('SELECT count(*)::int n FROM sales')).rows[0].n>=2,'Current-main rehearsal must include populated sale history');
+    console.log(`Tender upgrade from populated main preserved all ${tables.length} tenant tables, fractional sale costs, pools and correction links; historical tender remains null.`);
+
 
   } finally {
     await client.end();
