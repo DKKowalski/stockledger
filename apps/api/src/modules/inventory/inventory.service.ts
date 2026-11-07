@@ -534,8 +534,8 @@ export class InventoryService {
     return this.prisma.withCompany(companyId, async (tx) => {
       const actor = await this.actor(tx, companyId, userId);
       if (body.type === StockMovementType.SALE) {
-        if (actor.role !== 'shop_attendant' || !actor.locationId) {
-          throw new ForbiddenException('Only a shop attendant can record a sale');
+        if (actor.role !== 'administrator' && (actor.role !== 'shop_attendant' || !actor.locationId)) {
+          throw new ForbiddenException('Only an owner or shop attendant can record a sale');
         }
       } else if (actor.role === 'shop_attendant') {
         throw new ForbiddenException('Shop attendants can only record a sale');
@@ -546,6 +546,8 @@ export class InventoryService {
       if (body.idempotencyKey && body.type !== StockMovementType.SALE) {
         throw new BadRequestException('Sale request keys can only be used for sales');
       }
+      // Owners choose a shop explicitly; attendants always retain their assigned shop.
+      if (body.type === StockMovementType.SALE && actor.role === 'administrator') actor.locationId = body.locationId;
       const key = body.idempotencyKey?.toLowerCase();
       // Serialize attempts before item locks, including accidental reuse for another item.
       // The durable receipt remains even if a manager later removes the movement.

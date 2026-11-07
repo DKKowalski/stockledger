@@ -43,7 +43,7 @@ export class SaleCompletionService {
     `.returnsRow({ id: 'pg/uuid@1' }).build());
     const actor = await tx.orm.public.User.first({ id: userId, companyId });
     if (!actor?.isActive) throw new UnauthorizedException('Account is not available');
-    if (writing && actor.role !== 'shop_attendant') throw new ForbiddenException('Only a shop attendant can complete a sale');
+    if (writing && actor.role !== 'shop_attendant' && actor.role !== 'administrator') throw new ForbiddenException('Only an owner or shop attendant can complete a sale');
     if (!writing && actor.role !== 'shop_attendant' && actor.role !== 'administrator') throw new ForbiddenException('Sale records are not available to this role');
     if (actor.role === 'shop_attendant') {
       const shop = actor.locationId && await tx.orm.public.Location.first({ id: actor.locationId, companyId, type: 'shop' });
@@ -52,12 +52,20 @@ export class SaleCompletionService {
     return actor;
   }
 
+  private async sellingShop(tx: PrismaTransaction, companyId: string, actor: Actor, locationId?: string) {
+    if (actor.role === 'administrator') {
+      const shop = locationId && await tx.orm.public.Location.first({ id: locationId, companyId, type: 'shop' });
+      if (!shop) throw new BadRequestException('Choose a shop in this business before reviewing a sale');
+      actor.locationId = shop.id;
+    } else if (locationId && locationId !== actor.locationId) throw new ForbiddenException('Use your assigned shop for this sale');
+  }
+
   async status(userId: string, companyId: string) {
     return this.prisma.withCompany(companyId, async (tx) => {
       const user = await tx.orm.public.User.first({ id: userId, companyId });
       if (!user?.isActive) throw new UnauthorizedException('Account is not available');
       const company = await tx.orm.public.Company.first({ id: companyId });
-      return { available: await this.enabled(tx, companyId) && user.role === 'shop_attendant' && !company?.allowNegativeStock, developmentOnly: true as const };
+      return { available: await this.enabled(tx, companyId) && ['shop_attendant', 'administrator'].includes(user.role) && !company?.allowNegativeStock, developmentOnly: true as const };
     });
   }
 
@@ -117,6 +125,7 @@ export class SaleCompletionService {
     return this.prisma.withCompany(companyId, async (tx) => {
       await this.assertEnabled(tx, companyId);
       const actor = await this.actor(tx, userId, companyId, true);
+      await this.sellingShop(tx, companyId, actor, input.locationId);
       const result = await this.calculate(tx, userId, companyId, input);
       const expiresAt = Date.now() + 10 * 60_000;
       const envelope: QuoteEnvelope = { version: 1, companyId, userId, locationId: actor.locationId!, currency: result.currency, expiresAt, input, fingerprint: result.fingerprint };
@@ -139,7 +148,7 @@ export class SaleCompletionService {
       const requestHash = hash(body.quoteToken);
       const prior = await tx.orm.public.Sale.first({ companyId, idempotencyKey: key });
       if (prior) {
-        if (prior.createdByUserId !== userId || prior.locationId !== actor.locationId || prior.requestHash !== requestHash) throw new ConflictException('This sale request key has already been used');
+        if (prior.createdByUserId !== userId || (actor.role === 'shop_attendant' && prior.locationId !== actor.locationId) || prior.requestHash !== requestHash) throw new ConflictException('This sale request key has already been used');
         return this.present(tx, companyId, prior.id, actor);
       }
       // Recover committed requests before consulting gates or quote expiry.
@@ -148,6 +157,7 @@ export class SaleCompletionService {
         SELECT id FROM public.companies WHERE id = ${companyId}::uuid FOR SHARE
       `.returnsRow({ id: 'pg/uuid@1' }).build());
       const envelope = this.decode(body.quoteToken);
+      await this.sellingShop(tx, companyId, actor, envelope.locationId);
       if (envelope.companyId !== companyId || envelope.userId !== userId || envelope.locationId !== actor.locationId) throw new ForbiddenException('The sale quote belongs to another account or shop');
       const itemIds = [...new Set(envelope.input.lines.map((line) => line.itemId))].sort();
       for (const itemId of itemIds) {
@@ -227,7 +237,7 @@ export class SaleCompletionService {
       const actor = await this.actor(tx, userId, companyId);
       const sale = await tx.orm.public.Sale.first({ companyId, idempotencyKey: key });
       // Keys are scoped to the submitting actor; absence is not proof an in-flight request failed.
-      return { sale: sale && sale.createdByUserId === userId && sale.locationId === actor.locationId ? await this.present(tx, companyId, sale.id, actor) : null };
+      return { sale: sale && sale.createdByUserId === userId && (actor.role === 'administrator' || sale.locationId === actor.locationId) ? await this.present(tx, companyId, sale.id, actor) : null };
     });
   }
 }

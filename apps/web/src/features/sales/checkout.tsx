@@ -66,7 +66,7 @@ export function Checkout({ enabled }: { enabled: boolean }) {
     return () => window.removeEventListener('storage', load);
   }, [user]);
   const shopName = snapshot?.locations.find((location) => location.id === user?.locationId)?.name ?? `your ${terms.shop}`;
-  const positions = snapshot?.positions.filter((position) => position.closing > 0 && position.item.isActive) ?? [];
+  const positions = snapshot?.positions.filter((position) => position.closing > 0 && position.item.isActive && position.location.id === user?.locationId) ?? [];
   const selected = positions.find((position) => position.item.id === itemId);
   const money = (cents: number, currency = quote?.currency ?? completed?.currency ?? settings?.currency ?? 'GHS') => formatMoney(cents, currency);
   const run = async (action: () => Promise<void>) => {
@@ -85,7 +85,7 @@ export function Checkout({ enabled }: { enabled: boolean }) {
       if (!line || selected.item.sellingPriceCents == null) throw new Error('Ask an administrator to set a selling price for this item.');
       const movementDate = companyDay(settings?.timeZone);
       setCompleted(null);
-      const nextQuote = await api.saleQuote(accessToken, { movementDate, lines: [{ itemId, quantity: Number(quantity), expectedVersion: line.configurationVersion ?? line.pricingVersion ?? 0, expectedRetailPriceCents: selected.item.sellingPriceCents }] });
+      const nextQuote = await api.saleQuote(accessToken, { locationId: user?.locationId ?? undefined, movementDate, lines: [{ itemId, quantity: Number(quantity), expectedVersion: line.configurationVersion ?? line.pricingVersion ?? 0, expectedRetailPriceCents: selected.item.sellingPriceCents }] });
       if (generation !== (localStorage.getItem(generationKey(user)) ?? '')) throw new Error('Another sale request changed this checkout. Review a new quote.');
       reviewGeneration.current = generation; setQuote(nextQuote);
     });

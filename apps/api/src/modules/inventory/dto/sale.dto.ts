@@ -10,6 +10,7 @@ export class SaleQuoteLineDto {
 }
 
 export class SaleQuoteDto {
+  @IsOptional() @IsUUID() locationId?: string;
   @IsDateString({ strict: true }) @Matches(/^\d{4}-\d{2}-\d{2}$/) movementDate!: string;
   @IsArray() @ArrayMinSize(1) @ArrayMaxSize(100) @IsObject({ each: true }) @ValidateNested({ each: true }) @Type(() => SaleQuoteLineDto)
   lines!: SaleQuoteLineDto[];

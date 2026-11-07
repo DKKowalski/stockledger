@@ -1,3 +1,4 @@
+import { OwnerSalesPage } from '../features/sales/owner-sales-page';
 import { FinancePage } from '../features/finance/finance-page';
 import { ArrowLeftRight, ChartColumn, CircleDollarSign, Landmark, LayoutDashboard, MapPin, Package, ShoppingBag, Users } from 'lucide-react';
 import { Navigate, Route, Routes } from 'react-router-dom';
@@ -24,6 +25,7 @@ import { AppShell, type NavigationItem } from '../components/app-shell';
 
 const administratorNavigation = [
   ['/', 'Overview', LayoutDashboard, 'overview'],
+  ['/sell', 'Sell', ShoppingBag, 'sell'],
   ['/items', 'Items', Package, 'items'],
   ['/movements', 'Movements', ArrowLeftRight, 'movement'],
   ['/reports', 'Reports', ChartColumn, 'reports'],
@@ -67,6 +69,7 @@ function AdministratorWorkspace() {
     <Route path="items" element={<AdminItemsPage />} />
     <Route path="movements" element={<MovementsPage />} />
     <Route path="reports" element={<OperationsReportsPage />} />
+    <Route path="sell" element={<OwnerSalesPage />} />
     <Route path="profitability" element={<ProfitabilityPage />} />
     <Route path="finance" element={<FinancePage />} />
     <Route path="stock-counts" element={<StockCountsPage />} />

@@ -71,6 +71,30 @@ async function closing(f: Fixture) { const snap=await request('/inventory/snapsh
 async function counts(f: Fixture) { return {sales:(await db.orm.public.Sale.where({companyId:f.company.id}).all()).length,movements:(await db.orm.public.StockMovement.where({companyId:f.company.id}).all()).length}; }
 
 describe('durable development sale completion via real HTTP and restricted runtime role',()=>{
+
+  it('lets the owner sell at an explicit shop and preserves attendant assignment restrictions', async () => {
+    const f = await fixture(20);
+    const retail = { itemId: f.items[0]!.id, locationId: f.shop.id, type: 'sale', quantity: 2, movementDate: date, idempotencyKey: randomUUID() };
+    const sale = await request('/inventory/movements', f.admin.token, 'POST', retail);
+    expect(sale.status).toBe(201);
+    expect(sale.body.locationId).toBe(f.shop.id);
+    expect((await request('/inventory/movements', f.manager.token, 'POST', retail)).status).toBe(403);
+    const quoteBody = { ...input(f, 5), locationId: f.shop.id };
+    const quote = await request('/inventory/sales/quote', f.admin.token, 'POST', quoteBody);
+    expect(quote.status).toBe(201);
+    const key = randomUUID();
+    const result = await request('/inventory/sales/complete', f.admin.token, 'POST', { idempotencyKey: key, quoteToken: quote.body.quoteToken });
+    expect(result.status).toBe(201);
+    expect(result.body.locationId).toBe(f.shop.id);
+    expect((await db.orm.public.Sale.first({ id: result.body.id }))!.createdByUserId).toBe(f.admin.id);
+    expect((await request(`/inventory/sales/requests/${key}`, f.admin.token)).body.sale.id).toBe(result.body.id);
+    expect((await request('/inventory/sales/quote', f.admin.token, 'POST', input(f, 1))).status).toBe(400);
+    expect((await request('/inventory/sales/quote', f.attendant.token, 'POST', { ...quoteBody, locationId: f.otherShop.id })).status).toBe(403);
+    const foreign = await fixture();
+    config.set('app.pricingPreviewCompanyIds', [f.company.id, foreign.company.id]);
+    config.set('app.saleCompletionCompanyIds', [f.company.id, foreign.company.id]);
+    expect((await request('/inventory/sales/quote', f.admin.token, 'POST', { ...quoteBody, locationId: foreign.shop.id })).status).toBe(400);
+  });
   it('rejects grouped checkout before a later receipt and rolls back every sale record', async () => {
     const f = await fixture(0);
     expect((await request('/inventory/movements', f.manager.token, 'POST', { itemId: f.items[0]!.id, locationId: f.shop.id, type: 'purchase', quantity: 10, unitCostCents: 1000, movementDate: '2026-11-06' })).status).toBe(201);
@@ -264,7 +288,7 @@ describe('durable development sale completion via real HTTP and restricted runti
     const body={idempotencyKey:randomUUID(),quoteToken:quote.quoteToken};
     expect((await request('/inventory/sales/complete',f.other.token,'POST',body)).status).toBe(403);
     expect((await request('/inventory/sales/complete',foreign.attendant.token,'POST',body)).status).toBe(403);
-    expect((await request('/inventory/sales/quote',f.admin.token,'POST',input(f))).status).toBe(403);
+    expect((await request('/inventory/sales/quote',f.admin.token,'POST',input(f))).status).toBe(400); // Owners must choose a shop.
     expect((await request('/inventory/sales/quote',f.manager.token,'POST',input(f))).status).toBe(403);
     const clock=vi.spyOn(Date,'now').mockReturnValue(Date.now()+11*60_000);try{expect((await complete(f,quote)).status).toBe(409);}finally{clock.mockRestore();}
     expect(await counts(f)).toEqual({sales:0,movements:0});

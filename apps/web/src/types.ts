@@ -173,7 +173,7 @@ export type PricingQuote = {
   }>;
 };
 
-export type SaleQuoteInput = { movementDate: string; lines: Array<{ itemId: string; quantity: number; quantityUnit?: 'base' | 'package'; expectedVersion: number; expectedRetailPriceCents: number }> };
+export type SaleQuoteInput = { locationId?: string; movementDate: string; lines: Array<{ itemId: string; quantity: number; quantityUnit?: 'base' | 'package'; expectedVersion: number; expectedRetailPriceCents: number }> };
 export type SaleQuote = Omit<PricingQuote, 'previewOnly' | 'canComplete' | 'currency'> & { currency: Currency; canComplete: true; developmentOnly: true; quoteToken: string; expiresAt: string; movementDate: string };
 export type CompletedSale = {
   id: string; idempotencyKey: string; status: 'completed'; currency: Currency; movementDate: string;

@@ -87,11 +87,11 @@ function RetailSalePage({ onResolved }: { onResolved?: () => void }) {
     return () => window.removeEventListener('storage', load);
   }, [storageKey]);
   const shop = snapshot?.locations.find((place) => place.id === user?.locationId) ?? snapshot?.locations[0];
-  const stocked = snapshot?.positions.filter((position) => position.closing > 0) ?? [];
+  const stocked = snapshot?.positions.filter((position) => position.closing > 0 && position.location.id === user?.locationId) ?? [];
   const selected = stocked.find((position) => position.item.id === form.itemId);
   const unitPriceCents = recovery.pending?.body.expectedUnitPriceCents ?? selected?.item.sellingPriceCents;
   const totalCents = unitPriceCents == null || !form.quantity ? null : unitPriceCents * Number(form.quantity);
-  const sales = snapshot?.periodMovements.filter((movement) => movement.type === 'sale') ?? [];
+  const sales = snapshot?.periodMovements.filter((movement) => movement.type === 'sale' && movement.locationId === user?.locationId) ?? [];
 
   const send = async (attempt: RetailAttempt) => {
     if (!accessToken) return;
