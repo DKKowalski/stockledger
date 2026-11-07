@@ -1554,7 +1554,7 @@ describe('bounded report reads with representative local history', () => {
       const orm = new Proxy(tx.orm, { get(target, property) { return property === 'public' ? publicModels : Reflect.get(target, property); } });
       const proxied = new Proxy(tx, { get(target, property) {
         if (property === 'orm') return orm;
-        if (property === 'query') return async (...args: Parameters<typeof tx.query>) => { const rows = await tx.query(...args); if (rows.some(row => 'itemId' in row && 'quantity' in row)) fetched.push(rows.length); return rows; };
+        if (property === 'query') return async (...args: Parameters<typeof tx.query>) => { const rows = await tx.query(...args); if (rows.some(row => row !== null && typeof row === 'object' && 'itemId' in row && 'quantity' in row)) fetched.push(rows.length); return rows; };
         return Reflect.get(target, property);
       } });
       return work(proxied);
