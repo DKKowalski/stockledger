@@ -120,8 +120,12 @@ function WorkspaceProviders({ children }: { children: ReactNode }) {
 
 // Forms must mount after the company time zone is known so their default day is correct.
 function CompanyWorkspace({ children }: { children: ReactNode }) {
-  const { loading } = useCompanySettings();
-  return loading ? <AppLoader /> : <InventoryProvider>{children}</InventoryProvider>;
+  const { loading, settings, error, refresh } = useCompanySettings();
+  const { signOut } = useAuth();
+  return <>
+    {error && <WorkspaceErrorState error={{ title: 'Business settings could not load.', description: 'Retry to use the correct currency and business dates. Your entries are kept.' }} onRetry={() => void refresh()} onSignOut={signOut} />}
+    <div hidden={!!error}>{loading ? <AppLoader /> : settings ? <InventoryProvider>{children}</InventoryProvider> : null}</div>
+  </>;
 }
 
 function AppLoader() {

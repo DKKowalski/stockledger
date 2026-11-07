@@ -18,6 +18,7 @@ export function StockCountsPage() {
   const { snapshot, mutate, busy } = useInventoryStore();
   const { money, calendarDate, settings, terms } = useCompanySettings();
   const countAction = useAsyncActionState();
+  const [historyError, setHistoryError] = useState<string | null>(null);
   const [counts, setCounts] = useState<StockCount[] | null>(null);
   const [form, setForm] = useState({ itemId: '', locationId: '', countedQuantity: '', countedAt: companyDay(settings?.timeZone), note: '' });
   const items = snapshot?.items.filter((item) => item.isActive) ?? [];
@@ -38,7 +39,9 @@ export function StockCountsPage() {
   const variance = expected === null || form.countedQuantity === '' ? null : Number(form.countedQuantity) - expected;
 
   const load = useCallback(async () => {
-    if (accessToken) setCounts(await api.stockCounts(accessToken));
+    if (!accessToken) return;
+    try { setCounts(await api.stockCounts(accessToken)); setHistoryError(null); }
+    catch { setHistoryError('Count history could not load. Your count entries are kept.'); }
   }, [accessToken]);
   useEffect(() => {
     const timer = window.setTimeout(() => void load(), 0);
@@ -82,7 +85,8 @@ export function StockCountsPage() {
       </form>
     </Panel>
     <Panel title={`Count history (${counts?.length ?? 0})`} className="spaced">
-      {counts?.length ? <div className="table-wrap"><table><thead><tr><th>Date</th><th>{terms.Item}</th><th>Place</th><th className="num">Expected</th><th className="num">Counted</th><th className="num">Variance</th><th className="num">Value impact</th></tr></thead><tbody>{counts.map((count) => <tr key={count.id}><td>{calendarDate(count.countedAt)}</td><td><b>{count.item?.name ?? `Deleted ${terms.item}`}</b><small>{count.note}</small></td><td>{count.location?.name ?? 'Unknown'}</td><td className="num">{count.expectedQuantity}</td><td className="num">{count.countedQuantity}</td><td className={`num ${count.varianceQuantity > 0 ? 'positive' : count.varianceQuantity < 0 ? 'negative' : ''}`}>{count.varianceQuantity > 0 ? '+' : ''}{count.varianceQuantity}</td><td className="num">{money(count.valueImpactCents ?? count.varianceQuantity * count.unitCostCents)}</td></tr>)}</tbody></table></div> : counts ? <EmptyState icon={<ClipboardCheck size={21} />} text="No stock counts yet." /> : <div className="empty"><p>Loading count history</p></div>}
+      {historyError && <div role="alert">{historyError} <button type="button" className="button secondary" onClick={() => void load()}>Retry count history</button></div>}
+      {counts?.length ? <div className="table-wrap"><table><thead><tr><th>Date</th><th>{terms.Item}</th><th>Place</th><th className="num">Expected</th><th className="num">Counted</th><th className="num">Variance</th><th className="num">Value impact</th></tr></thead><tbody>{counts.map((count) => <tr key={count.id}><td>{calendarDate(count.countedAt)}</td><td><b>{count.item?.name ?? `Deleted ${terms.item}`}</b><small>{count.note}</small></td><td>{count.location?.name ?? 'Unknown'}</td><td className="num">{count.expectedQuantity}</td><td className="num">{count.countedQuantity}</td><td className={`num ${count.varianceQuantity > 0 ? 'positive' : count.varianceQuantity < 0 ? 'negative' : ''}`}>{count.varianceQuantity > 0 ? '+' : ''}{count.varianceQuantity}</td><td className="num">{money(count.valueImpactCents ?? count.varianceQuantity * count.unitCostCents)}</td></tr>)}</tbody></table></div> : counts ? <EmptyState icon={<ClipboardCheck size={21} />} text="No stock counts yet." /> : !historyError && <div className="empty"><p>Loading count history</p></div>}
     </Panel>
   </PageState>;
 }

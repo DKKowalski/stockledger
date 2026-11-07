@@ -22,8 +22,11 @@ export function ProfitabilityPage() {
   const [locationId, setLocationId] = useState('');
   const [category, setCategory] = useState('');
   const [itemId, setItemId] = useState('');
-  const [report, setReport] = useState<Profitability | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const requestKey = JSON.stringify([accessToken, category, days, range, itemId, locationId, locationType]);
+  const [loaded, setLoaded] = useState<{ key: string; report: Profitability | null; error: string | null } | null>(null);
+  const [retryVersion, setRetryVersion] = useState(0);
+  const report = loaded?.key === requestKey ? loaded.report : null;
+  const error = loaded?.key === requestKey ? loaded.error : null;
 
   const locations = useMemo(() => (snapshot?.locations ?? [])
     .filter((location) => !locationType || location.type === locationType), [snapshot, locationType]);
@@ -50,13 +53,13 @@ export function ProfitabilityPage() {
       ...(category ? { category } : {}),
       ...(itemId ? { itemId } : {}),
     }).then((next) => {
-      if (!cancelled) { setReport(next); setError(null); }
+      if (!cancelled) { setLoaded({ key: requestKey, report: next, error: null }); }
     }).catch((caught) => {
       if (caught instanceof ApiError && caught.status === 401) signOut();
-      else if (!cancelled) setError(safeErrorMessage(caught, 'Could not load profitability. Try again.'));
+      else if (!cancelled) setLoaded({ key: requestKey, report: null, error: safeErrorMessage(caught, 'Could not load profitability. Try again.') });
     });
     return () => { cancelled = true; };
-  }, [accessToken, category, days, range, itemId, locationId, locationType, signOut]);
+  }, [accessToken, category, days, range, itemId, locationId, locationType, signOut, requestKey, retryVersion]);
 
   const hasDiscounts = Boolean(report?.lines.some((line) => line.discountCents > 0));
   const maxTrend = useMemo(() => Math.max(...(report?.trend.flatMap((point) => [Math.abs(point.netSalesCents), Math.abs(point.grossProfitCents)]) ?? [1]), 1), [report]);
@@ -74,7 +77,7 @@ export function ProfitabilityPage() {
         <label><span>{terms.Item}</span><SelectControl aria-label={terms.Item} value={itemId} onValueChange={setItemId} options={[{ value: '', label: `All ${terms.items}` }, ...items.map((item) => ({ value: item.id, label: item.name }))]} /></label>
       </div>
     </section>
-    {error && <div className="form-error" role="alert">{error}</div>}
+    {error && <div className="form-error" role="alert">{error} <button type="button" className="button secondary" onClick={() => setRetryVersion(value => value + 1)}>Retry report</button></div>}
     {isWarehouseView && <div className="profit-warehouse-note"><WarehouseIcon size={19} /><div><b>{terms.Warehouses} do not record sales in StockLedger</b><span>This view shows {terms.warehouse} inventory losses. Gross profit stays at zero because sales are recorded from {terms.shops}.</span></div></div>}
     {summary && <>
       {summary.costCoveragePercent < 100 && <div className="profit-coverage-note"><ReceiptText size={18} /><div><b>{summary.costCoveragePercent}% cost coverage</b><span>Gross profit excludes legacy sales that have no cost snapshot. Net sales still includes them.</span></div></div>}
