@@ -72,6 +72,7 @@ for (const width of [360, 390, 1440]) {
           await expect(day.getByRole('tooltip')).toHaveCSS('opacity', '1');
           samples[`${theme}-profit-tooltip`] = await checkText(page, '.profit-chart-day:first-child .profit-chart-tooltip b, .profit-chart-day:first-child .profit-chart-tooltip small');
           if (width === 1440) samples[`${theme}-profit-dates`] = await checkText(page, '.profit-chart-day > small');
+          await page.screenshot({path:testInfo.outputPath(`profit-${width}-${theme}.png`),fullPage:true,animations:'disabled'});
           // Pointer users on a phone can reveal the same readable date and values.
           await day.click();
           await expect(day.getByRole('tooltip')).toHaveCSS('opacity', '1');
