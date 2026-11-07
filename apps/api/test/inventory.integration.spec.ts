@@ -1083,7 +1083,7 @@ describe('legacy valuation baseline before prospective costing enrollment', () =
     expect(await db.orm.public.StockMovement.first({ id: sale.id })).toEqual(sale);
   });
 
-  it('preserves the legacy average after an original-cost return following a more expensive receipt', async () => {
+  it('restores original value after an original-cost return following a more expensive receipt', async () => {
     const f = await fixture(2); await transfer(f, 2);
     const sale = await service.createMovement(f.attendant.id, f.company.id, {
       itemId: f.item.id, locationId: f.shop.id, type: Type.SALE, quantity: 1, movementDate,
@@ -1098,13 +1098,13 @@ describe('legacy valuation baseline before prospective costing enrollment', () =
     });
     const snapshot = await service.snapshot(f.admin.id, f.company.id);
     expect(returned.unitCostCents).toBe(100);
-    expect(snapshot.items[0]?.unitCostCents).toBe(200);
+    expect(snapshot.items[0]?.unitCostCents).toBe(167);
     expect(snapshot.positions.reduce((sum, p) => sum + p.closing, 0)).toBe(3);
-    expect(snapshot.positions.reduce((sum, p) => sum + p.valueCents, 0)).toBe(600);
+    expect(snapshot.positions.reduce((sum, p) => sum + p.valueCents, 0)).toBe(500);
     expect(await db.orm.public.StockMovement.first({ id: sale.id })).toEqual(sale);
   });
 
-  it('preserves the legacy current average when an unconsumed receipt is removed', async () => {
+  it('retains an unconsumed receipt and removes its real quantity and value with a correction', async () => {
     const f = await fixture(1);
     const purchase = await service.createMovement(f.admin.id, f.company.id, {
       itemId: f.item.id, locationId: f.warehouse.id, type: Type.PURCHASE,
@@ -1112,10 +1112,10 @@ describe('legacy valuation baseline before prospective costing enrollment', () =
     });
     await service.deleteMovement(f.admin.id, f.company.id, purchase.id);
     const snapshot = await service.snapshot(f.admin.id, f.company.id);
-    expect(await db.orm.public.StockMovement.first({ id: purchase.id })).toBeNull();
-    expect(snapshot.items[0]?.unitCostCents).toBe(200);
+    expect(await db.orm.public.StockMovement.first({ id: purchase.id })).toEqual(purchase);
+    expect(snapshot.items[0]?.unitCostCents).toBe(100);
     expect(snapshot.positions.reduce((sum, p) => sum + p.closing, 0)).toBe(1);
-    expect(snapshot.positions.reduce((sum, p) => sum + p.valueCents, 0)).toBe(200);
+    expect(snapshot.positions.reduce((sum, p) => sum + p.valueCents, 0)).toBe(100);
   });
 });
 
@@ -1354,5 +1354,59 @@ describe('finance persistence and tenant isolation', () => {
     const csv = await exportsService.create(f.admin.id, f.company.id, DataExportType.ACTIVITY, { from: '2026-03-08', to: '2026-03-08' });
     expect(csv.content).toContain('finance.entry_saved');
     expect(csv.content).not.toContain('finance.entry_deleted');
+  });
+});
+
+
+describe('F01 prospective value conservation', () => {
+  const receipt = (f: Fixture, quantity = 10, cost = 300) => service.createMovement(f.admin.id, f.company.id, {
+    itemId: f.item.id, locationId: f.warehouse.id, type: Type.PURCHASE, quantity, unitCostCents: cost, movementDate,
+  });
+  const value = async (f: Fixture) => (await service.snapshot(f.admin.id, f.company.id)).positions.reduce((s,p) => s + p.valueCents, 0);
+  it('removes the audit purchase value and prices the next sale at the remaining cost', async () => {
+    const f = await fixture(10), purchase = await receipt(f);
+    expect(await value(f)).toBe(4000);
+    await service.deleteMovement(f.admin.id, f.company.id, purchase.id);
+    expect(await balance(f, f.warehouse.id)).toBe(10);
+    expect(await value(f)).toBe(1000);
+    expect(await db.orm.public.StockMovement.first({ id: purchase.id })).toEqual(purchase);
+    await transfer(f, 10);
+    const sold = await service.createMovement(f.attendant.id, f.company.id, { itemId:f.item.id, locationId:f.shop.id,type:Type.SALE,quantity:10,movementDate });
+    expect(sold.unitCostCents).toBe(100);
+    expect(await value(f)).toBe(0);
+  });
+  it('restores the audit sale cost through partial returns and the next sale', async () => {
+    const f = await fixture(10); await transfer(f,10);
+    const sold = await service.createMovement(f.attendant.id,f.company.id,{itemId:f.item.id,locationId:f.shop.id,type:Type.SALE,quantity:10,movementDate});
+    await receipt(f);
+    for (const quantity of [4,6]) await service.createMovement(f.admin.id,f.company.id,{itemId:f.item.id,locationId:f.shop.id,type:Type.RETURN_IN,quantity,relatedMovementId:sold.id,movementDate});
+    expect(await value(f)).toBe(4000);
+    const next = await service.createMovement(f.attendant.id,f.company.id,{itemId:f.item.id,locationId:f.shop.id,type:Type.SALE,quantity:10,movementDate});
+    expect(next.unitCostCents).toBe(200);
+    expect(await value(f)).toBe(2000);
+    expect(await db.orm.public.StockMovement.first({id:sold.id})).toEqual(sold);
+  });
+  it('preserves fractional cents in carrying value and exhausts them on future sales', async () => {
+    const f = await fixture(2); await transfer(f,2);
+    const sold = await service.createMovement(f.attendant.id,f.company.id,{itemId:f.item.id,locationId:f.shop.id,type:Type.SALE,quantity:1,movementDate});
+    await receipt(f,1,300);
+    await service.createMovement(f.admin.id,f.company.id,{itemId:f.item.id,locationId:f.shop.id,type:Type.RETURN_IN,quantity:1,relatedMovementId:sold.id,movementDate});
+    expect(await value(f)).toBe(500);
+    await transfer(f,1);
+    const costs:number[]=[];
+    for(let i=0;i<3;i++) {
+      const sale=await service.createMovement(f.attendant.id,f.company.id,{itemId:f.item.id,locationId:f.shop.id,type:Type.SALE,quantity:1,movementDate});
+      costs.push(sale.unitCostCents!);
+    }
+    expect(costs).toEqual([167,167,166]);
+    expect(await value(f)).toBe(0);
+  });
+  it('refuses purchase reversal when its real value has been consumed, even with negative stock enabled', async () => {
+    const f=await fixture(10), purchase=await receipt(f);
+    await service.createMovement(f.admin.id,f.company.id,{itemId:f.item.id,locationId:f.warehouse.id,type:Type.DAMAGE,quantity:9,movementDate,note:'Lost'});
+    await db.orm.public.Company.where({id:f.company.id}).update({allowNegativeStock:true});
+    await expect(service.deleteMovement(f.admin.id,f.company.id,purchase.id)).rejects.toBeInstanceOf(ConflictException);
+    expect(await value(f)).toBe(2200);
+    expect(await balance(f,f.warehouse.id)).toBe(11);
   });
 });

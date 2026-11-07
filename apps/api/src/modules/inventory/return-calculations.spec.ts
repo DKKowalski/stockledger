@@ -39,3 +39,13 @@ describe('original-allocation returns', () => {
     ).toThrow();
   });
 });
+
+it('returns a recorded total cost cumulatively without inventing rounding cents', () => {
+  const part = { ...portions[0]!, quantity: 3, unitCostCents: 167, costTotalCents: 500 };
+  const costs: number[] = [];
+  for (let returned = 0; returned < 3; returned++) {
+    costs.push(allocateReturn([{ ...part, returned }], [{ itemId: 'water', quantity: 1, disposition: 'resellable' }]).cogsCents);
+  }
+  expect(costs).toEqual([167, 166, 167]);
+  expect(allocateReturn([part], [{ itemId:'water', quantity:3, disposition:'resellable' }]).allocations.reduce((s,a)=>s+a.quantity*a.unitCostCents,0)).toBe(500);
+});
