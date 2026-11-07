@@ -97,6 +97,7 @@ export type Movement = {
   type: MovementType; quantity: number; movementDate: string; reference: string | null;
   unitPriceCents: number | null; saleTotalCents: number | null;
   unitCostCents: number | null; costTotalCents: number | null;
+  correctsMovementId?: string | null; correctedByMovementId?: string | null;
   supplierId: string | null; relatedMovementId: string | null; stockCountId: string | null;
   note: string | null; createdAt: string; item: Item | null;
   location: Place | null; destination: Place | null; sign: 1 | -1;

@@ -12,7 +12,7 @@ for (const width of [390, 1440]) {
     await page.route('**/inventory/snapshot**', route => route.fulfill({ json: { generatedAt: Date.now().toString(), items: [item], locations: [location], positions: [], summary: {} } }));
     let removed = false, calls = 0, fail = true;
     const movement = { id: 'receipt', itemId: item.id, locationId: location.id, type: 'purchase', quantity: 12, movementDate: '2026-11-01', reference: 'PO-123', item, location, unitCostCents: 3200, saleTotalCents: null, sign: 1 };
-    await page.route('**/inventory/movements?**', route => route.fulfill({ json: { movements: removed ? [] : [movement], total: removed ? 0 : 1 } }));
+    await page.route('**/inventory/movements?**', route => route.fulfill({ json: { movements: removed ? [{ ...movement, correctedByMovementId: 'correction' }, { ...movement, id: 'correction', type: 'return_out', correctsMovementId: movement.id, note: 'Purchase correction. Original receipt retained.', sign: -1 }] : [movement], total: removed ? 2 : 1 } }));
     await page.route('**/inventory/movements/receipt', route => {
       calls++;
       if (fail) return route.fulfill({ status: 409, json: { message: 'Later movements depend on this stock' } });
@@ -25,6 +25,7 @@ for (const width of [390, 1440]) {
     const dialog = page.getByRole('dialog');
     await expect(dialog).toContainText('Milo 400g Tin · MIL400');
     await expect(dialog).toContainText('PO-123');
+    await expect(dialog).toContainText('original receipt stays in history');
     await expect(dialog).toContainText('Stock decreases by 12 at Main shop');
     await expect(dialog).toContainText('32.00');
     await expect(dialog).toContainText('Receipt amount to remove');
@@ -44,6 +45,9 @@ for (const width of [390, 1440]) {
     await dialog.getByRole('button', { name: 'Remove this receipt', exact: true }).click();
     await expect(dialog).toBeHidden();
     await expect(trigger).toHaveCount(0);
+    await expect(page.getByRole('cell', { name: 'Purchase correction', exact: true })).toBeVisible();
+    await expect(page.getByRole('cell', { name: 'Corrected', exact: true })).toBeVisible();
+    await uiuxEvidence(page, 'f01-correction-history');
     await expect(page.getByRole('heading', { name: /^Movement ledger/ })).toBeFocused();
     expect(calls).toBe(2);
     // Transfers affect both places; outgoing damage restores stock when removed.
