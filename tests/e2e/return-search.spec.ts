@@ -31,6 +31,8 @@ for(const width of [390,1440]) test(`both return selectors find an older sale be
     await page.getByRole('option',{name:'Return item · 2 returnable · 2025-01-01',exact:true}).click();
     await expect(legacy.getByLabel('Quantity',{exact:true})).toHaveAttribute('max','2');
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+    await legacy.screenshot({path:testInfo.outputPath(`legacy-return-${width}.png`)});
+    await returns.screenshot({path:testInfo.outputPath(`grouped-return-${width}.png`)});
     await testInfo.attach(`returns-${width}.png`,{body:await page.screenshot({path:testInfo.outputPath(`returns-${width}.png`),fullPage:true}),contentType:'image/png'});
   } finally {await db.end();}
 });
