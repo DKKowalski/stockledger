@@ -1,26 +1,31 @@
-import { OwnerSalesPage } from '../features/sales/owner-sales-page';
-import { FinancePage } from '../features/finance/finance-page';
+const OwnerSalesPage = lazy(() => import('../features/sales/owner-sales-page').then(m => ({ default: m.OwnerSalesPage })));
+import { lazy } from 'react';
+import { FeatureBoundary } from '../components/feature-boundary';
+const FinancePage = lazy(() => import('../features/finance/finance-page').then(m => ({ default: m.FinancePage })));
 import { ArrowLeftRight, ChartColumn, CircleDollarSign, Landmark, LayoutDashboard, MapPin, Package, ShoppingBag, Users } from 'lucide-react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { useAuth } from '../auth-context';
-import { AccountSettingsPage } from '../features/account/account-settings-page';
-import { BusinessSettingsPage } from '../features/settings/business-settings-page';
-import { ActivityLogPage } from '../features/settings/activity-log-page';
-import { DataExportsPage } from '../features/settings/data-exports-page';
-import { InventorySettingsPage } from '../features/settings/inventory-settings-page';
-import { SecuritySettingsPage } from '../features/settings/security-settings-page';
-import { TerminologySettingsPage } from '../features/settings/terminology-settings-page';
-import { PlacesPage } from '../features/admin/places-page';
-import { TeamPage } from '../features/admin/team-page';
-import { OperationsDashboardPage, ShopDashboardPage } from '../features/dashboard/dashboard-pages';
-import { ManagerItemsPage, ShopCatalogPage } from '../features/items/item-pages';
-import { AdminItemsPage } from '../features/items/admin-items-page';
-import { MovementsPage } from '../features/movements/movements-page';
-import { OperationsReportsPage, ShopReportsPage } from '../features/reports/report-pages';
-import { ShopSalesPage } from '../features/sales/shop-sales-page';
-import { ProfitabilityPage } from '../features/profitability/profitability-page';
-import { StockCountsPage } from '../features/stock-counts/stock-counts-page';
-import { SuppliersPage } from '../features/suppliers/suppliers-page';
+const AccountSettingsPage = lazy(() => import('../features/account/account-settings-page').then(m => ({ default: m.AccountSettingsPage })));
+const BusinessSettingsPage = lazy(() => import('../features/settings/business-settings-page').then(m => ({ default: m.BusinessSettingsPage })));
+const ActivityLogPage = lazy(() => import('../features/settings/activity-log-page').then(m => ({ default: m.ActivityLogPage })));
+const DataExportsPage = lazy(() => import('../features/settings/data-exports-page').then(m => ({ default: m.DataExportsPage })));
+const InventorySettingsPage = lazy(() => import('../features/settings/inventory-settings-page').then(m => ({ default: m.InventorySettingsPage })));
+const SecuritySettingsPage = lazy(() => import('../features/settings/security-settings-page').then(m => ({ default: m.SecuritySettingsPage })));
+const TerminologySettingsPage = lazy(() => import('../features/settings/terminology-settings-page').then(m => ({ default: m.TerminologySettingsPage })));
+const PlacesPage = lazy(() => import('../features/admin/places-page').then(m => ({ default: m.PlacesPage })));
+const TeamPage = lazy(() => import('../features/admin/team-page').then(m => ({ default: m.TeamPage })));
+const OperationsDashboardPage = lazy(() => import('../features/dashboard/dashboard-pages').then(m => ({ default: m.OperationsDashboardPage })));
+const ShopDashboardPage = lazy(() => import('../features/dashboard/dashboard-pages').then(m => ({ default: m.ShopDashboardPage })));
+const ManagerItemsPage = lazy(() => import('../features/items/item-pages').then(m => ({ default: m.ManagerItemsPage })));
+const ShopCatalogPage = lazy(() => import('../features/items/item-pages').then(m => ({ default: m.ShopCatalogPage })));
+const AdminItemsPage = lazy(() => import('../features/items/admin-items-page').then(m => ({ default: m.AdminItemsPage })));
+const MovementsPage = lazy(() => import('../features/movements/movements-page').then(m => ({ default: m.MovementsPage })));
+const OperationsReportsPage = lazy(() => import('../features/reports/report-pages').then(m => ({ default: m.OperationsReportsPage })));
+const ShopReportsPage = lazy(() => import('../features/reports/report-pages').then(m => ({ default: m.ShopReportsPage })));
+const ShopSalesPage = lazy(() => import('../features/sales/shop-sales-page').then(m => ({ default: m.ShopSalesPage })));
+const ProfitabilityPage = lazy(() => import('../features/profitability/profitability-page').then(m => ({ default: m.ProfitabilityPage })));
+const StockCountsPage = lazy(() => import('../features/stock-counts/stock-counts-page').then(m => ({ default: m.StockCountsPage })));
+const SuppliersPage = lazy(() => import('../features/suppliers/suppliers-page').then(m => ({ default: m.SuppliersPage })));
 import { AppShell, type NavigationItem } from '../components/app-shell';
 
 const administratorNavigation = [
@@ -65,48 +70,48 @@ export function RoleWorkspace() {
 
 function AdministratorWorkspace() {
   return <Routes><Route element={<AppShell navigation={administratorNavigation} />}>
-    <Route index element={<OperationsDashboardPage />} />
-    <Route path="items" element={<AdminItemsPage />} />
-    <Route path="movements" element={<MovementsPage />} />
-    <Route path="reports" element={<OperationsReportsPage />} />
-    <Route path="sell" element={<OwnerSalesPage />} />
-    <Route path="profitability" element={<ProfitabilityPage />} />
-    <Route path="finance" element={<FinancePage />} />
-    <Route path="stock-counts" element={<StockCountsPage />} />
-    <Route path="suppliers" element={<SuppliersPage />} />
-    <Route path="places" element={<PlacesPage />} />
-    <Route path="team" element={<TeamPage />} />
-    <Route path="account" element={<AccountSettingsPage />} />
-    <Route path="settings" element={<BusinessSettingsPage />} />
-    <Route path="settings/inventory" element={<InventorySettingsPage />} />
-    <Route path="settings/security" element={<SecuritySettingsPage />} />
-    <Route path="settings/terminology" element={<TerminologySettingsPage />} />
-    <Route path="settings/activity" element={<ActivityLogPage />} />
-    <Route path="settings/data" element={<DataExportsPage />} />
+    <Route path="sell" element={<FeatureBoundary><OwnerSalesPage /></FeatureBoundary>} />
+    <Route index element={<FeatureBoundary><OperationsDashboardPage /></FeatureBoundary>} />
+    <Route path="items" element={<FeatureBoundary><AdminItemsPage /></FeatureBoundary>} />
+    <Route path="movements" element={<FeatureBoundary><MovementsPage /></FeatureBoundary>} />
+    <Route path="reports" element={<FeatureBoundary><OperationsReportsPage /></FeatureBoundary>} />
+    <Route path="profitability" element={<FeatureBoundary><ProfitabilityPage /></FeatureBoundary>} />
+    <Route path="finance" element={<FeatureBoundary><FinancePage /></FeatureBoundary>} />
+    <Route path="stock-counts" element={<FeatureBoundary><StockCountsPage /></FeatureBoundary>} />
+    <Route path="suppliers" element={<FeatureBoundary><SuppliersPage /></FeatureBoundary>} />
+    <Route path="places" element={<FeatureBoundary><PlacesPage /></FeatureBoundary>} />
+    <Route path="team" element={<FeatureBoundary><TeamPage /></FeatureBoundary>} />
+    <Route path="account" element={<FeatureBoundary><AccountSettingsPage /></FeatureBoundary>} />
+    <Route path="settings" element={<FeatureBoundary><BusinessSettingsPage /></FeatureBoundary>} />
+    <Route path="settings/inventory" element={<FeatureBoundary><InventorySettingsPage /></FeatureBoundary>} />
+    <Route path="settings/security" element={<FeatureBoundary><SecuritySettingsPage /></FeatureBoundary>} />
+    <Route path="settings/terminology" element={<FeatureBoundary><TerminologySettingsPage /></FeatureBoundary>} />
+    <Route path="settings/activity" element={<FeatureBoundary><ActivityLogPage /></FeatureBoundary>} />
+    <Route path="settings/data" element={<FeatureBoundary><DataExportsPage /></FeatureBoundary>} />
     <Route path="*" element={<Navigate to="/" replace />} />
   </Route></Routes>;
 }
 
 function ManagerWorkspace() {
   return <Routes><Route element={<AppShell navigation={managerNavigation} />}>
-    <Route index element={<OperationsDashboardPage />} />
-    <Route path="items" element={<ManagerItemsPage />} />
-    <Route path="movements" element={<MovementsPage />} />
-    <Route path="reports" element={<OperationsReportsPage />} />
-    <Route path="stock-counts" element={<StockCountsPage />} />
-    <Route path="suppliers" element={<SuppliersPage />} />
-    <Route path="account" element={<AccountSettingsPage />} />
+    <Route index element={<FeatureBoundary><OperationsDashboardPage /></FeatureBoundary>} />
+    <Route path="items" element={<FeatureBoundary><ManagerItemsPage /></FeatureBoundary>} />
+    <Route path="movements" element={<FeatureBoundary><MovementsPage /></FeatureBoundary>} />
+    <Route path="reports" element={<FeatureBoundary><OperationsReportsPage /></FeatureBoundary>} />
+    <Route path="stock-counts" element={<FeatureBoundary><StockCountsPage /></FeatureBoundary>} />
+    <Route path="suppliers" element={<FeatureBoundary><SuppliersPage /></FeatureBoundary>} />
+    <Route path="account" element={<FeatureBoundary><AccountSettingsPage /></FeatureBoundary>} />
     <Route path="*" element={<Navigate to="/" replace />} />
   </Route></Routes>;
 }
 
 function ShopWorkspace() {
   return <Routes><Route element={<AppShell navigation={attendantNavigation} />}>
-    <Route index element={<ShopDashboardPage />} />
-    <Route path="sell" element={<ShopSalesPage />} />
-    <Route path="items" element={<ShopCatalogPage />} />
-    <Route path="reports" element={<ShopReportsPage />} />
-    <Route path="account" element={<AccountSettingsPage />} />
+    <Route index element={<FeatureBoundary><ShopDashboardPage /></FeatureBoundary>} />
+    <Route path="sell" element={<FeatureBoundary><ShopSalesPage /></FeatureBoundary>} />
+    <Route path="items" element={<FeatureBoundary><ShopCatalogPage /></FeatureBoundary>} />
+    <Route path="reports" element={<FeatureBoundary><ShopReportsPage /></FeatureBoundary>} />
+    <Route path="account" element={<FeatureBoundary><AccountSettingsPage /></FeatureBoundary>} />
     <Route path="*" element={<Navigate to="/" replace />} />
   </Route></Routes>;
 }

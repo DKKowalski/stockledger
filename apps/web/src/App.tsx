@@ -1,9 +1,10 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { lazy, useEffect, useState, type ReactNode } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { ApiError, api } from './api';
 import { InventoryProvider } from './app/inventory-store';
 import { CompanySettingsProvider, useCompanySettings } from './app/company-settings-store';
-import { RoleWorkspace } from './app/role-workspace';
+import { FeatureBoundary } from './components/feature-boundary';
+const RoleWorkspace = lazy(() => import('./app/role-workspace').then(m => ({ default: m.RoleWorkspace })));
 import { useAuth } from './auth-context';
 import { StockLedgerMark } from './components/stockledger-mark';
 import { WorkspaceErrorState } from './components/workspace-error-state';
@@ -15,7 +16,7 @@ import { SignupPage } from './features/auth/signup-page';
 import { VerifyEmailPage } from './features/auth/verify-email-page';
 import { LandingPage } from './features/marketing/landing-page';
 import { PrivacyPage, TermsPage } from './features/legal/legal-pages';
-import { OnboardingPage } from './features/onboarding/onboarding-page';
+const OnboardingPage = lazy(() => import('./features/onboarding/onboarding-page').then(m => ({ default: m.OnboardingPage })));
 import type { OnboardingStatus } from './types';
 import { workspaceError, type UserFacingError } from './lib/user-facing-error';
 
@@ -73,7 +74,7 @@ function AuthenticatedApp() {
 
   if (user?.role === 'administrator') return <OwnerGate accessToken={accessToken} />;
 
-  return <WorkspaceProviders><RoleWorkspace /></WorkspaceProviders>;
+  return <WorkspaceProviders><FeatureBoundary><RoleWorkspace /></FeatureBoundary></WorkspaceProviders>;
 }
 
 function OwnerGate({ accessToken }: { accessToken: string }) {
@@ -110,12 +111,12 @@ function OwnerGate({ accessToken }: { accessToken: string }) {
 
   if (!status.completed) {
     return <Routes>
-      <Route path="/onboarding" element={<OnboardingPage initialStatus={status} onComplete={setStatus} />} />
+      <Route path="/onboarding" element={<FeatureBoundary><OnboardingPage initialStatus={status} onComplete={setStatus} /></FeatureBoundary>} />
       <Route path="*" element={<Navigate to="/onboarding" replace />} />
     </Routes>;
   }
 
-  return <WorkspaceProviders><RoleWorkspace /></WorkspaceProviders>;
+  return <WorkspaceProviders><FeatureBoundary><RoleWorkspace /></FeatureBoundary></WorkspaceProviders>;
 }
 
 function WorkspaceProviders({ children }: { children: ReactNode }) {
