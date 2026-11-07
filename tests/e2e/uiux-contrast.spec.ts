@@ -58,6 +58,7 @@ for (const width of [360, 390, 1440]) {
       if (width !== 360) await uiuxEvidence(page, 'ux05-overview');
       for (const [route, selector] of [['/reports', width < 600 ? '.phone-stock-identity span' : 'thead th'], ['/team', 'thead th'], ['/profitability', '.profit-filter-grid label > span']] as const) {
         await page.evaluate(target => { history.pushState({}, '', target); dispatchEvent(new PopStateEvent('popstate')); }, route);
+        await expect(page.getByRole('heading', { name: route === '/team' ? 'Team' : route === '/reports' ? 'Reports' : 'Profitability', exact: true })).toBeVisible();
         await page.locator(selector).first().waitFor();
         if (route === '/profitability') await page.locator('.profit-kpis').waitFor();
         await page.evaluate(value => { document.documentElement.dataset.accent = value; }, theme);

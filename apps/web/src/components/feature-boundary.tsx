@@ -1,3 +1,4 @@
+import { useLocation } from 'react-router-dom';
 import { Component, Suspense, type ReactNode } from 'react';
 
 class PageLoadError extends Component<{ children: ReactNode }, { failed: boolean }> {
@@ -9,5 +10,6 @@ class PageLoadError extends Component<{ children: ReactNode }, { failed: boolean
   }
 }
 export function FeatureBoundary({ children }: { children: ReactNode }) {
-  return <PageLoadError><Suspense fallback={<div className="empty page-state" role="status"><p>Loading page</p></div>}>{children}</Suspense></PageLoadError>;
+  const { pathname } = useLocation();
+  return <PageLoadError key={pathname}><Suspense fallback={<div className="empty page-state" role="status"><p>Loading page</p></div>}>{children}</Suspense></PageLoadError>;
 }
