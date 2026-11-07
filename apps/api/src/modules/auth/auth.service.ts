@@ -98,6 +98,10 @@ export class AuthService {
     const companyId = this.companyFromToken(body.token, 'verification');
     const tokenHash = this.hashToken(body.token);
     const user = await this.prisma.withCompany(companyId, async (tx) => {
+      // Serialize token consumption, then re-read and revalidate after any waiter commits.
+      await tx.query(this.prisma.client.raw.sql`
+        SELECT id FROM public.users WHERE company_id = ${companyId}::uuid AND email_verification_token_hash = ${tokenHash} FOR UPDATE
+      `.returnsRow({ id: 'pg/uuid@1' }).build());
       const account = await tx.orm.public.User.first({ companyId, emailVerificationTokenHash: tokenHash as Varchar<64> });
       if (!account || !account.emailVerificationExpiresAt || new Date(account.emailVerificationExpiresAt).getTime() <= Date.now()) {
         throw new BadRequestException('This verification link is invalid or has expired');
@@ -393,6 +397,10 @@ export class AuthService {
     if (!companyId) throw new BadRequestException('This reset link is invalid or has expired');
     if (this.isDemoCompany(companyId)) throw new ForbiddenException('The demo account password cannot be changed');
     return this.prisma.withCompany(companyId, async (tx) => {
+      // Serialize token consumption, then re-read and revalidate after any waiter commits.
+      await tx.query(this.prisma.client.raw.sql`
+        SELECT id FROM public.users WHERE company_id = ${companyId}::uuid AND password_reset_token_hash = ${tokenHash} FOR UPDATE
+      `.returnsRow({ id: 'pg/uuid@1' }).build());
       const user = await tx.orm.public.User.first({ companyId, passwordResetTokenHash: tokenHash as Varchar<64> });
       if (!user || !user.isActive || !user.passwordResetExpiresAt || new Date(user.passwordResetExpiresAt).getTime() <= Date.now()) {
         throw new BadRequestException('This reset link is invalid or has expired');
@@ -576,6 +584,10 @@ export class AuthService {
     const companyId = this.companyFromToken(body.token, 'invitation');
     const tokenHash = this.hashToken(body.token);
     const user = await this.prisma.withCompany(companyId, async (tx) => {
+      // Serialize token consumption, then re-read and revalidate after any waiter commits.
+      await tx.query(this.prisma.client.raw.sql`
+        SELECT id FROM public.users WHERE company_id = ${companyId}::uuid AND invitation_token_hash = ${tokenHash} FOR UPDATE
+      `.returnsRow({ id: 'pg/uuid@1' }).build());
       const account = await tx.orm.public.User.first({ companyId, invitationTokenHash: tokenHash as Varchar<64> });
       if (!account || !account.isActive || !account.invitationExpiresAt || new Date(account.invitationExpiresAt).getTime() <= Date.now()) {
         throw new BadRequestException('This invitation is invalid or has expired');
