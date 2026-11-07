@@ -1,5 +1,7 @@
 import { recordedPool, saveRecordedPool } from './prospective-costing.js';
 import type { MovementRecord } from './inventory-calculations.js';
+import { SaleSearchDto } from './dto/sale-search.dto.js';
+import { searchSaleSources } from './sale-source-search.js';
 import { createHash } from 'node:crypto';
 import {
   BadRequestException,
@@ -154,45 +156,15 @@ export class SaleReturnService {
       portions,
     };
   }
-  async sources(userId: string, companyId: string) {
+  async sources(userId: string, companyId: string, query = new SaleSearchDto()) {
     return this.prisma.withCompany(
       companyId,
       async (tx) => {
         await this.administrator(tx, companyId, userId);
         // Availability checks must not scan sale history for businesses that have not opted in.
         if (!(await this.enabled(tx, companyId))) return { available: false, developmentOnly: true, sources: [] };
-        const sales = await tx.orm.public.Sale.where({ companyId })
-          .orderBy([(r) => r.createdAt.desc()])
-          .limit(100)
-          .all();
-        const components = await tx.orm.public.SaleComponent.where({ companyId }).all();
-        const groupedIds = new Set(components.map((p) => p.movementId));
-        const movements = await tx.orm.public.StockMovement.where({ companyId, type: 'sale' })
-          .orderBy([(r) => r.createdAt.desc()])
-          .all();
-        return {
-          available: true,
-          developmentOnly: true,
-          sources: [
-            ...sales.map((s) => ({
-              id: s.id,
-              type: 'grouped' as const,
-              date: s.movementDate,
-              totalCents: s.totalCents,
-              reference: `Sale ${s.id.slice(0, 8)}`,
-            })),
-            ...movements
-              .filter((m) => !groupedIds.has(m.id))
-              .slice(0, 100)
-              .map((m) => ({
-                id: m.id,
-                type: 'legacy' as const,
-                date: m.movementDate,
-                totalCents: m.unitPriceCents === null ? null : m.unitPriceCents * m.quantity,
-                reference: m.reference ?? `Sale ${m.id.slice(0, 8)}`,
-              })),
-          ],
-        };
+        const sources = await searchSaleSources(this.prisma, tx, companyId, query);
+        return { available: true, developmentOnly: true, sources };
       },
       { consistentSnapshot: true },
     );

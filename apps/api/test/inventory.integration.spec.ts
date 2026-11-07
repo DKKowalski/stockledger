@@ -1613,3 +1613,40 @@ describe('F01 compatibility with bounded ledger and profitability reads', () => 
     expect(finance.yearly.profitability).toMatchObject({ netSalesCents: 525, grossProfitCents: 25 });
   });
 });
+
+describe('return source discovery beyond recent sales', () => {
+  it('pages and searches old references, IDs, dates, items and shops without crossing tenants', async () => {
+    const f = await fixture(1000);
+    const foreign = await fixture();
+    const ids: string[] = [];
+    for (let n = 0; n < 205; n++) {
+      const sale = await db.orm.public.StockMovement.create({ companyId:f.company.id,itemId:f.item.id,locationId:f.shop.id,type:'sale',quantity:2,unitPriceCents:175,unitCostCents:100,movementDate:n===0?'2026-01-01':movementDate,reference:varchar<80>(`Receipt ${n}`) });
+      ids.push(sale.id);
+    }
+    const { SaleSearchDto } = await import('../src/modules/inventory/dto/sale-search.dto.js');
+    const { SaleReturnService } = await import('../src/modules/inventory/sale-return.service.js');
+    const returns = new SaleReturnService(tenantPrisma(db), {get:(key:string)=>key==='app.environment'?'test':key==='app.saleReturnsCompanyIds'?[f.company.id]:[]} as unknown as ConfigService);
+    const query = (input: object) => Object.assign(new SaleSearchDto(), input);
+    const all = [];
+    for (let offset=0;offset<205;offset+=50) all.push(...await service.returnableSales(f.admin.id,f.company.id,query({offset})));
+    expect(new Set(all.map(s=>s.id)).size).toBe(205);
+    // Grouped sources share the same bounded search and must remain discoverable too.
+    const grouped = await db.orm.public.Sale.create({companyId:f.company.id,locationId:f.shop.id,createdByUserId:f.attendant.id,idempotencyKey:randomUUID(),requestHash:varchar<64>('a'.repeat(64)),currency:varchar<3>('GHS'),movementDate:'2025-01-01',grossSalesCents:350,automaticDiscountCents:0,totalCents:350,cogsCents:200});
+    const line = await db.orm.public.SaleLine.create({companyId:f.company.id,saleId:grouped.id,itemId:f.item.id,position:0,itemName:varchar<120>('Original grouped item'),sku:f.item.sku,category:f.item.category,baseUnit:varchar<20>('pcs'),quantity:2,retailPriceCents:175,unitCostCents:100,grossSalesCents:350,automaticDiscountCents:0,totalCents:350,cogsCents:200,pricingSnapshot:{}});
+    await db.orm.public.SaleComponent.create({companyId:f.company.id,saleLineId:line.id,movementId:ids[1]!,position:0,category:varchar<10>('retail'),quantity:2,unitPriceCents:175,totalCents:350});
+    expect((await returns.sources(f.admin.id,f.company.id,query({search:grouped.id}))).sources).toMatchObject([{id:grouped.id,type:'grouped',remaining:2}]);
+    expect((await returns.sources(f.admin.id,f.company.id,query({search:'Original grouped item'}))).sources.map(s=>s.id)).toEqual([grouped.id]);
+    expect((await returns.getSource(f.admin.id,f.company.id,'grouped',grouped.id)).lines[0]?.remainingQuantity).toBe(2);
+
+    for (const search of ['Receipt 0',ids[0]]) {
+      const result = await service.returnableSales(f.admin.id,f.company.id,query({search}));
+      expect(result.map(s=>s.id)).toEqual([ids[0]]);
+      expect((await returns.sources(f.admin.id,f.company.id,query({search}))).sources).toMatchObject([{id:ids[0],remaining:2}]);
+    }
+    expect((await returns.sources(f.admin.id,f.company.id,query({from:'2026-01-01',to:'2026-01-01',itemId:f.item.id,locationId:f.shop.id}))).sources.map(s=>s.id)).toEqual([ids[0]]);
+    expect(await service.returnableSales(f.admin.id,f.company.id,query({itemId:foreign.item.id}))).toEqual([]);
+    expect(await service.returnableSales(f.admin.id,f.company.id,query({locationId:foreign.shop.id}))).toEqual([]);
+    expect((await returns.getSource(f.admin.id,f.company.id,'legacy',ids[0]!)).lines[0]?.remainingQuantity).toBe(2);
+    await expect(returns.getSource(foreign.admin.id,foreign.company.id,'legacy',ids[0]!)).rejects.toThrow();
+  });
+});

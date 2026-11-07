@@ -1,3 +1,4 @@
+import { SaleSearchFields, type SaleSearch } from './sale-search';
 import { ProductPicker } from '../../components/ui/product-picker';
 import { DatePicker } from '../../components/ui/date-picker';
 import { useEffect, useState, type FormEvent } from 'react';
@@ -78,6 +79,7 @@ function checkedMoney(value: string) {
   return Number(amount);
 }
 function CustomerReturns() {
+  const [saleSearch, setSaleSearch] = useState<SaleSearch>({});
   const { accessToken } = useAuth();
   const { settings } = useCompanySettings();
   const { snapshot } = useInventoryStore();
@@ -100,7 +102,7 @@ function CustomerReturns() {
     let active = true;
     if (accessToken)
       void api
-        .returnSources(accessToken)
+        .returnSources(accessToken, saleSearch)
         .then((r) => {
           if (active) setSources(r.sources);
         })
@@ -110,7 +112,7 @@ function CustomerReturns() {
     return () => {
       active = false;
     };
-  }, [accessToken, operation.generation]);
+  }, [accessToken, operation.generation, saleSearch]);
   useEffect(() => {
     let active = true;
     if (accessToken && selected && !operation.key) {
@@ -251,6 +253,7 @@ function CustomerReturns() {
           </>
         ) : (
           <>
+            <SaleSearchFields value={saleSearch} onChange={setSaleSearch} count={sources.length} />
             <label>
               <span>Original sale</span>
               <SelectControl

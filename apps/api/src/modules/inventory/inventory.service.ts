@@ -1,5 +1,7 @@
 import { movementCost, originalReturnCost, recordedPool, saveRecordedPool } from './prospective-costing.js';
 import { issueValue, receiveValue, validatePool } from './exact-costing.js';
+import { SaleSearchDto } from './dto/sale-search.dto.js';
+import { searchSaleSources } from './sale-source-search.js';
 import { createHash } from 'node:crypto';
 import { calendarDay, dateRange } from '../../common/date-range.js';
 import { assertLegacyItem, valuationPools } from './valuation-ledger.js';
@@ -38,7 +40,6 @@ type Actor = {
 };
 
 const RECENT_MOVEMENTS = 50;
-const RETURNABLE_SALES = 200;
 
 function sameItemName(left: string, right: string) {
   const key = (name: string) => name.trim().replace(/\s+/g, ' ').toLowerCase();
@@ -134,10 +135,12 @@ export class InventoryService {
     }, { consistentSnapshot:true });
   }
 
-  async returnableSales(userId: string, companyId: string) {
+  async returnableSales(userId: string, companyId: string, query = new SaleSearchDto()) {
     return this.prisma.withCompany(companyId, async (tx) => {
       const actor = await this.actor(tx, companyId, userId);
       this.assertInventoryManager(actor);
+      const matches = await searchSaleSources(this.prisma, tx, companyId, query, true);
+      const ids = new Set(matches.map((sale) => sale.id));
       const scope = await this.scope(tx, companyId);
       const returned = new Map<string, number>();
       for (const movement of scope.movements) {
@@ -149,8 +152,7 @@ export class InventoryService {
       return buildSnapshot(scope.items, scope.locations, scope.stocks, scope.movements).movements
         .filter((movement) => movement.type === StockMovementType.SALE && !movement.saleId)
         .map((sale) => ({ ...sale, returnableQuantity: sale.quantity - (returned.get(sale.id) ?? 0) }))
-        .filter((sale) => sale.returnableQuantity > 0)
-        .slice(0, RETURNABLE_SALES);
+        .filter((sale) => sale.returnableQuantity > 0 && ids.has(sale.id));
     }, { consistentSnapshot:true });
   }
 

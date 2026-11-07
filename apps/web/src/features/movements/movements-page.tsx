@@ -1,3 +1,4 @@
+import { SaleSearchFields, type SaleSearch } from './sale-search';
 import { ProductPicker } from '../../components/ui/product-picker';
 import { Dialog } from '@base-ui/react/dialog';
 import { DatePicker } from '../../components/ui/date-picker';
@@ -62,6 +63,7 @@ export function MovementsPage() {
   const cancelDelete = useRef<HTMLButtonElement | null>(null);
   const ledgerFocus = useRef<HTMLHeadingElement | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [saleSearch, setSaleSearch] = useState<SaleSearch>({});
   const [sales, setSales] = useState<ReturnableSale[]>([]);
   const rows = ledger?.rows ?? [];
   const selectedSale = sales.find((sale) => sale.id === form.relatedMovementId);
@@ -80,11 +82,11 @@ export function MovementsPage() {
     void api.movementLedger(accessToken, { ...rangeQuery(range, settings?.timeZone), type: filter === 'all' ? undefined : filter, offset: 0, limit: LEDGER_PAGE })
       .then((page) => { if (active) setLedger({ rows: page.movements, total: page.total }); })
       .catch(() => { if (active) toast.error('Could not load the movement ledger'); });
-    void api.returnableSales(accessToken)
+    void api.returnableSales(accessToken, saleSearch)
       .then((next) => { if (active) setSales(next); })
       .catch(() => { if (active) setSales([]); });
     return () => { active = false; };
-  }, [accessToken, filter, generatedAt, range, settings?.timeZone]);
+  }, [accessToken, filter, generatedAt, range, settings?.timeZone, saleSearch]);
 
   const loadMore = async () => {
     if (!accessToken || !ledger) return;
@@ -125,6 +127,7 @@ export function MovementsPage() {
       <form className="form-grid movement-form" onSubmit={(event) => void submit(event).catch(() => {})}>
         <label><span>{terms.Item}</span><ProductPicker items={items} locationId={form.locationId} required value={form.itemId} disabled={form.type === 'return_in'} onValueChange={(itemId) => setForm({ ...form, itemId })} /></label>
         <label><span className="label-row"><span>Movement type</span><InfoTooltip label="About movement type">{movementMeta[form.type].hint}</InfoTooltip></span><SelectControl aria-label="Movement type" value={form.type} onValueChange={(value) => setForm({ ...form, type: value as MovementType, destinationLocationId: '', relatedMovementId: '', itemId: value === 'return_in' ? '' : form.itemId, locationId: value === 'return_in' ? '' : form.locationId })} options={(Object.entries(movementMeta) as [MovementType, { label: string; hint: string }][]).filter(([value]) => value !== 'sale' && value !== 'adjustment_in' && value !== 'adjustment_out').map(([value, meta]) => ({ value, label: value === 'purchase' ? 'Receive stock' : meta.label }))} /></label>
+        {form.type === 'return_in' && <SaleSearchFields value={saleSearch} onChange={setSaleSearch} count={sales.length} />}
         {form.type === 'return_in' && <label><span>Original sale</span><SelectControl aria-label="Original sale" required value={form.relatedMovementId} onValueChange={(relatedMovementId) => { const sale = sales.find((candidate) => candidate.id === relatedMovementId); setForm({ ...form, relatedMovementId, itemId: sale?.itemId ?? '', locationId: sale?.locationId ?? '', quantity: '' }); }} options={[{ value: '', label: 'Select sale' }, ...sales.map((sale) => ({ value: sale.id, label: `${sale.item?.name ?? 'Deleted item'} · ${sale.returnableQuantity} returnable · ${sale.movementDate}` }))]} /></label>}
         <label><span>{form.type === 'transfer' ? 'From' : 'Place'}</span><SelectControl aria-label={form.type === 'transfer' ? 'From' : 'Place'} required value={form.locationId} disabled={form.type === 'return_in'} onValueChange={(locationId) => setForm({ ...form, locationId })} options={[{ value: '', label: 'Select place' }, ...places.map((place) => ({ value: place.id, label: place.name }))]} /></label>
         {form.type === 'transfer' && <label><span>To</span><SelectControl aria-label="To" required value={form.destinationLocationId} onValueChange={(destinationLocationId) => setForm({ ...form, destinationLocationId })} options={[{ value: '', label: 'Select place' }, ...places.filter((place) => place.id !== form.locationId).map((place) => ({ value: place.id, label: place.name }))]} /></label>}

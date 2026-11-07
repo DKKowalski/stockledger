@@ -1,3 +1,4 @@
+import { SaleSearchDto } from './dto/sale-search.dto.js';
 import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard.js';
 import type { AuthenticatedRequest } from '../auth/auth.types.js';
@@ -39,8 +40,8 @@ export class InventoryController {
   ) {}
 
   @Get('sale-returns')
-  returnSources(@Req() request: AuthenticatedRequest) {
-    return this.returns.sources(request.user.sub, request.user.companyId);
+  returnSources(@Req() request: AuthenticatedRequest, @Query() query: SaleSearchDto) {
+    return this.returns.sources(request.user.sub, request.user.companyId, query);
   }
 
   @Get('sale-returns/sources/:type/:id')
@@ -234,8 +235,8 @@ export class InventoryController {
   }
 
   @Get('movements/returnable-sales')
-  returnableSales(@Req() request: AuthenticatedRequest) {
-    return this.inventory.returnableSales(request.user.sub, request.user.companyId);
+  returnableSales(@Req() request: AuthenticatedRequest, @Query() query: SaleSearchDto) {
+    return this.inventory.returnableSales(request.user.sub, request.user.companyId, query);
   }
 
   @Post('movements')

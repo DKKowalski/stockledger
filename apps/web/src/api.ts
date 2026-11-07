@@ -68,7 +68,7 @@ export const api = {
   saveFinanceEntry: (token: string, body: FinanceEntryInput, id?: string) => request(`/finance/entries${id ? `/${id}` : ''}`, { method: id ? 'PATCH' : 'POST', body: JSON.stringify(body) }, token),
   deleteFinanceEntry: (token: string, id: string) => request(`/finance/entries/${id}`, { method: 'DELETE' }, token),
   saveFinanceBudget: (token: string, body: FinanceBudgetInput) => request('/finance/budgets', { method: 'POST', body: JSON.stringify(body) }, token),
-  returnSources:(token:string)=>request<{available:boolean;sources:Array<{id:string;type:'grouped'|'legacy';date:string;reference:string}>}>('/inventory/sale-returns',undefined,token),
+  returnSources:(token:string, query: Record<string,string> = {})=>request<{available:boolean;sources:Array<{id:string;type:'grouped'|'legacy';date:string;reference:string}>}>(`/inventory/sale-returns?${new URLSearchParams(query)}`,undefined,token),
   returnSource:(token:string,type:string,id:string)=>request<ReturnSource>(`/inventory/sale-returns/sources/${type}/${id}`,undefined,token),
   prepareReturn:(token:string,key:string,input:Record<string,unknown>)=>request<OperationRecord>('/inventory/sale-returns/requests',{method:'POST',body:JSON.stringify({requestKey:key,input})},token),
   returnRequest:(token:string,key:string)=>request<OperationRecord>(`/inventory/sale-returns/requests/${key}`,undefined,token),
@@ -167,7 +167,7 @@ export const api = {
     request('/inventory/movements', { method: 'POST', body: JSON.stringify(body) }, accessToken),
   movementLedger: (accessToken: string, query: { from?: string; to?: string; type?: MovementType; itemId?: string; offset: number; limit: number }) =>
     request<MovementLedger>(`/inventory/movements?${new URLSearchParams({ ...(query.from && query.to ? { from: query.from, to: query.to } : {}), ...(query.type ? { type: query.type } : {}), ...(query.itemId ? { itemId: query.itemId } : {}), offset: String(query.offset), limit: String(query.limit) })}`, undefined, accessToken),
-  returnableSales: (accessToken: string) => request<ReturnableSale[]>('/inventory/movements/returnable-sales', undefined, accessToken),
+  returnableSales: (accessToken: string, query: Record<string,string> = {}) => request<ReturnableSale[]>(`/inventory/movements/returnable-sales?${new URLSearchParams(query)}`, undefined, accessToken),
   deleteMovement: (accessToken: string, id: string) =>
     request(`/inventory/movements/${id}`, { method: 'DELETE' }, accessToken),
   suppliers: (accessToken: string) => request<Supplier[]>('/inventory/suppliers', undefined, accessToken),
