@@ -7,6 +7,7 @@ const url=process.env.INVENTORY_TEST_DATABASE_URL;
 if(!url || new URL(url).hostname!=='127.0.0.1' || !/^stockledger_test_[a-f0-9]{32}$/.test(new URL(url).pathname.slice(1))) throw Error('Basket tests require the isolated local database');
 for(const width of [390,1440]) test(`retail basket edits, revalidates atomically and recovers a lost response at ${width}px`,async({page},testInfo)=>{
   await page.setViewportSize({width,height:900});
+  await page.setExtraHTTPHeaders({'X-Forwarded-For':width===390?'198.51.100.223':'198.51.100.224'});
   const db=new pg.Client({connectionString:url});await db.connect();
   const company=randomUUID(),shop=randomUUID(),user=randomUUID(),items=[randomUUID(),randomUUID()],password=randomUUID(),email=`${user}@example.invalid`;
   try {
@@ -40,11 +41,12 @@ for(const width of [390,1440]) test(`retail basket edits, revalidates atomically
     await db.query('UPDATE location_stocks SET opening_stock=10 WHERE item_id=$1',[items[1]]);
     await page.getByRole('button',{name:'Refresh stock and prices',exact:true}).click();await page.getByRole('button',{name:'Review sale',exact:true}).click();
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
-    await testInfo.attach(`basket-${width}.png`,{body:await page.screenshot({fullPage:true}),contentType:'image/png'});
     await page.getByRole('combobox',{name:'Payment record (manual)',exact:true}).click();
     await page.getByRole('option',{name:'Cash received',exact:true}).click();
     await page.getByLabel('Amount received',{exact:true}).fill('15.00');
     await expect(page.locator('.checkout-payment').getByRole('status')).toContainText('3.50');
+    await expect(page.locator('.checkout-pay dd')).toContainText('11.50');
+    await testInfo.attach(`basket-${width}.png`,{body:await page.screenshot({path:testInfo.outputPath(`basket-${width}.png`),fullPage:true,animations:'disabled'}),contentType:'image/png'});
     let key='';
     await page.route('**/inventory/sales/complete',async route=>{key=route.request().postDataJSON().idempotencyKey;const result=await route.fetch();expect(result.status()).toBe(201);await route.abort('connectionreset');});
     await page.getByRole('button',{name:'Complete sale',exact:true}).click();await expect(page.getByRole('heading',{name:'Confirm pending sale',exact:true})).toBeVisible();
@@ -62,7 +64,7 @@ for(const width of [390,1440]) test(`retail basket edits, revalidates atomically
     await expect(receipt).toContainText('Change to give:');await expect(receipt).toContainText('3.50');
     await expect(receipt).not.toContainText(/COGS|cost of goods|unit cost/i);
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
-    await testInfo.attach(`receipt-${width}.png`,{body:await page.screenshot({fullPage:true}),contentType:'image/png'});
+    await testInfo.attach(`receipt-${width}.png`,{body:await page.screenshot({path:testInfo.outputPath(`receipt-${width}.png`),fullPage:true}),contentType:'image/png'});
     const downloadEvent=page.waitForEvent('download');await page.getByRole('button',{name:'Download receipt',exact:true}).click();
     const download=await downloadEvent;expect(download.suggestedFilename()).toBe(`receipt-${recorded.id}.txt`);
     await download.saveAs(testInfo.outputPath(`receipt-${width}.txt`));
@@ -71,7 +73,7 @@ for(const width of [390,1440]) test(`retail basket edits, revalidates atomically
     await page.emulateMedia({media:'print'});
     await expect(page.locator('.topbar')).toBeHidden();await expect(page.getByRole('button',{name:'Print receipt',exact:true})).toBeHidden();
     await expect(receipt).toBeVisible();
-    await testInfo.attach(`receipt-print-${width}.png`,{body:await page.screenshot({fullPage:true}),contentType:'image/png'});
+    await testInfo.attach(`receipt-print-${width}.png`,{body:await page.screenshot({path:testInfo.outputPath(`receipt-print-${width}.png`),fullPage:true}),contentType:'image/png'});
     await page.emulateMedia({media:'screen'});
 
   } finally {await db.end();}
