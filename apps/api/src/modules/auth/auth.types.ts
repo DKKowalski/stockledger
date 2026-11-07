@@ -6,6 +6,8 @@ export interface AccessTokenPayload {
   sub: string;
   companyId: string;
   role: UserRole;
+  // Optional for compatibility with access tokens issued before session binding.
+  sid?: string;
   iat: number;
   exp: number;
 }

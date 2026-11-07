@@ -184,7 +184,7 @@ export class AuthService {
       const userId = consumed[0]?.user_id;
       if (!userId) throw new UnauthorizedException('Your session has expired');
       const user = await this.account(tx, companyId, userId);
-      return { accessToken: await this.signAccessToken(user), refreshToken: nextToken, user: this.publicUser(user) };
+      return { accessToken: await this.signAccessToken(user, consumed[0]!.id), refreshToken: nextToken, user: this.publicUser(user) };
     });
   }
 
@@ -663,8 +663,10 @@ export class AuthService {
 
   private async createSession(user: PublicUserSource, context: SessionContext = {}, recordSignIn = false) {
     const refreshToken = this.createOpaqueToken(user.companyId);
+    const sessionId = randomUUID();
     await this.prisma.withCompany(user.companyId, async (tx) => {
       await tx.orm.public.RefreshSession.create({
+        id: sessionId,
         companyId: user.companyId,
         userId: user.id,
         tokenHash: this.hashToken(refreshToken) as Varchar<64>,
@@ -677,11 +679,11 @@ export class AuthService {
         ipAddress: context.ipAddress?.slice(0, 64) ?? null,
       });
     });
-    return { accessToken: await this.signAccessToken(user), refreshToken, user: this.publicUser(user) };
+    return { accessToken: await this.signAccessToken(user, sessionId), refreshToken, user: this.publicUser(user) };
   }
 
-  private signAccessToken(user: PublicUserSource) {
-    return this.jwt.signAsync({ sub: user.id, companyId: user.companyId, role: user.role as UserRole });
+  private signAccessToken(user: PublicUserSource, sessionId: string) {
+    return this.jwt.signAsync({ sub: user.id, companyId: user.companyId, role: user.role as UserRole, sid: sessionId });
   }
 
   private publicUser(user: PublicUserSource) {

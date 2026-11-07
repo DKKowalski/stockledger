@@ -8,8 +8,9 @@ import type { AuthenticatedRequest } from './auth.types.js';
 describe('AuthGuard', () => {
   const verifyAsync = vi.fn();
   const first = vi.fn();
+  const sessionFirst = vi.fn();
   const withCompany = vi.fn(async (_companyId: string, callback: (tx: unknown) => Promise<unknown>) => callback({
-    orm: { public: { User: { first } } },
+    orm: { public: { User: { first }, RefreshSession: { first: sessionFirst } } },
   }));
   const jwt = { verifyAsync } as unknown as JwtService;
   const prisma = {
@@ -43,4 +44,14 @@ describe('AuthGuard', () => {
     await expect(guard.canActivate(context(request))).rejects.toBeInstanceOf(UnauthorizedException);
     expect(request.user).toBeUndefined();
   });
+  it('rejects revoked, expired and foreign session bindings', async () => {
+    const request = { headers: { authorization: 'Bearer valid-token' } } as Partial<AuthenticatedRequest>;
+    verifyAsync.mockResolvedValue({ sub: 'user', companyId: 'company', role: 'administrator', sid: 'session' });
+    for (const session of [null, { expiresAt: new Date(0).toISOString() }]) {
+      sessionFirst.mockResolvedValue(session);
+      await expect(guard.canActivate(context(request))).rejects.toBeInstanceOf(UnauthorizedException);
+    }
+    expect(sessionFirst).toHaveBeenCalledWith({ id: 'session', companyId: 'company', userId: 'user' });
+  });
+
 });

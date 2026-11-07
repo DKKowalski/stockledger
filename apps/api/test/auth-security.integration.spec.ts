@@ -68,3 +68,41 @@ describe('atomic one-use account links over concurrent HTTP requests', () => {
     expect(Number((await db.query('SELECT count(*) n FROM refresh_sessions WHERE user_id=$1', [f.id])).rows[0].n)).toBe(1);
   });
 });
+
+describe('access token session revocation', () => {
+  const login = (email: string) => request('/auth/login', { email, password });
+  const write = (token: string) => request('/auth/me', { fullName: 'Changed name', email: `${randomUUID()}@test.invalid` }, token, undefined, 'PATCH');
+  it('rejects a protected write immediately after logout, preserving another session', async () => {
+    const f = await fixture();
+    const a = await login(f.email), b = await login(f.email);
+    expect(a.status).toBe(200); expect(b.status).toBe(200);
+    expect((await request('/auth/logout', undefined, undefined, a.cookie)).status).toBe(200);
+    expect((await write(a.body.accessToken)).status).toBe(401);
+    expect((await write(b.body.accessToken)).status).toBe(200);
+  });
+  it('keeps session binding across refresh rotation and revokes the old and new access tokens together', async () => {
+    const f = await fixture(); const a = await login(f.email);
+    const rotated = await request('/auth/refresh', undefined, undefined, a.cookie);
+    expect(rotated.status).toBe(200);
+    expect((await request('/auth/logout', undefined, undefined, rotated.cookie)).status).toBe(200);
+    expect((await write(a.body.accessToken)).status).toBe(401);
+    expect((await write(rotated.body.accessToken)).status).toBe(401);
+  });
+  it('revokes access for every session on password reset', async () => {
+    const f = await fixture(); const a = await login(f.email);
+    await db.query("UPDATE users SET password_reset_token_hash=$2,password_reset_expires_at=now()+interval '1 hour' WHERE id=$1", [f.id, hash(f.token)]);
+    expect((await request('/auth/password/reset', { token: f.token, newPassword: 'ResetPassword123!' })).status).toBe(200);
+    expect((await write(a.body.accessToken)).status).toBe(401);
+  });
+  it('revokes access for every session on password change', async () => {
+    const f = await fixture(); const a = await login(f.email);
+    expect((await request('/auth/me/password', { currentPassword: password, newPassword: 'ChangedPassword123!' }, a.body.accessToken, undefined, 'PATCH')).status).toBe(200);
+    expect((await write(a.body.accessToken)).status).toBe(401);
+  });
+  it('enforces explicit session revocation on protected writes', async () => {
+    const f = await fixture(); const a = await login(f.email);
+    const session = (await db.query('SELECT id FROM refresh_sessions WHERE user_id=$1', [f.id])).rows[0].id;
+    expect((await request(`/auth/sessions/${session}`, undefined, a.body.accessToken, undefined, 'DELETE')).status).toBe(200);
+    expect((await write(a.body.accessToken)).status).toBe(401);
+  });
+});
