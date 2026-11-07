@@ -585,6 +585,8 @@ export class InventoryService {
     if (!company) throw new UnauthorizedException('Business no longer exists');
     const item = scope.items.find((candidate) => candidate.id === body.itemId);
     if (!item) throw new NotFoundException('Inventory item not found');
+    // Returns also require restoration: otherwise the returned stock is hidden from reports.
+    if (!item.isActive) throw new ConflictException('Restore this item before recording stock changes or customer returns');
     let unitPriceCents = body.type === StockMovementType.SALE ? item.sellingPriceCents : null;
     let unitCostCents = body.type === StockMovementType.PURCHASE ? body.unitCostCents ?? null : item.unitCostCents;
     let relatedMovementId: string | null = null;

@@ -1496,3 +1496,28 @@ describe('stale inventory writers', () => {
   });
 
 });
+
+describe('archived inventory writers', () => {
+  it('rejects every ordinary movement and customer return against an archived item until restored', async () => {
+    const f = await fixture(0);
+    await service.updateItem(f.admin.id, f.company.id, f.item.id, { isActive: false });
+    for (const type of [Type.PURCHASE, Type.TRANSFER, Type.RETURN_IN, Type.RETURN_OUT, Type.DAMAGE, Type.SALE]) {
+      await expect(service.createMovement(type === Type.SALE ? f.attendant.id : f.admin.id, f.company.id, {
+        itemId: f.item.id, locationId: f.warehouse.id, type, quantity: 1, unitCostCents: 100, movementDate,
+      })).rejects.toThrow('Restore');
+    }
+    expect(await db.orm.public.StockMovement.where({ companyId: f.company.id }).all()).toHaveLength(0);
+  });
+
+  it('serializes archive versus receipt so stock can never disappear behind an archived item', async () => {
+    const f = await fixture(0);
+    const results = await race(f.item.id, [
+      () => service.updateItem(f.admin.id, f.company.id, f.item.id, { isActive: false }),
+      () => otherService.createMovement(f.admin.id, f.company.id, { itemId: f.item.id, locationId: f.warehouse.id, type: Type.PURCHASE, quantity: 5, unitCostCents: 100, movementDate }),
+    ]);
+    expectOneConflict(results);
+    const item = await db.orm.public.InventoryItem.first({ id: f.item.id });
+    expect(await balance(f, f.warehouse.id)).toBe(item!.isActive ? 5 : 0);
+    expect(await db.orm.public.StockMovement.where({ companyId: f.company.id }).all()).toHaveLength(item!.isActive ? 1 : 0);
+  });
+});
