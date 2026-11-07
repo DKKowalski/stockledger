@@ -414,7 +414,11 @@ export class InventoryService {
           if (lowestBalanceFrom(scope.stocks, scope.movements, item.id, body.locationId, body.countedAt) + varianceQuantity < 0) {
             throw new ConflictException('Recorded carrying value requires nonnegative stock from the count date onward');
           }
-        } else nextPool = receiveValue(nextPool, varianceQuantity, item.unitCostCents).pool;
+        } else {
+          const received = receiveValue(nextPool, varianceQuantity, item.unitCostCents);
+          countCostTotal = received.receivedValueCents;
+          nextPool = received.pool;
+        }
       }
       const count = await tx.orm.public.StockCount.create({
         companyId,
@@ -470,11 +474,12 @@ export class InventoryService {
       ]);
       // Exact count portions carry the true cent allocation. Preserve old fields and history.
       const exactImpacts = await tx.query(this.prisma.client.raw.sql`
-        SELECT m.stock_count_id AS "stockCountId", sum(e.value_delta_cents)::integer AS "valueImpactCents"
-        FROM public.inventory_valuation_entries e
-        JOIN public.stock_movements m ON m.company_id=e.company_id AND m.id=e.movement_id
-        WHERE e.company_id=${companyId}::uuid AND m.stock_count_id IS NOT NULL
-          AND e.kind IN ('count_in','count_out')
+        SELECT m.stock_count_id AS "stockCountId",
+          sum(coalesce(e.value_delta_cents, CASE WHEN m.type='adjustment_in' THEN m.cost_total_cents ELSE -m.cost_total_cents END))::integer AS "valueImpactCents"
+        FROM public.stock_movements m
+        LEFT JOIN public.inventory_valuation_entries e ON m.company_id=e.company_id AND m.id=e.movement_id
+        WHERE m.company_id=${companyId}::uuid AND m.stock_count_id IS NOT NULL
+          AND (e.kind IN ('count_in','count_out') OR m.cost_total_cents IS NOT NULL)
         GROUP BY m.stock_count_id
       `.returnsRow({stockCountId:'pg/uuid@1',valueImpactCents:'pg/int4@1'}).build());
       const impactByCount = new Map(exactImpacts.map(row => [row.stockCountId,row.valueImpactCents]));

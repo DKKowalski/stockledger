@@ -1450,8 +1450,34 @@ describe('F01 correction boundaries', () => {
     await service.createStockCount(f.admin.id,f.company.id,{itemId:f.item.id,locationId:f.warehouse.id,countedQuantity:5,countedAt:new Date().toISOString().slice(0,10),note:'Count'});
     await service.createMovement(f.admin.id,f.company.id,{itemId:f.item.id,locationId:f.shop.id,type:Type.RETURN_OUT,quantity:1,movementDate});
     snap=await service.snapshot(f.admin.id,f.company.id);
+    expect((await service.listStockCounts(f.admin.id,f.company.id))[0]!.valueImpactCents).toBe(-100);
     expect(snap.positions.reduce((s,p)=>s+p.valueCents,0)).toBe(800);
     await expect(service.updateItem(f.admin.id,f.company.id,f.item.id,{unitCostCents:999})).rejects.toBeInstanceOf(ConflictException);
     await expect(service.deleteMovement(f.admin.id,f.company.id,(await db.orm.public.StockMovement.first({companyId:f.company.id,type:'transfer'}))!.id)).rejects.toBeInstanceOf(ConflictException);
   });
+});
+
+it('F01 preserves past reports and applies corrections through the restricted tenant role', async () => {
+  const f = await fixture(10);
+  const restricted = new InventoryService(Object.assign(tenantPrisma(db), {
+    withCompany: <T>(companyId: string, work: (tx: TestTransaction) => PromiseLike<T>) => asApplicationRole(companyId, work),
+  }));
+  await transfer(f, 2);
+  const sale = await service.createMovement(f.attendant.id, f.company.id, {
+    itemId:f.item.id,locationId:f.shop.id,type:Type.SALE,quantity:2,movementDate,
+  });
+  const receipt = await restricted.createMovement(f.admin.id, f.company.id, {
+    itemId:f.item.id,locationId:f.warehouse.id,type:Type.PURCHASE,quantity:10,unitCostCents:300,movementDate,
+  });
+  const query = {days:30,from:movementDate,to:movementDate};
+  const before = await service.profitability(f.admin.id,f.company.id,query);
+  await restricted.deleteMovement(f.admin.id,f.company.id,receipt.id);
+  expect((await service.profitability(f.admin.id,f.company.id,query)).summary).toEqual(before.summary);
+  expect(await db.orm.public.StockMovement.first({id:sale.id})).toEqual(sale);
+  expect(await db.orm.public.StockMovement.first({id:receipt.id})).toEqual(receipt);
+  const snapshot = await restricted.snapshot(f.admin.id,f.company.id);
+  // Legacy rounded value before correction was 18 × 211 = 3798; remove 3000 prospectively.
+  expect(snapshot.positions.reduce((s,p)=>s+p.valueCents,0)).toBe(798);
+  expect(snapshot.positions.reduce((s,p)=>s+p.closing,0)).toBe(8);
+  expect(await asApplicationRole(null,tx=>tx.orm.public.StockMovement.where({correctsMovementId:receipt.id}).all())).toHaveLength(0);
 });
