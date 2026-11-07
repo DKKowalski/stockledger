@@ -81,16 +81,52 @@ export class InventoryService {
     return this.prisma.withCompany(companyId, async (tx) => {
       const actor = await this.actor(tx, companyId, userId);
       this.assertInventoryManager(actor);
-      const scope = await this.scope(tx, companyId);
-      const locationId = this.visibleLocation(actor, scope.locations, query.locationId);
+      const locations = (await tx.orm.public.Location.where({ companyId }).all()).map(location => this.presentLocation(location));
+      const locationId = this.visibleLocation(actor, locations, query.locationId);
       const range = dateRange(query);
-      const matching = buildSnapshot(scope.items, scope.locations, scope.stocks, scope.movements, 30, locationId).movements
-        .filter((movement) => (!range || (movement.movementDate >= range.from && movement.movementDate <= range.to)) && (!query.type || movement.type === query.type) && (!query.itemId || movement.itemId === query.itemId));
+      const rows = await tx.query(this.prisma.client.raw.sql`
+        SELECT m.id, m.item_id AS "itemId", m.location_id AS "locationId", m.destination_location_id AS "destinationLocationId",
+          m.type::text AS type, m.quantity, m.unit_price_cents AS "unitPriceCents", m.unit_cost_cents AS "unitCostCents",
+          m.supplier_id AS "supplierId", m.related_movement_id AS "relatedMovementId", m.stock_count_id AS "stockCountId",
+          m.movement_date::text AS "movementDate", m.reference, m.note, m.created_at AS "createdAt",
+          l.sale_id AS "saleId", c.sale_line_id AS "saleLineId", c.category::text AS "pricingCategory"
+        FROM public.stock_movements m
+        LEFT JOIN public.sale_components c ON c.company_id = m.company_id AND c.movement_id = m.id
+        LEFT JOIN public.sale_lines l ON l.company_id = c.company_id AND l.id = c.sale_line_id
+        WHERE m.company_id = ${companyId}::uuid
+          AND (${locationId ?? ''} = '' OR m.location_id = NULLIF(${locationId ?? ''}, '')::uuid OR m.destination_location_id = NULLIF(${locationId ?? ''}, '')::uuid)
+          AND (${query.itemId ?? ''} = '' OR m.item_id = NULLIF(${query.itemId ?? ''}, '')::uuid)
+          AND (${query.type ?? ''} = '' OR m.type::text = ${query.type ?? ''})
+          AND m.movement_date BETWEEN ${range?.from ?? '0001-01-01'}::date AND ${range?.to ?? '9999-12-31'}::date
+        ORDER BY m.movement_date DESC, m.created_at DESC, m.id DESC
+        LIMIT ${query.limit} OFFSET ${query.offset}
+      `.returnsRow({ id: 'pg/uuid@1', itemId: 'pg/uuid@1', locationId: 'pg/uuid@1', destinationLocationId: 'pg/uuid@1',
+        type: 'pg/text@1', quantity: 'pg/int4@1', unitPriceCents: 'pg/int4@1', unitCostCents: 'pg/int4@1', supplierId: 'pg/uuid@1',
+        relatedMovementId: 'pg/uuid@1', stockCountId: 'pg/uuid@1', movementDate: 'pg/text@1', reference: 'pg/text@1', note: 'pg/text@1',
+        createdAt: 'pg/timestamptz-string@1', saleId: 'pg/uuid@1', saleLineId: 'pg/uuid@1', pricingCategory: 'pg/text@1' }).build());
+      const totals = await tx.query(this.prisma.client.raw.sql`
+        SELECT count(*)::int AS total FROM public.stock_movements m
+        WHERE m.company_id = ${companyId}::uuid
+          AND (${locationId ?? ''} = '' OR m.location_id = NULLIF(${locationId ?? ''}, '')::uuid OR m.destination_location_id = NULLIF(${locationId ?? ''}, '')::uuid)
+          AND (${query.itemId ?? ''} = '' OR m.item_id = NULLIF(${query.itemId ?? ''}, '')::uuid)
+          AND (${query.type ?? ''} = '' OR m.type::text = ${query.type ?? ''})
+          AND m.movement_date BETWEEN ${range?.from ?? '0001-01-01'}::date AND ${range?.to ?? '9999-12-31'}::date
+      `.returnsRow({ total: 'pg/int4@1' }).build());
+      const items = await tx.orm.public.InventoryItem.where({ companyId }).all();
+      const itemById = new Map(items.map(item => [item.id, item]));
+      const locationById = new Map(locations.map(location => [location.id, location]));
       return {
-        movements: matching.slice(query.offset, query.offset + query.limit),
-        total: matching.length,
-        offset: query.offset,
-        limit: query.limit,
+        movements: rows.map(row => {
+          const movement = row as unknown as MovementRecord;
+          return { ...movement,
+            saleTotalCents: (movement.type === StockMovementType.SALE || movement.type === StockMovementType.RETURN_IN) && movement.unitPriceCents !== null ? movement.unitPriceCents * movement.quantity : null,
+            costTotalCents: movement.unitCostCents === null ? null : movement.unitCostCents * movement.quantity,
+            item: itemById.get(movement.itemId) ?? null, location: locationById.get(movement.locationId) ?? null,
+            destination: movement.destinationLocationId ? locationById.get(movement.destinationLocationId) ?? null : null,
+            sign: MOVEMENT_SIGN[movement.type],
+          };
+        }),
+        total: totals[0]!.total, offset: query.offset, limit: query.limit,
       };
     }, { consistentSnapshot:true });
   }
@@ -496,7 +532,9 @@ export class InventoryService {
     return this.prisma.withCompany(companyId, async (tx) => {
       const actor = await this.actor(tx, companyId, userId);
       this.assertAdministrator(actor);
-      const scope = await this.scope(tx, companyId);
+      const company = await tx.orm.public.Company.first({ id: companyId });
+      const range = dateRange(query, query.days, company?.timeZone);
+      const scope = await this.profitabilitySource(tx, companyId, undefined, range ?? undefined);
       const locationId = this.visibleLocation(actor, scope.locations, query.locationId);
       const location = locationId ? scope.locations.find((candidate) => candidate.id === locationId) : null;
       if (location && query.locationType && location.type !== query.locationType) {
@@ -505,9 +543,7 @@ export class InventoryService {
       if (query.itemId && !scope.items.some((item) => item.id === query.itemId)) {
         throw new NotFoundException('Inventory item not found');
       }
-      const company = await tx.orm.public.Company.first({ id: companyId });
-      const range = dateRange(query, query.days, company?.timeZone);
-      const { discounts } = await this.profitabilitySource(tx, companyId, scope);
+      const { discounts } = scope;
       return buildProfitability(scope.items, scope.locations, scope.movements, {
         days: query.days,
         ...range,
@@ -519,13 +555,21 @@ export class InventoryService {
     });
   }
 
-  async profitabilitySource(tx: PrismaTransaction, companyId: string, source?: Awaited<ReturnType<InventoryService['scope']>>) {
-    const scope = source ?? await this.scope(tx, companyId);
+  async profitabilitySource(tx: PrismaTransaction, companyId: string, source?: Awaited<ReturnType<InventoryService['scope']>>, range?: { from: string; to: string }) {
+    const scope = source ?? {
+      items: await tx.orm.public.InventoryItem.where({ companyId }).all() as ItemRecord[],
+      locations: (await tx.orm.public.Location.where({ companyId }).all()).map(location => this.presentLocation(location)),
+      stocks: [] as StockRecord[],
+      movements: await tx.orm.public.StockMovement.where({ companyId })
+        .where(movement => movement.movementDate.gte(range?.from ?? '0001-01-01'))
+        .where(movement => movement.movementDate.lte(range?.to ?? '9999-12-31')).all() as MovementRecord[],
+    };
     const discounts = await tx.query(this.prisma.client.raw.sql`
         SELECT s.location_id AS "locationId", l.item_id AS "itemId", s.movement_date::text AS "movementDate", l.automatic_discount_cents AS "discountCents"
         FROM public.sale_lines l
         JOIN public.sales s ON s.company_id = l.company_id AND s.id = l.sale_id
         WHERE l.company_id = ${companyId}::uuid AND l.automatic_discount_cents > 0
+          AND s.movement_date BETWEEN ${range?.from ?? '0001-01-01'}::date AND ${range?.to ?? '9999-12-31'}::date
       `.returnsRow({ locationId: 'pg/uuid@1', itemId: 'pg/uuid@1', movementDate: 'pg/text@1', discountCents: 'pg/int4@1' }).build());
     return { ...scope, discounts };
   }

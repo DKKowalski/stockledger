@@ -1521,3 +1521,59 @@ describe('archived inventory writers', () => {
     expect(await db.orm.public.StockMovement.where({ companyId: f.company.id }).all()).toHaveLength(item!.isActive ? 1 : 0);
   });
 });
+
+describe('bounded report reads with representative local history', () => {
+  it('fetches only a ledger page and the requested finance year from 12060 movements', async () => {
+    const f = await fixture(20000);
+    await db.runtime().execute(db.raw.sql`
+      INSERT INTO public.stock_movements(id, company_id, item_id, location_id, type, quantity, unit_price_cents, unit_cost_cents, movement_date, created_at)
+      SELECT gen_random_uuid(), ${f.company.id}::uuid, ${f.item.id}::uuid, ${f.shop.id}::uuid, 'sale', 1, 175, 100,
+        CASE WHEN n <= 12000 THEN '2024-01-01'::date ELSE '2026-01-01'::date END, '2026-01-01T00:00:00Z'::timestamptz
+      FROM generate_series(1,12060) n
+    `.affectedCount().build());
+    const fetched: number[] = [];
+    const tracked = tenantPrisma(db);
+    const original = tracked.withCompany.bind(tracked);
+    tracked.withCompany = (companyId, work, options) => original(companyId, tx => {
+      const movements = tx.orm.public.StockMovement;
+      const wrap = (query: ReturnType<typeof movements.where>): ReturnType<typeof movements.where> => new Proxy(query, {
+        get(target, property) {
+          if (property === 'all') return async () => { const rows = await target.all(); fetched.push(rows.length); return rows; };
+          const value = Reflect.get(target, property);
+          if (typeof value !== 'function') return value;
+          return (...args: unknown[]) => { const result = value.apply(target, args); return result && typeof result === 'object' && 'all' in result ? wrap(result) : result; };
+        },
+      });
+      const publicModels = new Proxy(tx.orm.public, { get(target, property) {
+        if (property !== 'StockMovement') return Reflect.get(target, property);
+        return new Proxy(movements, { get(model, property) {
+          if (property === 'where') return (...args: Parameters<typeof movements.where>) => wrap(movements.where(...args));
+          return Reflect.get(model, property);
+        } });
+      } });
+      const orm = new Proxy(tx.orm, { get(target, property) { return property === 'public' ? publicModels : Reflect.get(target, property); } });
+      const proxied = new Proxy(tx, { get(target, property) {
+        if (property === 'orm') return orm;
+        if (property === 'query') return async (...args: Parameters<typeof tx.query>) => { const rows = await tx.query(...args); if (rows.some(row => 'itemId' in row && 'quantity' in row)) fetched.push(rows.length); return rows; };
+        return Reflect.get(target, property);
+      } });
+      return work(proxied);
+    }, options);
+    const inventory = new InventoryService(tracked);
+    const start = performance.now(), memory = process.memoryUsage().heapUsed;
+    const first = await inventory.movementLedger(f.admin.id, f.company.id, { offset: 0, limit: 50 });
+    const second = await inventory.movementLedger(f.admin.id, f.company.id, { offset: 50, limit: 50 });
+    expect(first.total).toBe(12060); expect(first.movements).toHaveLength(50);
+    expect(new Set([...first.movements, ...second.movements].map(m => m.id)).size).toBe(100);
+    const finance = await new FinanceService(tracked, inventory).report(f.admin.id, f.company.id, { year: 2026 });
+    expect(finance.yearly.profitability.netSalesCents).toBe(60 * 175);
+    expect(fetched).toEqual([50, 50, 60]);
+    const elapsedMs = performance.now() - start;
+    const heapGrowth = process.memoryUsage().heapUsed - memory;
+    expect(elapsedMs).toBeLessThan(5000);
+    expect(heapGrowth).toBeLessThan(32 * 1024 * 1024);
+    console.info(`Bounded history: fetched ${fetched.join('/')} rows, ${Math.round(elapsedMs)}ms, heap growth ${heapGrowth} bytes`);
+    const filtered = await inventory.movementLedger(f.admin.id, f.company.id, { offset: 0, limit: 50, from: '2026-01-01', to: '2026-01-01', locationId: f.shop.id, type: Type.SALE, itemId: f.item.id });
+    expect(filtered.total).toBe(60); expect(filtered.movements).toHaveLength(50);
+  });
+});

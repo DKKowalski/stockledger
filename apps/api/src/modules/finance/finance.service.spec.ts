@@ -57,7 +57,7 @@ describe('finance authorization and tenant scoping', () => {
     expect(categoryWhere).toHaveBeenCalledWith({ companyId });
     expect(entryWhere).toHaveBeenCalledWith({ companyId });
     expect(budgetWhere).toHaveBeenCalledWith({ companyId });
-    expect(source).toHaveBeenCalledWith(tx, companyId);
+    expect(source).toHaveBeenCalledWith(tx, companyId, undefined, { from: '2026-01-01', to: '2026-12-31' });
   });
   it('takes no lock and writes nothing on a report read once categories exist', async () => {
     await service.report(userId, companyId, { year: 2026 });

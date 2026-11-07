@@ -57,7 +57,7 @@ export class FinanceService {
     const year = query.year ?? Number(calendarDay(now, company.timeZone).slice(0, 4));
     const [from, to] = [`${year}-01-01`, `${year}-12-31`];
     const categories = await this.categories(tx, companyId);
-    const source = await this.inventory.profitabilitySource(tx, companyId);
+    const source = await this.inventory.profitabilitySource(tx, companyId, undefined, { from, to });
     const entries = await tx.orm.public.FinanceEntry.where({ companyId }).where(entry => entry.entryDate.gte(from)).where(entry => entry.entryDate.lte(to)).all();
     const budgets = await tx.orm.public.FinanceBudget.where({ companyId }).where(budget => budget.month.gte(from)).where(budget => budget.month.lte(to)).all();
     return { ...buildFinanceYear(year, source, categories, entries, budgets, now, company.timeZone), company: { name: company.name, currency: company.currency, timeZone: company.timeZone }, categories: categories.map(({ id, name, isActive }) => ({ id, name, isActive })) };
