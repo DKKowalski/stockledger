@@ -1481,3 +1481,18 @@ it('F01 preserves past reports and applies corrections through the restricted te
   expect(snapshot.positions.reduce((s,p)=>s+p.closing,0)).toBe(8);
   expect(await asApplicationRole(null,tx=>tx.orm.public.StockMovement.where({correctsMovementId:receipt.id}).all())).toHaveLength(0);
 });
+
+
+describe('stale inventory writers', () => {
+  it('rejects a legacy sale after deals are enabled while recovering an earlier committed attempt', async () => {
+    const f = await fixture(30);
+    await transfer(f, 20);
+    const body = { itemId: f.item.id, locationId: f.shop.id, type: Type.SALE, quantity: 10, expectedUnitPriceCents: 175, movementDate, idempotencyKey: randomUUID() };
+    const original = await service.createMovement(f.attendant.id, f.company.id, body);
+    await db.orm.public.Company.where({ id: f.company.id }).update({ hybridPricingEnabled: true });
+    await expect(service.createMovement(f.attendant.id, f.company.id, { ...body, idempotencyKey: randomUUID() })).rejects.toThrow('Refresh');
+    expect(await otherService.createMovement(f.attendant.id, f.company.id, body)).toEqual(original);
+    expect(await balance(f, f.shop.id)).toBe(10);
+  });
+
+});

@@ -590,6 +590,7 @@ export class InventoryService {
     let relatedMovementId: string | null = null;
     let costTotalCents: number | null = null;
     if (body.type === StockMovementType.SALE) {
+      if (company.hybridPricingEnabled) throw new ConflictException('Box and quantity deals are now enabled. Refresh Sell and review a checkout quote before recording this sale');
       if (unitPriceCents === null) throw new ConflictException('Ask an administrator to set a selling price for this item');
       if (body.expectedUnitPriceCents !== undefined && body.expectedUnitPriceCents !== unitPriceCents) {
         throw new ConflictException('The selling price has changed. Refresh and review the price before recording this sale');
