@@ -38,11 +38,12 @@ const pricingLabels = { retail: 'Normal price', bulk: 'Quantity discount', box: 
 // Items without deals are charged their normal price.
 export function Checkout({ enabled }: { enabled: boolean }) {
   const { user, accessToken } = useAuth();
-  const { snapshot, mutate, busy: inventoryBusy, error: inventoryError } = useInventoryStore();
+  const { snapshot, mutate, refresh, busy: inventoryBusy, error: inventoryError } = useInventoryStore();
   const { settings, loading: settingsLoading, terms } = useCompanySettings();
   const [searchParams] = useSearchParams();
   const [itemId, setItemId] = useState(searchParams.get('item') ?? '');
   const [quantity, setQuantity] = useState('');
+  const [basket, setBasket] = useState<Array<{ itemId: string; quantity: number }>>([]);
   const [quote, setQuote] = useState<SaleQuote | null>(null);
   const [pending, setPending] = useState<Pending | null>(null);
   const [completed, setCompleted] = useState<CompletedSale | null>(null);
@@ -78,23 +79,40 @@ export function Checkout({ enabled }: { enabled: boolean }) {
   const review = (event: FormEvent) => {
     event.preventDefault();
     void run(async () => {
-      if (!user || !accessToken || !selected || !enabled || stored(user)) return;
+      if (!user || !accessToken || !enabled || stored(user)) return;
+      if (basket.length && itemId) throw new Error('Add the selected item to the basket before reviewing.');
+      const lines = basket.length ? basket : [{ itemId, quantity: Number(quantity) }];
+      if (!lines.length || lines.length > 100) throw new Error('Add between 1 and 100 items to the basket.');
+      for (const choice of lines) {
+        const position = positions.find(p => p.item.id === choice.itemId);
+        if (!position || !Number.isSafeInteger(choice.quantity) || choice.quantity < 1 || choice.quantity > position.closing) throw new Error('Check basket quantities and refresh stock before reviewing.');
+      }
       const generation = localStorage.getItem(generationKey(user)) ?? '';
-      const preview = await api.quotePricingPreview(accessToken, [{ itemId, quantity: Number(quantity) }]);
-      const line = preview.lines[0];
-      if (!line || selected.item.sellingPriceCents == null) throw new Error('Ask an administrator to set a selling price for this item.');
+      const preview = await api.quotePricingPreview(accessToken, lines);
       const movementDate = companyDay(settings?.timeZone);
       setCompleted(null);
-      const nextQuote = await api.saleQuote(accessToken, { locationId: user?.locationId ?? undefined, movementDate, lines: [{ itemId, quantity: Number(quantity), expectedVersion: line.configurationVersion ?? line.pricingVersion ?? 0, expectedRetailPriceCents: selected.item.sellingPriceCents }] });
+      const nextQuote = await api.saleQuote(accessToken, { locationId: user.locationId ?? undefined, movementDate, lines: lines.map(choice => {
+        const line = preview.lines.find(p => p.itemId === choice.itemId);
+        const item = snapshot?.items.find(p => p.id === choice.itemId);
+        if (!line || item?.sellingPriceCents == null) throw new Error('Ask an administrator to set a selling price for each basket item.');
+        return { ...choice, expectedVersion: line.configurationVersion ?? line.pricingVersion ?? 0, expectedRetailPriceCents: item.sellingPriceCents };
+      }) });
       if (generation !== (localStorage.getItem(generationKey(user)) ?? '')) throw new Error('Another sale request changed this checkout. Review a new quote.');
       reviewGeneration.current = generation; setQuote(nextQuote);
     });
+  };
+  const add = () => {
+    const count = Number(quantity), previous = basket.find(line => line.itemId === itemId)?.quantity ?? 0;
+    if (!selected || !Number.isSafeInteger(count) || count < 1 || count + previous > selected.closing) { setError('Enter a whole quantity within the available stock.'); return; }
+    if (!previous && basket.length >= 100) { setError('A basket can contain up to 100 different items.'); return; }
+    setBasket(current => previous ? current.map(line => line.itemId === itemId ? {...line, quantity:line.quantity + count} : line) : [...current,{itemId,quantity:count}]);
+    setItemId(''); setQuantity(''); setQuote(null); setCompleted(null); setError(null);
   };
   const finish = async (sale: CompletedSale, request: Pending) => {
     if (!user) return;
     // Resolve the durable request before refreshing; failed refresh must never resubmit this sale.
     localStorage.removeItem(`${prefix(user)}${request.idempotencyKey}`);
-    setPending(stored(user)); setQuote(null); setItemId(''); setQuantity(''); setCompleted(sale);
+    setPending(stored(user)); setQuote(null); setItemId(''); setQuantity(''); setBasket([]); setCompleted(sale);
     await mutate(async () => sale, 'Sale recorded.');
   };
   const send = async (request: Pending) => {
@@ -135,7 +153,7 @@ export function Checkout({ enabled }: { enabled: boolean }) {
     else setMessage('No completed sale was found yet. Retry this request to confirm it safely.');
   });
   return <PageState>
-    <PageHeader title="Sell" subtitle={`A sale reduces stock at ${shopName} only. Box and quantity deals apply automatically.`} />
+    <PageHeader title="Sell" subtitle={`A sale reduces stock at ${shopName} only. Add items to one basket. Current prices apply automatically.`} />
     <Panel title={pending ? 'Confirm pending sale' : 'Record a sale'}><div className="checkout-body">
       {error && <p role="alert">{error}</p>}
       {message && <p role="status">{message}</p>}
@@ -145,19 +163,26 @@ export function Checkout({ enabled }: { enabled: boolean }) {
         <button className="button secondary" disabled={busy} onClick={() => void run(() => send(pending))}>Retry same sale</button>
       </div> : <form className="form-grid" onSubmit={review}>
         <fieldset disabled={busy || inventoryBusy || settingsLoading || !settings || !!inventoryError || !enabled}>
-          <label><span>{terms.Item}</span><ProductPicker items={snapshot?.items.filter(item => item.isActive) ?? []} locationId={user?.locationId} selling required value={itemId} onValueChange={(value) => { setItemId(value); setQuote(null); }} /></label>
-          <label><span className="quantity-label">Quantity{selected && <small className="selected-availability">{selected.closing} {selected.item.unit} available at {shopName}</small>}</span><InputControl aria-label="Quantity" type="number" min="1" max={selected?.closing} required value={quantity} onValueChange={(value) => { setQuantity(value); setQuote(null); }} /></label>
-          <button className="button secondary" disabled={!selected} type="submit">Review sale</button>
+          <label><span>{terms.Item}</span><ProductPicker items={snapshot?.items.filter(item => item.isActive) ?? []} locationId={user?.locationId} selling value={itemId} onValueChange={(value) => { setItemId(value); setQuote(null); }} /></label>
+          <label><span className="quantity-label">Quantity{selected && <small className="selected-availability">{selected.closing} {selected.item.unit} available at {shopName}</small>}</span><InputControl aria-label="Quantity" type="number" min="1" max={selected?.closing} value={quantity} onValueChange={(value) => { setQuantity(value); setQuote(null); }} /></label>
+          <button className="button secondary" disabled={!selected} type="button" onClick={add}>Add to basket</button>
+          {basket.length > 0 && <div className="checkout-basket" aria-label="Sale basket">{basket.map(line => {
+            const item = snapshot?.items.find(i => i.id === line.itemId);
+            const available = positions.find(p => p.item.id === line.itemId)?.closing ?? 0;
+            return <div className="checkout-basket-line" key={line.itemId}><b>{item?.name ?? 'Unavailable item'}</b><label><span>{available} {item?.unit} available</span><InputControl aria-label={`Quantity for ${item?.name}`} type="number" min="1" max={available} required value={String(line.quantity || '')} onValueChange={value => { setBasket(current => current.map(l => l.itemId === line.itemId ? {...l,quantity:Number(value)} : l)); setQuote(null); }} /></label><button type="button" className="button secondary" aria-label={`Remove ${item?.name}`} onClick={() => { setBasket(current => current.filter(l => l.itemId !== line.itemId)); setQuote(null); }}>Remove</button></div>;
+          })}</div>}
+          <button className="button secondary" disabled={!basket.length && !selected} type="submit">Review sale</button>
+          <button className="button secondary" type="button" onClick={() => void run(async () => { setQuote(null); await refresh(); })}>Refresh stock and prices</button>
         </fieldset>
       </form>}
       {!pending && quote && <div className="pricing-quote-result" role="status">
-        <p>{quote.lines[0].quantity} {quote.lines[0].baseUnit}</p>
+        <p>{quote.lines.length} {quote.lines.length === 1 ? 'item' : 'items'} · Stock and prices are checked again when you complete this sale.</p>
         <dl className="checkout-totals">
           {quote.automaticDiscountCents > 0 && <><div><dt>Price before discount</dt><dd>{money(quote.grossSalesCents)}</dd></div>
           <div className="checkout-discount"><dt>Discount</dt><dd>− {money(quote.automaticDiscountCents)}</dd></div></>}
           <div className="checkout-pay"><dt>Customer pays</dt><dd>{money(quote.totalCents)}</dd></div>
         </dl>
-        <div className="table-wrap"><table><thead><tr><th>Price used</th><th className="num">Quantity</th><th className="num">Each</th><th className="num">Total</th></tr></thead><tbody>{quote.lines[0].components.map((part, index) => <tr key={index}><td>{part.category === 'box' && quote.lines[0].package ? `${quote.lines[0].package.label.charAt(0).toUpperCase()}${quote.lines[0].package.label.slice(1)} price (${quote.lines[0].package.size} per ${quote.lines[0].package.label})` : pricingLabels[part.category]}</td><td className="num">{part.quantity}</td><td className="num">{money(part.unitPriceCents)}</td><td className="num">{money(part.totalCents)}</td></tr>)}</tbody></table></div>
+        {quote.lines.map(line => <section className="checkout-quote-line" key={line.itemId}><h3>{line.itemName}</h3><p>{line.quantity} {line.baseUnit} · {money(line.totalCents)}</p><div className="table-wrap"><table><thead><tr><th>Price used</th><th className="num">Quantity</th><th className="num">Each</th><th className="num">Total</th></tr></thead><tbody>{line.components.map((part, index) => <tr key={index}><td>{part.category === 'box' && line.package ? `${line.package.label.charAt(0).toUpperCase()}${line.package.label.slice(1)} price (${line.package.size} per ${line.package.label})` : pricingLabels[part.category]}</td><td className="num">{part.quantity}</td><td className="num">{money(part.unitPriceCents)}</td><td className="num">{money(part.totalCents)}</td></tr>)}</tbody></table></div></section>)}
         <button className="button" disabled={busy || !enabled || !!inventoryError} onClick={complete}>Complete sale</button>
       </div>}
       {completed && <p role="status">Sale recorded · {money(completed.totalCents, completed.currency)}</p>}

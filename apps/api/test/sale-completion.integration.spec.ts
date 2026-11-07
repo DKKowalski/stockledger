@@ -202,18 +202,25 @@ describe('durable development sale completion via real HTTP and restricted runti
     expect(await closing(f)).toBe(18);
   });
 
-  it('defaults off, requires authentication/enrollment, and refuses activation in production',async()=>{
+  it('offers retail baskets with deals off, requires authentication and rejects stale development deals in production',async()=>{
     const f=await fixture();
     expect((await request('/inventory/sale-completion')).status).toBe(401);
     config.set('app.saleCompletionCompanyIds',[]);
     expect((await request('/inventory/sale-completion',f.attendant.token)).body.available).toBe(false);
-    expect((await request('/inventory/sales/quote',f.attendant.token,'POST',input(f))).status).toBe(403);
+    expect((await request('/inventory/sales/quote',f.attendant.token,'POST',input(f))).status).toBe(409);
     config.set('app.saleCompletionCompanyIds',[f.company.id]);
     const developmentQuote = await quoted(f);
     config.set('app.environment','production');
-    expect((await complete(f,developmentQuote)).status).toBe(403);
-    expect((await request('/inventory/sales/quote',f.attendant.token,'POST',input(f))).status).toBe(403);
+    expect((await complete(f,developmentQuote)).status).toBe(409);
+    expect((await request('/inventory/sales/quote',f.attendant.token,'POST',input(f))).status).toBe(409);
     expect(await counts(f)).toEqual({sales:0,movements:0});
+    expect((await request('/inventory/sale-completion',f.attendant.token)).body.basketAvailable).toBe(true);
+    const retailInput = {movementDate:date,lines:f.items.map(item=>({itemId:item.id,quantity:2,expectedVersion:0,expectedRetailPriceCents:1500}))};
+    const retail = await request('/inventory/sales/quote',f.attendant.token,'POST',retailInput);
+    expect(retail.status).toBe(201); expect(retail.body).toMatchObject({totalCents:6000,automaticDiscountCents:0});
+    expect((await complete(f,retail.body)).status).toBe(201);
+    expect(await counts(f)).toEqual({sales:1,movements:2});
+    config.set('app.environment','test');
   });
 
   it('lets an owner switch on deals in production and sells items without deals at their single price',async()=>{
@@ -232,7 +239,7 @@ describe('durable development sale completion via real HTTP and restricted runti
       expect((await complete(f,single.body)).status).toBe(201);
       expect((await quoted(f)).totalCents).toBe(18500);
       expect((await request('/settings/inventory',f.admin.token,'PATCH',{...settings,hybridPricingEnabled:false})).body.hybridPricingEnabled).toBe(false);
-      expect((await request('/inventory/sales/quote',f.attendant.token,'POST',input(f))).status).toBe(403);
+      expect((await request('/inventory/sales/quote',f.attendant.token,'POST',input(f))).status).toBe(409);
     } finally { config.set('app.environment','test'); }
   });
 

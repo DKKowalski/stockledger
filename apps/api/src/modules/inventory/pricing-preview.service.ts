@@ -85,7 +85,7 @@ export class PricingPreviewService {
     return this.prisma.withCompany(companyId, (tx) => this.quoteInTransaction(tx, userId, companyId, body));
   }
 
-  async quoteInTransaction(tx: PrismaTransaction, userId: string, companyId: string, body: PricingQuoteDto) {
+  async quoteInTransaction(tx: PrismaTransaction, userId: string, companyId: string, body: PricingQuoteDto, applyDeals = true) {
       const actor = await this.actor(tx, companyId, userId);
       if (actor.role === 'shop_attendant') {
         const shop = actor.locationId && await tx.orm.public.Location.first({ id: actor.locationId, companyId, type: 'shop' });
@@ -100,7 +100,7 @@ export class PricingPreviewService {
       for (const itemId of itemIds) {
         const item = await tx.orm.public.InventoryItem.first({ id: itemId, companyId });
         if (!item?.isActive) throw new NotFoundException('Active inventory item not found');
-        const version = (await this.enabled(tx, companyId)) ? await this.latest(tx, companyId, itemId) : null;
+        const version = (applyDeals && await this.enabled(tx, companyId)) ? await this.latest(tx, companyId, itemId) : null;
         const applied = version?.previewEnabled ? version : null;
         let rules: PricingRules | undefined;
         if (applied) {

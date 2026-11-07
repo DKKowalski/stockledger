@@ -33,9 +33,6 @@ export class SaleCompletionService {
     return allowlisted || hybridPricingSwitchedOn(tx, companyId);
   }
 
-  private async assertEnabled(tx: PrismaTransaction, companyId: string) {
-    if (!await this.enabled(tx, companyId)) throw new ForbiddenException('Box and quantity deals are switched off for this business');
-  }
 
   private async actor(tx: PrismaTransaction, userId: string, companyId: string, writing = false) {
     if (writing) await tx.query(this.prisma.client.raw.sql`
@@ -65,7 +62,7 @@ export class SaleCompletionService {
       const user = await tx.orm.public.User.first({ id: userId, companyId });
       if (!user?.isActive) throw new UnauthorizedException('Account is not available');
       const company = await tx.orm.public.Company.first({ id: companyId });
-      return { available: await this.enabled(tx, companyId) && ['shop_attendant', 'administrator'].includes(user.role) && !company?.allowNegativeStock, developmentOnly: true as const };
+      return { basketAvailable: ['shop_attendant', 'administrator'].includes(user.role) && !company?.allowNegativeStock, available: await this.enabled(tx, companyId) && ['shop_attendant', 'administrator'].includes(user.role) && !company?.allowNegativeStock, developmentOnly: true as const };
     });
   }
 
@@ -88,7 +85,7 @@ export class SaleCompletionService {
     const company = await tx.orm.public.Company.first({ id: companyId });
     if (!company) throw new UnauthorizedException('Business no longer exists');
     if (company.allowNegativeStock) throw new ConflictException('Checkout needs negative stock switched off in Settings');
-    const quote = await this.pricing.quoteInTransaction(tx, userId, companyId, input);
+    const quote = await this.pricing.quoteInTransaction(tx, userId, companyId, input, await this.enabled(tx, companyId));
     const lines = [];
     for (const line of quote.lines) {
       const item = await tx.orm.public.InventoryItem.first({ companyId, id: line.itemId });
@@ -123,7 +120,6 @@ export class SaleCompletionService {
   async quote(userId: string, companyId: string, input: SaleQuoteDto) {
     input = { ...input, lines: input.lines.map((line) => ({ ...line, itemId: line.itemId.toLowerCase() })) };
     return this.prisma.withCompany(companyId, async (tx) => {
-      await this.assertEnabled(tx, companyId);
       const actor = await this.actor(tx, userId, companyId, true);
       await this.sellingShop(tx, companyId, actor, input.locationId);
       const result = await this.calculate(tx, userId, companyId, input);
@@ -152,7 +148,6 @@ export class SaleCompletionService {
         return this.present(tx, companyId, prior.id, actor);
       }
       // Recover committed requests before consulting gates or quote expiry.
-      await this.assertEnabled(tx, companyId);
       await tx.query(this.prisma.client.raw.sql`
         SELECT id FROM public.companies WHERE id = ${companyId}::uuid FOR SHARE
       `.returnsRow({ id: 'pg/uuid@1' }).build());
@@ -166,7 +161,6 @@ export class SaleCompletionService {
         `.returnsRow({ id: 'pg/uuid@1' }).build());
         if (!locked.length) throw new NotFoundException('Inventory item not found');
       }
-      await this.assertEnabled(tx, companyId);
       if (envelope.expiresAt <= Date.now()) throw new ConflictException('The sale quote expired while waiting. Review a new quote');
       const result = await this.calculate(tx, userId, companyId, envelope.input);
       if (result.fingerprint !== envelope.fingerprint || result.currency !== envelope.currency) throw new ConflictException('Prices, item details or recorded costs changed. Review a new quote');

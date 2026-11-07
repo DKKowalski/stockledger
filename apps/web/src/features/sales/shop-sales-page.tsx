@@ -1,4 +1,4 @@
-import { useSearchParams } from 'react-router-dom';
+import { NavLink, useSearchParams } from 'react-router-dom';
 import { ProductPicker } from '../../components/ui/product-picker';
 import { companyDay } from '../../lib/date-range';
 import { InventoryDateRangeFilter } from '../../components/inventory-date-range-filter';
@@ -21,6 +21,8 @@ function hasRetailAttempt(user: User) {
 
 export function ShopSalesPage() {
   const { accessToken, user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const [basketAvailable, setBasketAvailable] = useState(false);
   // null while the box and quantity deals switch is still loading.
   const [available, setAvailable] = useState<boolean | null>(null);
   const [retailRecovery, setRetailRecovery] = useState(() => user ? hasRetailAttempt(user) : false);
@@ -32,14 +34,14 @@ export function ShopSalesPage() {
   }, [user]);
   useEffect(() => {
     let active = true;
-    if (accessToken) void api.saleCompletionStatus(accessToken).then((result) => { if (active) setAvailable(result.available); }).catch(() => { if (active) setAvailable(false); });
+    if (accessToken) void api.saleCompletionStatus(accessToken).then((result) => { if (active) { setAvailable(result.available); setBasketAvailable(result.basketAvailable === true); } }).catch(() => { if (active) setAvailable(false); });
     return () => { active = false; };
   }, [accessToken]);
   if (user && (retailRecovery || hasRetailAttempt(user))) return <RetailSalePage onResolved={() => setRetailRecovery(false)} />;
   // A sale waiting for confirmation always reopens checkout so it can be resolved.
-  if (user && (available || recovering || hasPendingSale(user))) return <Checkout enabled={available === true} />;
+  if (user && (available || (basketAvailable && searchParams.get('basket') === '1') || recovering || hasPendingSale(user))) return <Checkout enabled={available === true || basketAvailable} />;
   if (available === null) return <div className="empty page-state"><p>Loading checkout</p></div>;
-  return <RetailSalePage />;
+  return <RetailSalePage basketAvailable={basketAvailable} />;
 }
 
 type RetailAttempt = {
@@ -58,7 +60,7 @@ function readRetailAttempt(key: string): RetailAttempt | null {
   return value;
 }
 
-function RetailSalePage({ onResolved }: { onResolved?: () => void }) {
+function RetailSalePage({ onResolved, basketAvailable = false }: { onResolved?: () => void; basketAvailable?: boolean }) {
   const { accessToken, user } = useAuth();
   const { snapshot, mutate, busy } = useInventoryStore();
   const { money, calendarDate, terms, settings } = useCompanySettings();
@@ -150,7 +152,7 @@ function RetailSalePage({ onResolved }: { onResolved?: () => void }) {
   };
 
   return <PageState>
-    <PageHeader title="Sell" subtitle={shop ? `A sale reduces stock at ${shop.name} only.` : `A sale reduces stock at your ${terms.shop} only.`} />
+    <PageHeader title="Sell" actions={basketAvailable ? <NavLink className="button secondary" to="/sell?basket=1">Basket sale</NavLink> : undefined} subtitle={shop ? `A sale reduces stock at ${shop.name} only.` : `A sale reduces stock at your ${terms.shop} only.`} />
     <Panel title="Record a sale">
       {recovery.error && <p role="alert">{recovery.error}</p>}
       {message && <p role="status">{message}</p>}

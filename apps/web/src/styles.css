@@ -2117,3 +2117,14 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px soli
   .nav-link:not(.active) span { position: absolute; top: calc(100% + 8px); left: 50%; max-width: none; margin: 0; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; color: var(--ink); background: var(--card-pure); transform: translateX(-50%); pointer-events: none; }
   .nav-link:not(.active):is(:hover, :focus-visible) span { opacity: 1; }
 }
+
+.checkout-basket { display: grid; gap: 12px; grid-column: 1 / -1; min-width: 0; }
+.checkout-basket-line { display: grid; grid-template-columns: minmax(0, 1fr) 140px auto; align-items: center; gap: 12px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; }
+.checkout-basket-line > b { overflow-wrap: anywhere; }
+.checkout-basket-line label > span { color: var(--muted); font-size: var(--label-size); }
+.checkout-quote-line { margin: 20px 0; }
+.checkout-quote-line h3 { font-size: 16px; }
+@media (max-width: 600px) {
+  .checkout-basket-line { grid-template-columns: minmax(0, 1fr) auto; }
+  .checkout-basket-line > b { grid-column: 1 / -1; }
+}
