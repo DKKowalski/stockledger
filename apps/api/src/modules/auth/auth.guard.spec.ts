@@ -54,4 +54,12 @@ describe('AuthGuard', () => {
     expect(sessionFirst).toHaveBeenCalledWith({ id: 'session', companyId: 'company', userId: 'user' });
   });
 
+  it('does not turn a temporary database failure into a signed-out session', async () => {
+    const request = { headers: { authorization: 'Bearer valid-token' } } as Partial<AuthenticatedRequest>;
+    verifyAsync.mockResolvedValue({ sub: 'user', companyId: 'company', role: 'administrator' });
+    const outage = new Error('Database temporarily unavailable');
+    first.mockRejectedValueOnce(outage);
+    await expect(guard.canActivate(context(request))).rejects.toBe(outage);
+  });
+
 });

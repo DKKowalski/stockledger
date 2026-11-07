@@ -96,7 +96,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .catch(caught => {
           if (cancelled || epoch !== sessionEpoch.current) return;
           if (caught instanceof RefreshPaused) started = false;
-          else clearSession();
+          else if (caught instanceof ApiError && caught.status === 401) clearSession();
+          else { activity.current.failed = true; setRestoring(false); setRefreshState('error'); }
         });
     };
     restore();
@@ -108,6 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const current = activity.current;
     if (current.running || isHidden()) return;
     const epoch = sessionEpoch.current;
+    current.lastActive = Date.now();
     current.running = true; current.paused = false; current.failed = false;
     setRefreshState('refreshing');
     try {

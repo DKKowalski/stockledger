@@ -22,24 +22,22 @@ export class AuthGuard implements CanActivate {
 
     if (!token) throw new UnauthorizedException('Sign in to continue');
 
-    try {
-      const payload = await this.jwt.verifyAsync<AccessTokenPayload>(token);
-      const user = await this.prisma.withCompany(payload.companyId, async (tx) => {
-        if (payload.sid) {
-          const session = await tx.orm.public.RefreshSession.first({ id: payload.sid, companyId: payload.companyId, userId: payload.sub });
-          if (!session || new Date(session.expiresAt).getTime() <= Date.now()) throw new Error('Session revoked');
-        }
-        // Old signed tokens remain compatible until their original expiry. Every
-        // login and refresh after deployment issues a session-bound token.
-        return tx.orm.public.User.first({ id: payload.sub, companyId: payload.companyId });
-      });
-      if (!user || user.isActive === false) throw new Error('Account unavailable');
-      if (user.role !== payload.role) throw new Error('Account permissions changed');
-      request.user = payload;
-      return true;
-    } catch {
-      throw new UnauthorizedException('Your session has expired');
-    }
+    let payload: AccessTokenPayload;
+    try { payload = await this.jwt.verifyAsync<AccessTokenPayload>(token); }
+    catch { throw new UnauthorizedException('Your session has expired'); }
+    // Infrastructure failures must propagate as server errors, not invalid credentials.
+    const user = await this.prisma.withCompany(payload.companyId, async (tx) => {
+      if (payload.sid) {
+        const session = await tx.orm.public.RefreshSession.first({ id: payload.sid, companyId: payload.companyId, userId: payload.sub });
+        if (!session || new Date(session.expiresAt).getTime() <= Date.now()) throw new UnauthorizedException('Your session has expired');
+      }
+      // Old signed tokens remain compatible until their original expiry. Every
+      // login and refresh after deployment issues a session-bound token.
+      return tx.orm.public.User.first({ id: payload.sub, companyId: payload.companyId });
+    });
+    if (!user || user.isActive === false || user.role !== payload.role) throw new UnauthorizedException('Your session has expired');
+    request.user = payload;
+    return true;
   }
 
   private bearerToken(request: Request) {
