@@ -2149,3 +2149,6 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px soli
   body:has(.customer-receipt) .page { padding: 0; }
   .customer-receipt { max-width: 100%; border: 0; }
 }
+
+/* Empty select values describe an active report scope (for example All places). */
+.profit-filter-grid .select-value[data-placeholder] { color: var(--muted); }

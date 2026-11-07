@@ -64,7 +64,7 @@ for (const width of [360, 390, 1440]) {
         await page.evaluate(value => { document.documentElement.dataset.accent = value; }, theme);
         samples[`${theme}${route}`] = await checkText(page, selector, route === '/profitability' ? 13 : 12);
         if (route === '/profitability') {
-          samples[`${theme}-profit-controls`] = await checkText(page, '.profit-filter-grid .select-trigger, .profit-filter-grid .date-trigger', 13);
+          samples[`${theme}-profit-controls`] = await checkText(page, '.profit-filter-grid .select-trigger, .profit-filter-grid .select-value, .profit-filter-grid .date-trigger', 13);
           const day = page.locator('.profit-chart-day').first();
           await day.focus();
           await expect(day).toBeFocused();
