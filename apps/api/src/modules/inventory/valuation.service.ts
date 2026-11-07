@@ -316,6 +316,7 @@ export class ValuationService {
       this.assertEnabled(companyId);
       let nextPool = { quantity: current.quantity, valueCents: current.valueCents ?? 0 };
       if (input.kind === 'checkpoint') {
+        await tx.orm.public.InventoryItem.where({ companyId, id: input.itemId }).update({ pooledValueCents: null });
         nextPool = { quantity: current.quantity, valueCents: input.valueCents };
         await tx.orm.public.InventoryValuationCheckpoint.create({
           companyId,

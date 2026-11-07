@@ -1,5 +1,7 @@
+import { movementCost, originalReturnCost, recordedPool, saveRecordedPool } from './prospective-costing.js';
+import { issueValue, receiveValue, validatePool } from './exact-costing.js';
 import { createHash } from 'node:crypto';
-import { dateRange } from '../../common/date-range.js';
+import { calendarDay, dateRange } from '../../common/date-range.js';
 import { assertLegacyItem, valuationPools } from './valuation-ledger.js';
 import {
   BadRequestException,
@@ -283,6 +285,12 @@ export class InventoryService {
           .some((position) => position.closing !== 0);
         if (stillHeld) throw new ConflictException('Move or count this item down to zero before archiving it');
       }
+      if (body.unitCostCents !== undefined && body.unitCostCents !== item.unitCostCents && item.pooledValueCents !== null) {
+        throw new ConflictException('This item has recorded carrying value. Its average cannot be edited directly. Correct the receipt or reconcile the stock with a count');
+      }
+      if (body.unit !== undefined && body.unit.trim() !== item.unit && item.pooledValueCents !== null) {
+        throw new ConflictException('The unit cannot change while this item has recorded carrying value');
+      }
       const changes = {
         ...(sku ? { sku: sku as Varchar<40> } : {}),
         ...(body.name !== undefined ? { name: body.name.trim() as Varchar<120> } : {}),
@@ -358,7 +366,7 @@ export class InventoryService {
 
   private countExpectedQuantity(scope: { items: ItemRecord[]; locations: LocationRecord[]; stocks: StockRecord[]; movements: MovementRecord[] }, itemId: string, locationId: string, countedAt: string) {
     const ledger = scope.movements.filter(movement => movement.movementDate <= countedAt);
-    return buildSnapshot(scope.items, scope.locations, scope.stocks, ledger, 30, locationId)
+    return buildSnapshot(scope.items.map(i => ({ ...i, pooledValueCents: null })), scope.locations, scope.stocks, ledger, 30, locationId)
       .positions.find(position => position.item.id === itemId)?.closing ?? 0;
   }
 
@@ -376,6 +384,7 @@ export class InventoryService {
     return this.prisma.withCompany(companyId, async (tx) => {
       const actor = await this.actor(tx, companyId, userId);
       this.assertInventoryManager(actor);
+      await this.lockCompanyCurrency(tx, companyId);
       await this.lockItem(tx, companyId, body.itemId);
       await assertLegacyItem(tx,companyId,body.itemId);
       const scope = await this.scope(tx, companyId, body.itemId);
@@ -394,6 +403,18 @@ export class InventoryService {
       }
       if (!company.allowNegativeStock && lowestBalanceFrom(scope.stocks, scope.movements, body.itemId, body.locationId, body.countedAt) + varianceQuantity < 0) {
         throw new ConflictException('This count would leave negative stock on or after the count date. Review later stock changes and check the count quantity and date before saving.');
+      }
+      let nextPool = item.pooledValueCents != null ? recordedPool(item, scope.stocks, scope.movements) : null;
+      let countCostTotal: number | null = null;
+      if (nextPool && varianceQuantity !== 0) {
+        if (varianceQuantity < 0) {
+          const issued = issueValue(nextPool, -varianceQuantity);
+          countCostTotal = issued.costCents;
+          nextPool = issued.pool;
+          if (lowestBalanceFrom(scope.stocks, scope.movements, item.id, body.locationId, body.countedAt) + varianceQuantity < 0) {
+            throw new ConflictException('Recorded carrying value requires nonnegative stock from the count date onward');
+          }
+        } else nextPool = receiveValue(nextPool, varianceQuantity, item.unitCostCents).pool;
       }
       const count = await tx.orm.public.StockCount.create({
         companyId,
@@ -417,6 +438,7 @@ export class InventoryService {
           quantity: Math.abs(varianceQuantity),
           unitPriceCents: null,
           unitCostCents: item.unitCostCents,
+          costTotalCents: countCostTotal,
           supplierId: null,
           relatedMovementId: null,
           stockCountId: count.id,
@@ -432,6 +454,7 @@ export class InventoryService {
         countedQuantity: body.countedQuantity,
         varianceQuantity,
       });
+      if (nextPool) await saveRecordedPool(tx, companyId, item.id, nextPool);
       return count;
     });
   }
@@ -539,6 +562,7 @@ export class InventoryService {
           return prior.result as unknown as Awaited<ReturnType<InventoryService['recordMovement']>>;
         }
       }
+      await this.lockCompanyCurrency(tx, companyId);
       await this.lockItem(tx, companyId, body.itemId);
       await assertLegacyItem(tx,companyId,body.itemId);
       const movement = await this.recordMovement(tx, actor, body);
@@ -559,6 +583,7 @@ export class InventoryService {
     let unitPriceCents = body.type === StockMovementType.SALE ? item.sellingPriceCents : null;
     let unitCostCents = body.type === StockMovementType.PURCHASE ? body.unitCostCents ?? null : item.unitCostCents;
     let relatedMovementId: string | null = null;
+    let costTotalCents: number | null = null;
     if (body.type === StockMovementType.SALE) {
       if (unitPriceCents === null) throw new ConflictException('Ask an administrator to set a selling price for this item');
       if (body.expectedUnitPriceCents !== undefined && body.expectedUnitPriceCents !== unitPriceCents) {
@@ -597,6 +622,8 @@ export class InventoryService {
         .filter((movement) => movement.type === StockMovementType.RETURN_IN && movement.relatedMovementId === sale.id)
         .reduce((total, movement) => total + movement.quantity, 0);
       if (returned + body.quantity > sale.quantity) throw new ConflictException(`Only ${sale.quantity - returned} units remain returnable`);
+      if (sale.unitCostCents === null) throw new ConflictException('The original acquisition cost was not recorded. No historical cost can be invented');
+      costTotalCents = originalReturnCost(movementCost(sale)!, sale.quantity, returned, body.quantity);
       locationId = sale.locationId;
       unitPriceCents = sale.unitPriceCents;
       unitCostCents = sale.unitCostCents;
@@ -626,6 +653,26 @@ export class InventoryService {
       }
     }
 
+    // After a correction/return, integer cents are conserved prospectively, in commit order.
+    const pooled = item.pooledValueCents != null || body.type === StockMovementType.RETURN_IN;
+    let nextPool = pooled ? recordedPool(item, scope.stocks, scope.movements) : null;
+    if (nextPool) {
+      if (body.type === StockMovementType.PURCHASE) {
+        nextPool = receiveValue(nextPool, body.quantity, unitCostCents!).pool;
+      } else if (body.type === StockMovementType.RETURN_IN) {
+        nextPool = validatePool({ quantity: nextPool.quantity + body.quantity, valueCents: nextPool.valueCents + costTotalCents! });
+      } else if (body.type !== StockMovementType.TRANSFER) {
+        const issued = issueValue(nextPool, body.quantity);
+        costTotalCents = issued.costCents;
+        unitCostCents = Math.round(issued.costCents / body.quantity);
+        nextPool = issued.pool;
+      }
+      // Location value allocation cannot represent negative stock. Keep dated safety even when the legacy setting allows it.
+      if (MOVEMENT_SIGN[body.type] === -1 && body.quantity > lowestBalanceFrom(scope.stocks, scope.movements, item.id, locationId, body.movementDate)) {
+        throw new ConflictException('Recorded carrying value requires nonnegative stock at each place from this movement date onward');
+      }
+    }
+
     const movement = await tx.orm.public.StockMovement.create({
       companyId: actor.companyId,
       itemId: body.itemId,
@@ -635,6 +682,7 @@ export class InventoryService {
       quantity: body.quantity,
       unitPriceCents,
       unitCostCents,
+      costTotalCents,
       supplierId: body.type === StockMovementType.PURCHASE ? body.supplierId ?? null : null,
       relatedMovementId,
       stockCountId: null,
@@ -642,7 +690,14 @@ export class InventoryService {
       reference: body.reference?.trim() ? (body.reference.trim() as Varchar<80>) : null,
       note: body.note?.trim() ? (body.note.trim() as Varchar<500>) : null,
     });
-    if (body.type === StockMovementType.PURCHASE && unitCostCents !== null) {
+    if (nextPool) {
+      await saveRecordedPool(tx, actor.companyId, item.id, nextPool);
+      if (body.type === StockMovementType.RETURN_IN) await this.audit(tx, actor, 'inventory.customer_returned', 'stock_movement', movement.id, {
+        originalMovementId: relatedMovementId, quantity: body.quantity, valueCents: costTotalCents,
+        quantityAfter: nextPool.quantity, valueAfterCents: nextPool.valueCents,
+      });
+    }
+    else if (body.type === StockMovementType.PURCHASE && unitCostCents !== null) {
       const currentQuantity = buildSnapshot(scope.items, scope.locations, scope.stocks, scope.movements).positions
         .reduce((total, position) => total + position.closing, 0);
       const nextCost = this.weightedAverageCost(currentQuantity, item.unitCostCents, body.quantity, unitCostCents);
@@ -662,6 +717,7 @@ export class InventoryService {
       if (target.stockCountId) {
         throw new BadRequestException('Stock count adjustments cannot be deleted. Record a new count instead.');
       }
+      await this.lockCompanyCurrency(tx, companyId);
       await this.lockItem(tx, companyId, target.itemId);
       await assertLegacyItem(tx,companyId,target.itemId);
       return this.removeMovement(tx, actor, id, target.itemId);
@@ -677,6 +733,17 @@ export class InventoryService {
       throw new ConflictException('Completed grouped sales cannot be deleted. An audited reversal is required');
     }
     if (await tx.orm.public.SaleReturnAllocation.first({companyId:actor.companyId,returnMovementId:id}) || await tx.orm.public.SaleReturnAllocation.first({companyId:actor.companyId,lossMovementId:id}) || await tx.orm.public.SaleReturnAllocation.first({companyId:actor.companyId,originalMovementId:id})) throw new ConflictException('Return allocations and their original records cannot be deleted. Record an audited correction');
+    if (movement.type === StockMovementType.SALE) {
+      const alreadyReturned = scope.movements.filter(m => m.type === StockMovementType.RETURN_IN && m.relatedMovementId === id).reduce((s,m) => s + m.quantity, 0);
+      if (alreadyReturned >= movement.quantity) throw new ConflictException('This sale has already been fully returned');
+      const company = await tx.orm.public.Company.first({ id: actor.companyId });
+      const returned = await this.recordMovement(tx, actor, {
+        itemId, locationId: movement.locationId, type: StockMovementType.RETURN_IN,
+        quantity: movement.quantity - alreadyReturned, relatedMovementId: id,
+        movementDate: calendarDay(new Date(), company?.timeZone), note: `Sale correction for ${id}. Original sale retained.`,
+      });
+      return { id, correctionId: returned.id };
+    }
     const remaining = scope.movements.filter((candidate) => candidate.id !== id);
     const affected = [movement.locationId, movement.destinationLocationId].filter((locationId): locationId is string => Boolean(locationId));
     for (const locationId of affected) {
@@ -684,6 +751,40 @@ export class InventoryService {
       const lowestBefore = lowestBalanceFrom(scope.stocks, scope.movements, itemId, locationId, '');
       const lowestAfter = lowestBalanceFrom(scope.stocks, remaining, itemId, locationId, '');
       if (lowestAfter < 0 && lowestAfter < lowestBefore) throw new ConflictException('Later movements depend on this stock');
+    }
+
+    const item = scope.items[0]!;
+    if (movement.correctsMovementId || scope.movements.some(m => m.correctsMovementId === id)) {
+      throw new ConflictException('This receipt already has an audited correction. Corrections cannot be reversed or deleted here');
+    }
+    if (movement.type === StockMovementType.PURCHASE) {
+      if (movement.unitCostCents === null) throw new ConflictException('The original purchase cost is unknown. Reconcile it before making a correction');
+      const company = await tx.orm.public.Company.first({ id: actor.companyId });
+      const date = calendarDay(new Date(), company?.timeZone);
+      if (movement.movementDate > date) throw new ConflictException('A future-dated receipt cannot be corrected before its receipt date');
+      if (lowestBalanceFrom(scope.stocks, scope.movements, itemId, movement.locationId, date) < movement.quantity) {
+        throw new ConflictException('Later movements depend on this stock');
+      }
+      const pool = recordedPool(item, scope.stocks, scope.movements), cost = movementCost(movement)!;
+      if (pool.quantity < movement.quantity || pool.valueCents < cost || (pool.quantity === movement.quantity && pool.valueCents !== cost)) {
+        throw new ConflictException('This purchase value has been consumed. Reconcile the remaining stock and value before correcting this receipt');
+      }
+      const next = validatePool({ quantity: pool.quantity - movement.quantity, valueCents: pool.valueCents - cost });
+      const correction = await tx.orm.public.StockMovement.create({
+        companyId: actor.companyId, itemId, locationId: movement.locationId, type: StockMovementType.RETURN_OUT,
+        quantity: movement.quantity, unitCostCents: movement.unitCostCents, costTotalCents: cost,
+        correctsMovementId: id, movementDate: date,
+        reference: movement.reference as Varchar<80> | null,
+        note: `Purchase correction for ${id}. Original receipt retained.` as Varchar<500>,
+      });
+      await saveRecordedPool(tx, actor.companyId, itemId, next);
+      await this.audit(tx, actor, 'inventory.purchase_corrected', 'stock_movement', correction.id, {
+        originalMovementId: id, quantity: movement.quantity, valueCents: cost, quantityAfter: next.quantity, valueAfterCents: next.valueCents,
+      });
+      return { id, correctionId: correction.id };
+    }
+    if (movement.type === StockMovementType.RETURN_IN || item.pooledValueCents != null) {
+      throw new ConflictException('Financial stock records cannot be deleted. Use an original-sale return or a stock count to correct the quantity');
     }
 
     await tx.orm.public.StockMovement.where({ id, companyId: actor.companyId }).delete();
@@ -700,6 +801,10 @@ export class InventoryService {
       note: movement.note,
     });
     return { id };
+  }
+
+  private async lockCompanyCurrency(tx: PrismaTransaction, companyId: string) {
+    await tx.query(this.prisma.client.raw.sql`SELECT id FROM public.companies WHERE id=${companyId}::uuid FOR SHARE`.returnsRow({ id:'pg/uuid@1' }).build());
   }
 
   private async lockItem(tx: PrismaTransaction, companyId: string, itemId: string) {
@@ -787,7 +892,9 @@ export class InventoryService {
         WHERE c.company_id = ${companyId}::uuid
       `.returnsRow(componentRow).build());
     const componentByMovement = new Map(components.map((part) => [part.movementId, part]));
-    const groupedMovements = movements.map((movement) => {
+    const correctedBy = new Map(movements.filter(m => m.correctsMovementId).map(m => [m.correctsMovementId, m.id]));
+    const groupedMovements = movements.map((record) => {
+      const movement = { ...record, correctedByMovementId: correctedBy.get(record.id) ?? null };
       const component = componentByMovement.get(movement.id);
       return component ? { ...movement, saleId: component.saleId, saleLineId: component.saleLineId, pricingCategory: component.category } : movement;
     });

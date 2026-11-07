@@ -1,8 +1,10 @@
+import { movementCost, prospectivePools } from './prospective-costing.js';
 import { locationValues, type ValuePool } from './exact-costing.js';
 import { MOVEMENT_SIGN, type MovementVelocity, StockMovementType } from './inventory.types.js';
 
 export type ItemRecord = {
   preciseCosting?: boolean;
+  pooledValueCents?: number | null;
   id: string;
   sku: string;
   name: string;
@@ -29,6 +31,9 @@ export type StockRecord = {
 };
 
 export type MovementRecord = {
+  costTotalCents?: number | null;
+  correctsMovementId?: string | null;
+  correctedByMovementId?: string | null;
   saleId?: string;
   saleLineId?: string;
   pricingCategory?: string;
@@ -142,7 +147,7 @@ export function buildSnapshot(
     };
   }));
 
-  for (const [itemId, pool] of pools) {
+  for (const [itemId, pool] of new Map([...prospectivePools(items, stocks, movements), ...pools])) {
     const matching = lines.filter(line => line.item.id === itemId);
     const values = locationValues(pool,matching.map(line => ({locationId:line.location.id,quantity:line.closing})));
     for (const line of matching) line.valueCents = values.get(line.location.id)!;
@@ -178,7 +183,7 @@ export function buildSnapshot(
     ...movement,
     saleTotalCents: (movement.type === StockMovementType.SALE || movement.type === StockMovementType.RETURN_IN) && movement.unitPriceCents !== null
       ? movement.unitPriceCents * movement.quantity : null,
-    costTotalCents: movement.unitCostCents === null ? null : movement.unitCostCents * movement.quantity,
+    costTotalCents: movementCost(movement),
     item: itemById.get(movement.itemId) ?? null,
     location: locationById.get(movement.locationId) ?? null,
     destination: movement.destinationLocationId ? locationById.get(movement.destinationLocationId) ?? null : null,
@@ -244,7 +249,7 @@ export function lowestBalanceFrom(
 
 /** Shop attendants sell at a set price; unit costs and stock value stay with managers and owners. */
 export function withoutCosts(snapshot: ReturnType<typeof buildSnapshot>) {
-  const hideItemCost = <T extends ItemRecord>(item: T): T => ({ ...item, unitCostCents: 0 });
+  const hideItemCost = <T extends ItemRecord>(item: T): T => ({ ...item, unitCostCents: 0, pooledValueCents: null });
   const hideMovementCost = <T extends { unitCostCents: number | null; costTotalCents: number | null; item: ItemRecord | null }>(movement: T): T => ({
     ...movement,
     unitCostCents: null,

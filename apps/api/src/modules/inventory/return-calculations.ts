@@ -1,5 +1,7 @@
+import { originalReturnCost } from './prospective-costing.js';
 import { BadRequestException, ConflictException } from '@nestjs/common';
 export type OriginalPortion = {
+  costTotalCents?: number | null;
   movementId: string;
   itemId: string;
   quantity: number;
@@ -30,18 +32,22 @@ export function allocateReturn(portions: readonly OriginalPortion[], choices: re
         throw new ConflictException(
           'The original price or acquisition cost was not recorded. No historical cost can be invented',
         );
-      const refundCents = returnAmount(BigInt(quantity) * BigInt(part.unitPriceCents));
-      const cogsCents = returnAmount(BigInt(quantity) * BigInt(part.unitCostCents));
-      result.push({
+      const cogsCents = part.costTotalCents == null ? returnAmount(BigInt(quantity) * BigInt(part.unitCostCents))
+        : originalReturnCost(part.costTotalCents, part.quantity, part.returned, quantity);
+      const base = Math.floor(cogsCents / quantity), higher = cogsCents % quantity;
+      for (const [count, cost] of [[higher, base + 1], [quantity - higher, base]]) {
+        if (!count) continue;
+        result.push({
         originalMovementId: part.movementId,
         itemId: part.itemId,
-        quantity,
+        quantity: count!,
         unitPriceCents: part.unitPriceCents,
-        unitCostCents: part.unitCostCents,
-        refundCents,
-        cogsCents,
+        unitCostCents: cost!,
+        refundCents: returnAmount(BigInt(count!) * BigInt(part.unitPriceCents)),
+        cogsCents: count! * cost!,
         disposition: choice.disposition,
       });
+      }
       remaining -= quantity;
       if (!remaining) break;
     }

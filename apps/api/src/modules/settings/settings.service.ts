@@ -28,6 +28,7 @@ export class SettingsService {
       if (!name) throw new BadRequestException('Enter your business name');
       await tx.query(this.prisma.client.raw.sql`SELECT id FROM public.companies WHERE id=${companyId}::uuid FOR UPDATE`.returnsRow({id:'pg/uuid@1'}).build());
       const before = await this.companySettings(tx, companyId);
+      if (body.currency !== before.currency && (await tx.orm.public.InventoryItem.where({companyId}).all()).some(item => item.pooledValueCents !== null)) throw new ConflictException('Items with recorded carrying value require a currency review before changing currency');
       if (body.currency !== before.currency && await tx.orm.public.InventoryValuationCheckpoint.first({companyId})) throw new ConflictException('Exact-cost items require their verified currency. Close and review valuation before changing it');
       const contactEmail = body.contactEmail.trim().toLowerCase();
 

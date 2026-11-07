@@ -34,7 +34,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'0a5e3f164465a966bac6eb041f64856deb7b954fac9c6b6640394913ac060faf'>;
+  StorageHashBase<'da8b67a64c6f11c18e09a8670d0b3755bd08da63a0764b5e848b416e77b2e62e'>;
 export type ExecutionHash =
   ExecutionHashBase<'438fdd98bbe39b3fbbec169de7af55f8c94a9f97a8abd0580b38a7344ff205c8'>;
 export type ProfileHash =
@@ -317,6 +317,7 @@ export type FieldOutputTypes = {
       readonly reorderLevel: CodecTypes['pg/int4@1']['output'];
       readonly unitCostCents: CodecTypes['pg/int4@1']['output'];
       readonly sellingPriceCents: CodecTypes['pg/int4@1']['output'] | null;
+      readonly pooledValueCents: CodecTypes['pg/int4@1']['output'] | null;
       readonly isActive: CodecTypes['pg/bool@1']['output'];
       readonly createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
       readonly updatedAt: CodecTypes['pg/timestamptz-string@1']['output'];
@@ -462,6 +463,7 @@ export type FieldOutputTypes = {
       readonly cogsCents: CodecTypes['pg/int4@1']['output'];
       readonly pricingSnapshot: CodecTypes['pg/jsonb@1']['output'];
       readonly valuationCheckpointId: CodecTypes['pg/uuid@1']['output'] | null;
+      readonly prospectiveCost: CodecTypes['pg/bool@1']['output'];
     };
     readonly SaleReturn: {
       readonly id: CodecTypes['pg/uuid@1']['output'];
@@ -540,6 +542,8 @@ export type FieldOutputTypes = {
       readonly quantity: CodecTypes['pg/int4@1']['output'];
       readonly unitPriceCents: CodecTypes['pg/int4@1']['output'] | null;
       readonly unitCostCents: CodecTypes['pg/int4@1']['output'] | null;
+      readonly costTotalCents: CodecTypes['pg/int4@1']['output'] | null;
+      readonly correctsMovementId: CodecTypes['pg/uuid@1']['output'] | null;
       readonly supplierId: CodecTypes['pg/uuid@1']['output'] | null;
       readonly relatedMovementId: CodecTypes['pg/uuid@1']['output'] | null;
       readonly stockCountId: CodecTypes['pg/uuid@1']['output'] | null;
@@ -658,6 +662,7 @@ export type FieldInputTypes = {
       readonly reorderLevel: CodecTypes['pg/int4@1']['input'];
       readonly unitCostCents: CodecTypes['pg/int4@1']['input'];
       readonly sellingPriceCents: CodecTypes['pg/int4@1']['input'] | null;
+      readonly pooledValueCents: CodecTypes['pg/int4@1']['input'] | null;
       readonly isActive: CodecTypes['pg/bool@1']['input'];
       readonly createdAt: CodecTypes['pg/timestamptz-string@1']['input'];
       readonly updatedAt: CodecTypes['pg/timestamptz-string@1']['input'];
@@ -803,6 +808,7 @@ export type FieldInputTypes = {
       readonly cogsCents: CodecTypes['pg/int4@1']['input'];
       readonly pricingSnapshot: CodecTypes['pg/jsonb@1']['input'];
       readonly valuationCheckpointId: CodecTypes['pg/uuid@1']['input'] | null;
+      readonly prospectiveCost: CodecTypes['pg/bool@1']['input'];
     };
     readonly SaleReturn: {
       readonly id: CodecTypes['pg/uuid@1']['input'];
@@ -881,6 +887,8 @@ export type FieldInputTypes = {
       readonly quantity: CodecTypes['pg/int4@1']['input'];
       readonly unitPriceCents: CodecTypes['pg/int4@1']['input'] | null;
       readonly unitCostCents: CodecTypes['pg/int4@1']['input'] | null;
+      readonly costTotalCents: CodecTypes['pg/int4@1']['input'] | null;
+      readonly correctsMovementId: CodecTypes['pg/uuid@1']['input'] | null;
       readonly supplierId: CodecTypes['pg/uuid@1']['input'] | null;
       readonly relatedMovementId: CodecTypes['pg/uuid@1']['input'] | null;
       readonly stockCountId: CodecTypes['pg/uuid@1']['input'] | null;
@@ -997,6 +1005,7 @@ export type StorageColumnTypes = {
       readonly id: CodecTypes['pg/uuid@1']['output'];
       readonly is_active: CodecTypes['pg/bool@1']['output'];
       readonly name: Varchar<120>;
+      readonly pooled_value_cents: CodecTypes['pg/int4@1']['output'] | null;
       readonly reorder_level: CodecTypes['pg/int4@1']['output'];
       readonly selling_price_cents: CodecTypes['pg/int4@1']['output'] | null;
       readonly sku: Varchar<40>;
@@ -1123,6 +1132,7 @@ export type StorageColumnTypes = {
       readonly item_name: Varchar<120>;
       readonly position: CodecTypes['pg/int4@1']['output'];
       readonly pricing_snapshot: CodecTypes['pg/jsonb@1']['output'];
+      readonly prospective_cost: CodecTypes['pg/bool@1']['output'];
       readonly quantity: CodecTypes['pg/int4@1']['output'];
       readonly retail_price_cents: CodecTypes['pg/int4@1']['output'];
       readonly sale_id: CodecTypes['pg/uuid@1']['output'];
@@ -1207,6 +1217,8 @@ export type StorageColumnTypes = {
     };
     readonly stock_movements: {
       readonly company_id: CodecTypes['pg/uuid@1']['output'];
+      readonly corrects_movement_id: CodecTypes['pg/uuid@1']['output'] | null;
+      readonly cost_total_cents: CodecTypes['pg/int4@1']['output'] | null;
       readonly created_at: CodecTypes['pg/timestamptz-string@1']['output'];
       readonly destination_location_id: CodecTypes['pg/uuid@1']['output'] | null;
       readonly id: CodecTypes['pg/uuid@1']['output'];
@@ -1340,6 +1352,7 @@ export type StorageColumnInputTypes = {
       readonly id: CodecTypes['pg/uuid@1']['input'];
       readonly is_active: CodecTypes['pg/bool@1']['input'];
       readonly name: CodecTypes['sql/varchar@1']['input'];
+      readonly pooled_value_cents: CodecTypes['pg/int4@1']['input'] | null;
       readonly reorder_level: CodecTypes['pg/int4@1']['input'];
       readonly selling_price_cents: CodecTypes['pg/int4@1']['input'] | null;
       readonly sku: CodecTypes['sql/varchar@1']['input'];
@@ -1466,6 +1479,7 @@ export type StorageColumnInputTypes = {
       readonly item_name: CodecTypes['sql/varchar@1']['input'];
       readonly position: CodecTypes['pg/int4@1']['input'];
       readonly pricing_snapshot: CodecTypes['pg/jsonb@1']['input'];
+      readonly prospective_cost: CodecTypes['pg/bool@1']['input'];
       readonly quantity: CodecTypes['pg/int4@1']['input'];
       readonly retail_price_cents: CodecTypes['pg/int4@1']['input'];
       readonly sale_id: CodecTypes['pg/uuid@1']['input'];
@@ -1550,6 +1564,8 @@ export type StorageColumnInputTypes = {
     };
     readonly stock_movements: {
       readonly company_id: CodecTypes['pg/uuid@1']['input'];
+      readonly corrects_movement_id: CodecTypes['pg/uuid@1']['input'] | null;
+      readonly cost_total_cents: CodecTypes['pg/int4@1']['input'] | null;
       readonly created_at: CodecTypes['pg/timestamptz-string@1']['input'];
       readonly destination_location_id: CodecTypes['pg/uuid@1']['input'] | null;
       readonly id: CodecTypes['pg/uuid@1']['input'];
@@ -1680,6 +1696,7 @@ export namespace Models {
     reorderLevel: CodecTypes['pg/int4@1']['output'];
     unitCostCents: CodecTypes['pg/int4@1']['output'];
     sellingPriceCents: CodecTypes['pg/int4@1']['output'] | null;
+    pooledValueCents: CodecTypes['pg/int4@1']['output'] | null;
     isActive: CodecTypes['pg/bool@1']['output'];
     createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
     updatedAt: CodecTypes['pg/timestamptz-string@1']['output'];
@@ -1796,6 +1813,7 @@ export namespace Models {
     cogsCents: CodecTypes['pg/int4@1']['output'];
     pricingSnapshot: CodecTypes['pg/jsonb@1']['output'];
     valuationCheckpointId: CodecTypes['pg/uuid@1']['output'] | null;
+    prospectiveCost: CodecTypes['pg/bool@1']['output'];
     item: public_InventoryItem;
     sale: public_Sale;
     valuationCheckpoint: public_InventoryValuationCheckpoint | null;
@@ -1918,6 +1936,8 @@ export namespace Models {
     quantity: CodecTypes['pg/int4@1']['output'];
     unitPriceCents: CodecTypes['pg/int4@1']['output'] | null;
     unitCostCents: CodecTypes['pg/int4@1']['output'] | null;
+    costTotalCents: CodecTypes['pg/int4@1']['output'] | null;
+    correctsMovementId: CodecTypes['pg/uuid@1']['output'] | null;
     supplierId: CodecTypes['pg/uuid@1']['output'] | null;
     relatedMovementId: CodecTypes['pg/uuid@1']['output'] | null;
     stockCountId: CodecTypes['pg/uuid@1']['output'] | null;
@@ -1925,6 +1945,7 @@ export namespace Models {
     reference: Varchar<80> | null;
     note: Varchar<500> | null;
     createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
+    correctedMovement: public_StockMovement | null;
     destination: public_Location | null;
     item: public_InventoryItem;
     location: public_Location;
@@ -1932,7 +1953,13 @@ export namespace Models {
     stockCount: public_StockCount | null;
     supplier: public_Supplier | null;
     readonly [RelationKeys]?:
-      'destination' | 'item' | 'location' | 'relatedMovement' | 'stockCount' | 'supplier';
+      | 'correctedMovement'
+      | 'destination'
+      | 'item'
+      | 'location'
+      | 'relatedMovement'
+      | 'stockCount'
+      | 'supplier';
   };
   export type public_StockCount = {
     id: CodecTypes['pg/uuid@1']['output'];
@@ -2673,6 +2700,11 @@ type ContractBase = Omit<
                   };
                 };
                 readonly selling_price_cents: {
+                  readonly nativeType: 'int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: true;
+                };
+                readonly pooled_value_cents: {
                   readonly nativeType: 'int4';
                   readonly codecId: 'pg/int4@1';
                   readonly nullable: true;
@@ -3756,6 +3788,15 @@ type ContractBase = Omit<
                   readonly codecId: 'pg/uuid@1';
                   readonly nullable: true;
                 };
+                readonly prospective_cost: {
+                  readonly nativeType: 'bool';
+                  readonly codecId: 'pg/bool@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/bool@1', false>;
+                  };
+                };
               };
               primaryKey: { readonly columns: readonly ['id'] };
               uniques: readonly [
@@ -4584,6 +4625,16 @@ type ContractBase = Omit<
                   readonly codecId: 'pg/int4@1';
                   readonly nullable: true;
                 };
+                readonly cost_total_cents: {
+                  readonly nativeType: 'int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: true;
+                };
+                readonly corrects_movement_id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: true;
+                };
                 readonly supplier_id: {
                   readonly nativeType: 'uuid';
                   readonly codecId: 'pg/uuid@1';
@@ -4624,7 +4675,10 @@ type ContractBase = Omit<
                 };
               };
               primaryKey: { readonly columns: readonly ['id'] };
-              uniques: readonly [{ readonly columns: readonly ['company_id', 'id'] }];
+              uniques: readonly [
+                { readonly columns: readonly ['company_id', 'id'] },
+                { readonly columns: readonly ['company_id', 'corrects_movement_id'] },
+              ];
               indexes: readonly [
                 {
                   readonly name: 'stock_movements_company_id_idx_1303a718';
@@ -4757,6 +4811,18 @@ type ContractBase = Omit<
                   readonly target: {
                     readonly namespaceId: 'public' & NamespaceId;
                     readonly tableName: 'suppliers';
+                    readonly columns: readonly ['company_id', 'id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'stock_movements';
+                    readonly columns: readonly ['company_id', 'corrects_movement_id'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'stock_movements';
                     readonly columns: readonly ['company_id', 'id'];
                   };
                 },
@@ -5706,6 +5772,10 @@ type ContractBase = Omit<
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
               };
+              readonly pooledValueCents: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
               readonly isActive: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
@@ -5752,6 +5822,7 @@ type ContractBase = Omit<
                 readonly reorderLevel: { readonly column: 'reorder_level' };
                 readonly unitCostCents: { readonly column: 'unit_cost_cents' };
                 readonly sellingPriceCents: { readonly column: 'selling_price_cents' };
+                readonly pooledValueCents: { readonly column: 'pooled_value_cents' };
                 readonly isActive: { readonly column: 'is_active' };
                 readonly createdAt: { readonly column: 'created_at' };
                 readonly updatedAt: { readonly column: 'updated_at' };
@@ -6825,6 +6896,10 @@ type ContractBase = Omit<
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
               };
+              readonly prospectiveCost: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
+              };
             };
             readonly relations: {
               readonly item: {
@@ -6883,6 +6958,7 @@ type ContractBase = Omit<
                 readonly cogsCents: { readonly column: 'cogs_cents' };
                 readonly pricingSnapshot: { readonly column: 'pricing_snapshot' };
                 readonly valuationCheckpointId: { readonly column: 'valuation_checkpoint_id' };
+                readonly prospectiveCost: { readonly column: 'prospective_cost' };
               };
             };
           };
@@ -7439,6 +7515,14 @@ type ContractBase = Omit<
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
               };
+              readonly costTotalCents: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly correctsMovementId: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
               readonly supplierId: {
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
@@ -7480,6 +7564,18 @@ type ContractBase = Omit<
               };
             };
             readonly relations: {
+              readonly correctedMovement: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'StockMovement';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: true;
+                readonly on: {
+                  readonly localFields: readonly ['companyId', 'correctsMovementId'];
+                  readonly targetFields: readonly ['companyId', 'id'];
+                };
+              };
               readonly destination: {
                 readonly to: {
                   readonly namespace: 'public' & NamespaceId;
@@ -7566,6 +7662,8 @@ type ContractBase = Omit<
                 readonly quantity: { readonly column: 'quantity' };
                 readonly unitPriceCents: { readonly column: 'unit_price_cents' };
                 readonly unitCostCents: { readonly column: 'unit_cost_cents' };
+                readonly costTotalCents: { readonly column: 'cost_total_cents' };
+                readonly correctsMovementId: { readonly column: 'corrects_movement_id' };
                 readonly supplierId: { readonly column: 'supplier_id' };
                 readonly relatedMovementId: { readonly column: 'related_movement_id' };
                 readonly stockCountId: { readonly column: 'stock_count_id' };

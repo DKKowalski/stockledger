@@ -114,6 +114,7 @@ model InventoryItem {
   reorderLevel      Int                        @default(0) @map("reorder_level")
   unitCostCents     Int                        @default(0) @map("unit_cost_cents")
   sellingPriceCents Int?                       @map("selling_price_cents")
+  pooledValueCents   Int?                       @map("pooled_value_cents")
   isActive          Boolean                    @default(true) @map("is_active")
   createdAt         TimestamptzString          @default(now()) @map("created_at")
   updatedAt         temporal.updatedAtString() @map("updated_at")
@@ -124,6 +125,7 @@ model InventoryItem {
   @@unique([companyId, id])
   @@check(expression: "reorder_level >= 0", name: "inventory_item_reorder_level_nonnegative")
   @@check(expression: "unit_cost_cents >= 0", name: "inventory_item_unit_cost_nonnegative")
+  @@check(expression: "pooled_value_cents IS NULL OR pooled_value_cents >= 0", name: "inventory_item_pooled_value_nonnegative")
   @@check(expression: "selling_price_cents IS NULL OR selling_price_cents >= 0", name: "inventory_item_selling_price_nonnegative")
   @@index([companyId])
   @@rls
@@ -286,6 +288,7 @@ model SaleLine {
   cogsCents               Int               @map("cogs_cents")
   pricingSnapshot         Jsonb             @map("pricing_snapshot")
   valuationCheckpointId Uuid? @map("valuation_checkpoint_id")
+  prospectiveCost Boolean @default(false) @map("prospective_cost")
 
   valuationCheckpoint InventoryValuationCheckpoint? @relation(fields:[companyId, itemId, valuationCheckpointId], references:[companyId, itemId, id], onDelete: Restrict, onUpdate: Cascade)
 
@@ -295,7 +298,7 @@ model SaleLine {
   @@unique([companyId, id])
   @@unique([companyId, saleId, itemId])
   @@unique([companyId, saleId, position])
-  @@check(expression: "position >= 0 AND quantity > 0 AND retail_price_cents >= 0 AND unit_cost_cents >= 0 AND gross_sales_cents::bigint = quantity::bigint * retail_price_cents AND cogs_cents >= 0 AND (valuation_checkpoint_id IS NOT NULL OR cogs_cents::bigint = quantity::bigint * unit_cost_cents) AND total_cents >= 0 AND automatic_discount_cents >= 0 AND gross_sales_cents::bigint - automatic_discount_cents = total_cents", name: "sale_line_amounts_valid")
+  @@check(expression: "position >= 0 AND quantity > 0 AND retail_price_cents >= 0 AND unit_cost_cents >= 0 AND gross_sales_cents::bigint = quantity::bigint * retail_price_cents AND cogs_cents >= 0 AND (valuation_checkpoint_id IS NOT NULL OR prospective_cost OR cogs_cents::bigint = quantity::bigint * unit_cost_cents) AND total_cents >= 0 AND automatic_discount_cents >= 0 AND gross_sales_cents::bigint - automatic_discount_cents = total_cents", name: "sale_line_amounts_valid")
   @@index([companyId, itemId])
   @@rls
   @@map("sale_lines")
@@ -447,6 +450,8 @@ model StockMovement {
   quantity              Int
   unitPriceCents        Int?              @map("unit_price_cents")
   unitCostCents         Int?              @map("unit_cost_cents")
+  costTotalCents        Int?              @map("cost_total_cents")
+  correctsMovementId    Uuid?             @map("corrects_movement_id")
   supplierId            Uuid?             @map("supplier_id")
   relatedMovementId     Uuid?             @map("related_movement_id")
   stockCountId          Uuid?             @map("stock_count_id")
@@ -459,10 +464,14 @@ model StockMovement {
   location              Location          @relation("movement_source", fields:[companyId, locationId], references:[companyId, id], onDelete: Restrict, onUpdate: Cascade)
   destination           Location?         @relation("movement_destination", fields:[companyId, destinationLocationId], references:[companyId, id], onDelete: Restrict, onUpdate: Cascade)
   supplier              Supplier?         @relation(fields:[companyId, supplierId], references:[companyId, id], onDelete: Restrict, onUpdate: Cascade)
+  correctedMovement     StockMovement?    @relation("movement_correction", fields:[companyId, correctsMovementId], references:[companyId, id], onDelete: Restrict, onUpdate: Cascade)
   relatedMovement       StockMovement?    @relation("movement_relation", fields:[companyId, relatedMovementId], references:[companyId, id], onDelete: Restrict, onUpdate: Cascade)
   stockCount            StockCount?       @relation(fields:[companyId, stockCountId], references:[companyId, id], onDelete: Restrict, onUpdate: Cascade)
 
   @@unique([companyId, id])
+  @@unique([companyId, correctsMovementId])
+  @@check(expression: "cost_total_cents IS NULL OR (cost_total_cents >= 0 AND unit_cost_cents IS NOT NULL)", name: "stock_movement_total_cost_valid")
+  @@check(expression: "corrects_movement_id IS NULL OR (type = 'return_out' AND unit_price_cents IS NULL AND unit_cost_cents IS NOT NULL AND corrects_movement_id <> id)", name: "stock_movement_correction_valid")
   @@check(expression: "quantity > 0", name: "stock_movement_quantity_positive")
   @@check(expression: "unit_price_cents IS NULL OR (type IN ('sale', 'return_in') AND unit_price_cents >= 0)", name: "stock_movement_sale_price_valid")
   @@check(expression: "unit_cost_cents IS NULL OR unit_cost_cents >= 0", name: "stock_movement_unit_cost_nonnegative")

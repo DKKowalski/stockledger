@@ -1,0 +1,490 @@
+[
+  {
+    "id": "prospective_corrections.bounded_locks",
+    "label": "Bound correction schema lock waits",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres"
+    },
+    "precheck": [
+      {
+        "description": "Migration session needs bounded waits",
+        "sql": "SELECT current_setting('lock_timeout') <> '5s' OR current_setting('statement_timeout') <> '1min' AS result"
+      }
+    ],
+    "execute": [
+      {
+        "description": "Limit lock waits and statement duration",
+        "sql": "SELECT set_config('lock_timeout','5s',false), set_config('statement_timeout','1min',false)"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "Migration waits are bounded",
+        "sql": "SELECT current_setting('lock_timeout') = '5s' AND current_setting('statement_timeout') = '1min' AS result"
+      }
+    ]
+  },
+  {
+    "id": "column.public.inventory_items.pooled_value_cents",
+    "label": "Add column \"pooled_value_cents\" to \"inventory_items\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "pooled_value_cents",
+        "table": "inventory_items"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"pooled_value_cents\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "inventory_items",
+          "pooled_value_cents"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"pooled_value_cents\"",
+        "sql": "ALTER TABLE \"public\".\"inventory_items\" ADD COLUMN \"pooled_value_cents\" int4"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"pooled_value_cents\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "inventory_items",
+          "pooled_value_cents"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.sale_lines.prospective_cost",
+    "label": "Add column \"prospective_cost\" to \"sale_lines\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "prospective_cost",
+        "table": "sale_lines"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"prospective_cost\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "sale_lines",
+          "prospective_cost"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"prospective_cost\"",
+        "sql": "ALTER TABLE \"public\".\"sale_lines\" ADD COLUMN \"prospective_cost\" bool DEFAULT false NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"prospective_cost\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "sale_lines",
+          "prospective_cost"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.stock_movements.corrects_movement_id",
+    "label": "Add column \"corrects_movement_id\" to \"stock_movements\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "corrects_movement_id",
+        "table": "stock_movements"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"corrects_movement_id\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "stock_movements",
+          "corrects_movement_id"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"corrects_movement_id\"",
+        "sql": "ALTER TABLE \"public\".\"stock_movements\" ADD COLUMN \"corrects_movement_id\" uuid"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"corrects_movement_id\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "stock_movements",
+          "corrects_movement_id"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.stock_movements.cost_total_cents",
+    "label": "Add column \"cost_total_cents\" to \"stock_movements\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "cost_total_cents",
+        "table": "stock_movements"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"cost_total_cents\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "stock_movements",
+          "cost_total_cents"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"cost_total_cents\"",
+        "sql": "ALTER TABLE \"public\".\"stock_movements\" ADD COLUMN \"cost_total_cents\" int4"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"cost_total_cents\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "stock_movements",
+          "cost_total_cents"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "checkConstraint.inventory_items.inventory_item_pooled_value_nonnegative_4fdb048f",
+    "label": "Add check constraint \"inventory_item_pooled_value_nonnegative_4fdb048f\" on \"inventory_items\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "inventory_item_pooled_value_nonnegative_4fdb048f",
+        "table": "inventory_items"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"inventory_item_pooled_value_nonnegative_4fdb048f\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "inventory_item_pooled_value_nonnegative_4fdb048f",
+          "public",
+          "\"public\".\"inventory_items\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add check constraint \"inventory_item_pooled_value_nonnegative_4fdb048f\"",
+        "sql": "ALTER TABLE \"public\".\"inventory_items\" ADD CONSTRAINT \"inventory_item_pooled_value_nonnegative_4fdb048f\" CHECK (pooled_value_cents IS NULL OR pooled_value_cents >= 0)"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"inventory_item_pooled_value_nonnegative_4fdb048f\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "inventory_item_pooled_value_nonnegative_4fdb048f",
+          "public",
+          "\"public\".\"inventory_items\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "checkConstraint.sale_lines.sale_line_amounts_valid_72ec89c8",
+    "label": "Add check constraint \"sale_line_amounts_valid_72ec89c8\" on \"sale_lines\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "sale_line_amounts_valid_72ec89c8",
+        "table": "sale_lines"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"sale_line_amounts_valid_72ec89c8\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_line_amounts_valid_72ec89c8",
+          "public",
+          "\"public\".\"sale_lines\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add check constraint \"sale_line_amounts_valid_72ec89c8\"",
+        "sql": "ALTER TABLE \"public\".\"sale_lines\" ADD CONSTRAINT \"sale_line_amounts_valid_72ec89c8\" CHECK (position >= 0 AND quantity > 0 AND retail_price_cents >= 0 AND unit_cost_cents >= 0 AND gross_sales_cents::bigint = quantity::bigint * retail_price_cents AND cogs_cents >= 0 AND (valuation_checkpoint_id IS NOT NULL OR prospective_cost OR cogs_cents::bigint = quantity::bigint * unit_cost_cents) AND total_cents >= 0 AND automatic_discount_cents >= 0 AND gross_sales_cents::bigint - automatic_discount_cents = total_cents)"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"sale_line_amounts_valid_72ec89c8\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_line_amounts_valid_72ec89c8",
+          "public",
+          "\"public\".\"sale_lines\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "checkConstraint.stock_movements.stock_movement_correction_valid_9a8aae7f",
+    "label": "Add check constraint \"stock_movement_correction_valid_9a8aae7f\" on \"stock_movements\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "stock_movement_correction_valid_9a8aae7f",
+        "table": "stock_movements"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"stock_movement_correction_valid_9a8aae7f\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "stock_movement_correction_valid_9a8aae7f",
+          "public",
+          "\"public\".\"stock_movements\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add check constraint \"stock_movement_correction_valid_9a8aae7f\"",
+        "sql": "ALTER TABLE \"public\".\"stock_movements\" ADD CONSTRAINT \"stock_movement_correction_valid_9a8aae7f\" CHECK (corrects_movement_id IS NULL OR (type = 'return_out' AND unit_price_cents IS NULL AND unit_cost_cents IS NOT NULL AND corrects_movement_id <> id))"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"stock_movement_correction_valid_9a8aae7f\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "stock_movement_correction_valid_9a8aae7f",
+          "public",
+          "\"public\".\"stock_movements\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "checkConstraint.stock_movements.stock_movement_total_cost_valid_e94aa0d8",
+    "label": "Add check constraint \"stock_movement_total_cost_valid_e94aa0d8\" on \"stock_movements\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "stock_movement_total_cost_valid_e94aa0d8",
+        "table": "stock_movements"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"stock_movement_total_cost_valid_e94aa0d8\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "stock_movement_total_cost_valid_e94aa0d8",
+          "public",
+          "\"public\".\"stock_movements\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add check constraint \"stock_movement_total_cost_valid_e94aa0d8\"",
+        "sql": "ALTER TABLE \"public\".\"stock_movements\" ADD CONSTRAINT \"stock_movement_total_cost_valid_e94aa0d8\" CHECK (cost_total_cents IS NULL OR (cost_total_cents >= 0 AND unit_cost_cents IS NOT NULL))"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"stock_movement_total_cost_valid_e94aa0d8\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "stock_movement_total_cost_valid_e94aa0d8",
+          "public",
+          "\"public\".\"stock_movements\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.stock_movements.stock_movements_company_id_corrects_movement_id_key",
+    "label": "Add unique constraint on \"stock_movements\" (company_id, corrects_movement_id)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "stock_movements_company_id_corrects_movement_id_key",
+        "table": "stock_movements"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"stock_movements_company_id_corrects_movement_id_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "stock_movements_company_id_corrects_movement_id_key",
+          "public",
+          "\"public\".\"stock_movements\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"stock_movements_company_id_corrects_movement_id_key\"",
+        "sql": "ALTER TABLE \"public\".\"stock_movements\" ADD CONSTRAINT \"stock_movements_company_id_corrects_movement_id_key\" UNIQUE (\"company_id\", \"corrects_movement_id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"stock_movements_company_id_corrects_movement_id_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "stock_movements_company_id_corrects_movement_id_key",
+          "public",
+          "\"public\".\"stock_movements\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.stock_movements.stock_movements_company_id_corrects_movement_id_fkey",
+    "label": "Add foreign key \"stock_movements_company_id_corrects_movement_id_fkey\" on \"stock_movements\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "stock_movements_company_id_corrects_movement_id_fkey",
+        "table": "stock_movements"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"stock_movements_company_id_corrects_movement_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "stock_movements_company_id_corrects_movement_id_fkey",
+          "public",
+          "\"public\".\"stock_movements\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"stock_movements_company_id_corrects_movement_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"stock_movements\"\nADD CONSTRAINT \"stock_movements_company_id_corrects_movement_id_fkey\"\nFOREIGN KEY (\"company_id\", \"corrects_movement_id\")\nREFERENCES \"public\".\"stock_movements\" (\"company_id\", \"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"stock_movements_company_id_corrects_movement_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "stock_movements_company_id_corrects_movement_id_fkey",
+          "public",
+          "\"public\".\"stock_movements\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropCheckConstraint.sale_lines.sale_line_amounts_valid_491d1ffe",
+    "label": "Drop check constraint \"sale_line_amounts_valid_491d1ffe\" on \"sale_lines\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "sale_line_amounts_valid_491d1ffe",
+        "table": "sale_lines"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"sale_line_amounts_valid_491d1ffe\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_line_amounts_valid_491d1ffe",
+          "public",
+          "\"public\".\"sale_lines\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop check constraint \"sale_line_amounts_valid_491d1ffe\"",
+        "sql": "ALTER TABLE \"public\".\"sale_lines\" DROP CONSTRAINT \"sale_line_amounts_valid_491d1ffe\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"sale_line_amounts_valid_491d1ffe\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_line_amounts_valid_491d1ffe",
+          "public",
+          "\"public\".\"sale_lines\""
+        ]
+      }
+    ]
+  }
+]

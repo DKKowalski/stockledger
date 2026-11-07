@@ -995,6 +995,13 @@
                   }
                 }
               },
+              "pooledValueCents": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
               "reorderLevel": {
                 "nullable": false,
                 "type": {
@@ -1081,6 +1088,9 @@
                 },
                 "name": {
                   "column": "name"
+                },
+                "pooledValueCents": {
+                  "column": "pooled_value_cents"
                 },
                 "reorderLevel": {
                   "column": "reorder_level"
@@ -2764,6 +2774,13 @@
                   "kind": "scalar"
                 }
               },
+              "prospectiveCost": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/bool@1",
+                  "kind": "scalar"
+                }
+              },
               "quantity": {
                 "nullable": false,
                 "type": {
@@ -2909,6 +2926,9 @@
                 },
                 "pricingSnapshot": {
                   "column": "pricing_snapshot"
+                },
+                "prospectiveCost": {
+                  "column": "prospective_cost"
                 },
                 "quantity": {
                   "column": "quantity"
@@ -3795,6 +3815,20 @@
                   "kind": "scalar"
                 }
               },
+              "correctsMovementId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "costTotalCents": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
               "createdAt": {
                 "nullable": false,
                 "type": {
@@ -3914,6 +3948,24 @@
               }
             },
             "relations": {
+              "correctedMovement": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "companyId",
+                    "correctsMovementId"
+                  ],
+                  "targetFields": [
+                    "companyId",
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "StockMovement",
+                  "namespace": "public"
+                }
+              },
               "destination": {
                 "cardinality": "N:1",
                 "nullable": true,
@@ -4027,6 +4079,12 @@
               "fields": {
                 "companyId": {
                   "column": "company_id"
+                },
+                "correctsMovementId": {
+                  "column": "corrects_movement_id"
+                },
+                "costTotalCents": {
+                  "column": "cost_total_cents"
                 },
                 "createdAt": {
                   "column": "created_at"
@@ -6095,6 +6153,11 @@
             "inventory_items": {
               "checks": [
                 {
+                  "expression": "pooled_value_cents IS NULL OR pooled_value_cents >= 0",
+                  "name": "inventory_item_pooled_value_nonnegative_4fdb048f",
+                  "prefix": "inventory_item_pooled_value_nonnegative"
+                },
+                {
                   "expression": "reorder_level >= 0",
                   "name": "inventory_item_reorder_level_nonnegative_e896746f",
                   "prefix": "inventory_item_reorder_level_nonnegative"
@@ -6154,6 +6217,11 @@
                   "typeParams": {
                     "length": 120
                   }
+                },
+                "pooled_value_cents": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": true
                 },
                 "reorder_level": {
                   "codecId": "pg/int4@1",
@@ -7634,8 +7702,8 @@
             "sale_lines": {
               "checks": [
                 {
-                  "expression": "position >= 0 AND quantity > 0 AND retail_price_cents >= 0 AND unit_cost_cents >= 0 AND gross_sales_cents::bigint = quantity::bigint * retail_price_cents AND cogs_cents >= 0 AND (valuation_checkpoint_id IS NOT NULL OR cogs_cents::bigint = quantity::bigint * unit_cost_cents) AND total_cents >= 0 AND automatic_discount_cents >= 0 AND gross_sales_cents::bigint - automatic_discount_cents = total_cents",
-                  "name": "sale_line_amounts_valid_491d1ffe",
+                  "expression": "position >= 0 AND quantity > 0 AND retail_price_cents >= 0 AND unit_cost_cents >= 0 AND gross_sales_cents::bigint = quantity::bigint * retail_price_cents AND cogs_cents >= 0 AND (valuation_checkpoint_id IS NOT NULL OR prospective_cost OR cogs_cents::bigint = quantity::bigint * unit_cost_cents) AND total_cents >= 0 AND automatic_discount_cents >= 0 AND gross_sales_cents::bigint - automatic_discount_cents = total_cents",
+                  "name": "sale_line_amounts_valid_72ec89c8",
                   "prefix": "sale_line_amounts_valid"
                 }
               ],
@@ -7702,6 +7770,15 @@
                 "pricing_snapshot": {
                   "codecId": "pg/jsonb@1",
                   "nativeType": "jsonb",
+                  "nullable": false
+                },
+                "prospective_cost": {
+                  "codecId": "pg/bool@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": false
+                  },
+                  "nativeType": "bool",
                   "nullable": false
                 },
                 "quantity": {
@@ -8925,6 +9002,11 @@
             "stock_movements": {
               "checks": [
                 {
+                  "expression": "corrects_movement_id IS NULL OR (type = 'return_out' AND unit_price_cents IS NULL AND unit_cost_cents IS NOT NULL AND corrects_movement_id <> id)",
+                  "name": "stock_movement_correction_valid_9a8aae7f",
+                  "prefix": "stock_movement_correction_valid"
+                },
+                {
                   "expression": "stock_count_id IS NULL OR type IN ('adjustment_in', 'adjustment_out')",
                   "name": "stock_movement_count_adjustment_only_dc5031ec",
                   "prefix": "stock_movement_count_adjustment_only"
@@ -8955,6 +9037,11 @@
                   "prefix": "stock_movement_supplier_purchase_only"
                 },
                 {
+                  "expression": "cost_total_cents IS NULL OR (cost_total_cents >= 0 AND unit_cost_cents IS NOT NULL)",
+                  "name": "stock_movement_total_cost_valid_e94aa0d8",
+                  "prefix": "stock_movement_total_cost_valid"
+                },
+                {
                   "expression": "unit_cost_cents IS NULL OR unit_cost_cents >= 0",
                   "name": "stock_movement_unit_cost_nonnegative_e010375b",
                   "prefix": "stock_movement_unit_cost_nonnegative"
@@ -8970,6 +9057,16 @@
                   "codecId": "pg/uuid@1",
                   "nativeType": "uuid",
                   "nullable": false
+                },
+                "corrects_movement_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": true
+                },
+                "cost_total_cents": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": true
                 },
                 "created_at": {
                   "codecId": "pg/timestamptz-string@1",
@@ -9150,6 +9247,26 @@
                   "source": {
                     "columns": [
                       "company_id",
+                      "corrects_movement_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "stock_movements"
+                  },
+                  "target": {
+                    "columns": [
+                      "company_id",
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "stock_movements"
+                  }
+                },
+                {
+                  "onDelete": "restrict",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "company_id",
                       "related_movement_id"
                     ],
                     "namespaceId": "public",
@@ -9315,6 +9432,12 @@
                   "columns": [
                     "company_id",
                     "id"
+                  ]
+                },
+                {
+                  "columns": [
+                    "company_id",
+                    "corrects_movement_id"
                   ]
                 }
               ]
@@ -9707,7 +9830,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "0a5e3f164465a966bac6eb041f64856deb7b954fac9c6b6640394913ac060faf"
+    "storageHash": "da8b67a64c6f11c18e09a8670d0b3755bd08da63a0764b5e848b416e77b2e62e"
   },
   "execution": {
     "executionHash": "438fdd98bbe39b3fbbec169de7af55f8c94a9f97a8abd0580b38a7344ff205c8",

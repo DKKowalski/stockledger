@@ -98,7 +98,7 @@ try {
       return rows;
     };
     const baseline = await allRows();
-    migrate();
+    migrate(['--to', '0a5e3f164465a966bac6eb041f64856deb7b954fac9c6b6640394913ac060faf']);
     assert.deepEqual(await allRows(), baseline, 'Retail receipt upgrade changed existing rows from 770df3a');
     assert.equal((await client.query('SELECT count(*)::int AS n FROM retail_sale_requests')).rows[0].n, 0);
     assert.equal((await client.query("SELECT relrowsecurity FROM pg_class WHERE oid='public.retail_sale_requests'::regclass")).rows[0].relrowsecurity, true);
@@ -106,6 +106,25 @@ try {
     assert.equal((await client.query("SELECT has_table_privilege('stockledger_app','retail_sale_requests','SELECT,INSERT,DELETE') AND NOT has_table_privilege('stockledger_app','retail_sale_requests','UPDATE') AS ok")).rows[0].ok, true);
     console.log(`770df3a upgrade preserved all rows in ${tables.length} tenant tables; retail receipt RLS and append-only grants verified.`);
     console.log('Populated upgrade preserved old movements, null costs, completed sales, verified checkpoints and exact valuation entries.');
+    tables.push('retail_sale_requests');
+    await client.query("INSERT INTO retail_sale_requests(id,company_id,created_by_user_id,idempotency_key,location_id,request_hash,result) VALUES ($1,$2,$3,$4,$5,$6,'{\"id\":\"historical-response\"}')", [randomUUID(),tenant,actor,randomUUID(),place,'a'.repeat(64)]);
+    const beforeF01 = await allRows();
+    const started = performance.now();
+    migrate();
+    const afterF01 = await allRows();
+    for (const table of tables) {
+      const previous = beforeF01[table];
+      const projected = afterF01[table].map(row => {
+        const original = previous.find(old => old.id === row.id);
+        return original ? Object.fromEntries(Object.keys(original).map(key => [key,row[key]])) : row;
+      });
+      assert.deepEqual(projected, previous, `F01 migration changed existing fields in ${table}`);
+    }
+    assert.equal((await client.query('SELECT count(*)::int n FROM inventory_items WHERE pooled_value_cents IS NOT NULL')).rows[0].n,0);
+    assert.equal((await client.query('SELECT count(*)::int n FROM stock_movements WHERE cost_total_cents IS NOT NULL OR corrects_movement_id IS NOT NULL')).rows[0].n,0);
+    assert.equal((await client.query('SELECT count(*)::int n FROM sale_lines WHERE prospective_cost')).rows[0].n,0);
+    console.log(`F01 populated upgrade preserved all existing fields across ${tables.length} tables in ${Math.round(performance.now()-started)}ms; new pool/correction/total columns are null, sale-line marker false.`);
+
   } finally {
     await client.end();
   }

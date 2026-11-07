@@ -1,3 +1,4 @@
+import { recordedPool, saveRecordedPool } from './prospective-costing.js';
 import { averageCost, issueValue, splitCostComponents } from './exact-costing.js';
 import { reconcileValuation, valuationState } from './valuation-ledger.js';
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
@@ -92,9 +93,17 @@ export class SaleCompletionService {
         if (valuation.checkpoint.currency !== company.currency || valuation.checkpoint.baseUnit !== item.unit) throw new ConflictException('The verified cost currency or unit changed');
         await reconcileValuation(tx,companyId,item.id,valuation);
       }
-      const cogsCents = valuation ? issueValue(valuation.pool,line.quantity).costCents : amount(item.unitCostCents * line.quantity);
+      let prospective = null;
+      if (!valuation && item.pooledValueCents != null) {
+        const [stocks, movements] = await Promise.all([
+          tx.orm.public.LocationStock.where({ companyId, itemId: item.id }).all(),
+          tx.orm.public.StockMovement.where({ companyId, itemId: item.id }).all(),
+        ]);
+        prospective = recordedPool(item, stocks, movements as MovementRecord[]);
+      }
+      const cogsCents = prospective ? issueValue(prospective, line.quantity).costCents : valuation ? issueValue(valuation.pool,line.quantity).costCents : amount(item.unitCostCents * line.quantity);
       amount(line.grossSalesCents); amount(line.totalCents); amount(line.automaticDiscountCents);
-      lines.push({ ...line, sku: item.sku, category: item.category, unitCostCents: item.unitCostCents, cogsCents, valuation });
+      lines.push({ ...line, sku: item.sku, category: item.category, unitCostCents: item.unitCostCents, cogsCents, valuation, prospective });
     }
     amount(quote.grossSalesCents); amount(quote.totalCents); amount(quote.automaticDiscountCents);
     const cogsCents = amount(lines.reduce((sum, line) => sum + line.cogsCents, 0));
@@ -115,7 +124,7 @@ export class SaleCompletionService {
       return { canComplete: true as const, developmentOnly: true as const, currency: result.currency, movementDate: input.movementDate,
         expiresAt: new Date(expiresAt).toISOString(), quoteToken: `${encoded}.${this.signature(encoded)}`,
         grossSalesCents: result.grossSalesCents, automaticDiscountCents: result.automaticDiscountCents, totalCents: result.totalCents,
-        lines: result.lines.map(({ unitCostCents: _cost, cogsCents: _cogs, valuation: _valuation, ...line }) => line) };
+        lines: result.lines.map(({ unitCostCents: _cost, cogsCents: _cogs, valuation: _valuation, prospective: _prospective, ...line }) => line) };
     }, { consistentSnapshot: true });
   }
 
@@ -165,10 +174,10 @@ export class SaleCompletionService {
       for (const [position, line] of result.lines.entries()) {
         const savedLine = await tx.orm.public.SaleLine.create({ companyId, saleId: sale.id, itemId: line.itemId, position,
           itemName: varchar<120>(line.itemName), sku: line.sku, category: line.category, baseUnit: varchar<20>(line.baseUnit), quantity: line.quantity,
-          valuationCheckpointId: line.valuation?.checkpoint.id ?? null, retailPriceCents: line.retailPriceCents!, unitCostCents: line.unitCostCents, cogsCents: line.cogsCents,
+          valuationCheckpointId: line.valuation?.checkpoint.id ?? null, prospectiveCost: line.prospective !== null, retailPriceCents: line.retailPriceCents!, unitCostCents: line.unitCostCents, cogsCents: line.cogsCents,
           grossSalesCents: line.grossSalesCents, automaticDiscountCents: line.automaticDiscountCents, totalCents: line.totalCents,
           pricingSnapshot: { version: line.pricingVersion, package: line.package, packageCount: line.packageCount, inputs: line.inputs.map((entry) => ({ ...entry, quantityUnit: entry.quantityUnit ?? 'base' })) } });
-        const parts = line.valuation ? splitCostComponents(line.components,line.cogsCents) : line.components.map(part => ({...part,unitCostCents:line.unitCostCents}));
+        const parts = line.valuation || line.prospective ? splitCostComponents(line.components,line.cogsCents) : line.components.map(part => ({...part,unitCostCents:line.unitCostCents}));
         let pool = line.valuation?.pool;
         let sequence = line.valuation?.sequence ?? 0;
         for (const [componentPosition, part] of parts.entries()) {
@@ -183,6 +192,7 @@ export class SaleCompletionService {
               sequence:++sequence,kind:varchar<20>('sale'),quantityDelta:-part.quantity,valueDeltaCents:-cost,quantityAfter:pool.quantity,valueAfterCents:pool.valueCents,reference:varchar<200>(`Sale ${sale.id}`) });
           }
         }
+        if (line.prospective) await saveRecordedPool(tx, companyId, line.itemId, issueValue(line.prospective, line.quantity).pool);
         if (pool) {
           const average = averageCost(pool);
           if (average !== null) await tx.orm.public.InventoryItem.where({ companyId,id:line.itemId }).update({unitCostCents:average});

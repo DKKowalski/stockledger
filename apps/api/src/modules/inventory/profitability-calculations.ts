@@ -1,3 +1,4 @@
+import { movementCost } from './prospective-costing.js';
 import { StockMovementType } from './inventory.types.js';
 import type { ItemRecord, LocationRecord, MovementRecord } from './inventory-calculations.js';
 
@@ -89,7 +90,7 @@ export function buildProfitability(
     if (movement.unitPriceCents !== null) line.netSalesCents += direction * movement.unitPriceCents * movement.quantity;
     if (movement.unitPriceCents !== null && movement.unitCostCents !== null) {
       line.costedRevenueCents += direction * movement.unitPriceCents * movement.quantity;
-      line.cogsCents += direction * movement.unitCostCents * movement.quantity;
+      line.cogsCents += direction * movementCost(movement)!;
     } else if (direction === 1) {
       line.uncostedSaleUnits += movement.quantity;
     }
@@ -117,7 +118,7 @@ export function buildProfitability(
   const grossProfitCents = costedRevenueCents - cogsCents;
   const inventoryLossCents = relevant
     .filter((movement) => movement.type === StockMovementType.DAMAGE || movement.type === StockMovementType.ADJUSTMENT_OUT)
-    .reduce((total, movement) => total + (movement.unitCostCents === null ? 0 : movement.unitCostCents * movement.quantity), 0);
+    .reduce((total, movement) => total + (movement.unitCostCents === null ? 0 : movementCost(movement)!), 0);
 
   const profitMovements = relevant.filter((movement) => movement.type === StockMovementType.SALE || movement.type === StockMovementType.RETURN_IN);
   const trend = [...new Set(profitMovements.map((movement) => movement.movementDate))].sort().map((date) => {
@@ -131,7 +132,7 @@ export function buildProfitability(
       if (movement.unitPriceCents !== null) sales += direction * movement.unitPriceCents * movement.quantity;
       if (movement.unitPriceCents !== null && movement.unitCostCents !== null) {
         costedRevenue += direction * movement.unitPriceCents * movement.quantity;
-        cost += direction * movement.unitCostCents * movement.quantity;
+        cost += direction * movementCost(movement)!;
       }
     }
     return { date, netSalesCents: sales, grossProfitCents: costedRevenue - cost };

@@ -304,7 +304,7 @@ describe('inventory transactions with PostgreSQL', () => {
       quantity: 3, unitPriceCents: 175, unitCostCents: 100,
     });
     expect(await balance(f, f.shop.id)).toBe(8);
-    expect((await service.snapshot(f.admin.id, f.company.id)).items[0]?.unitCostCents).toBe(200);
+    expect((await service.snapshot(f.admin.id, f.company.id)).items[0]?.unitCostCents).toBe(193);
   });
 
   it('serializes competing customer returns against the original sold quantity', async () => {
@@ -903,7 +903,7 @@ describe('inventory transactions with PostgreSQL', () => {
     expect(events.map((event) => event.action)).toEqual(expect.arrayContaining([
       'inventory.selling_price_changed',
       'inventory.items_imported',
-      'inventory.movement_deleted',
+      'inventory.purchase_corrected',
     ]));
     expect(events.find((event) => event.action === 'inventory.selling_price_changed')?.metadata)
       .toEqual({ previousSellingPriceCents: 175, sellingPriceCents: 225 });
@@ -1408,5 +1408,50 @@ describe('F01 prospective value conservation', () => {
     await expect(service.deleteMovement(f.admin.id,f.company.id,purchase.id)).rejects.toBeInstanceOf(ConflictException);
     expect(await value(f)).toBe(2200);
     expect(await balance(f,f.warehouse.id)).toBe(11);
+  });
+});
+
+
+describe('F01 correction boundaries', () => {
+  const buy = (f:Fixture, q=10, c=300) => service.createMovement(f.admin.id,f.company.id,{itemId:f.item.id,locationId:f.warehouse.id,type:Type.PURCHASE,quantity:q,unitCostCents:c,movementDate});
+  it('allows a partially consumed purchase correction only when remaining quantity and value cover it', async () => {
+    const f=await fixture(10), p=await buy(f);
+    await service.createMovement(f.admin.id,f.company.id,{itemId:f.item.id,locationId:f.warehouse.id,type:Type.DAMAGE,quantity:2,movementDate,note:'Lost'});
+    const result=await service.deleteMovement(f.admin.id,f.company.id,p.id);
+    expect(result).toHaveProperty('correctionId');
+    const snap=await service.snapshot(f.admin.id,f.company.id);
+    expect(snap.positions.reduce((s,p)=>s+p.closing,0)).toBe(8);
+    expect(snap.positions.reduce((s,p)=>s+p.valueCents,0)).toBe(600);
+    expect(snap.items[0]!.unitCostCents).toBe(75);
+    expect(await db.orm.public.StockMovement.first({id:p.id})).toEqual(p);
+    await expect(service.deleteMovement(f.admin.id,f.company.id,p.id)).rejects.toBeInstanceOf(ConflictException);
+    const correction=await db.orm.public.StockMovement.first({companyId:f.company.id,correctsMovementId:p.id});
+    expect(correction).toMatchObject({type:Type.RETURN_OUT,quantity:10,costTotalCents:3000});
+    await expect(service.deleteMovement(f.admin.id,f.company.id,correction!.id)).rejects.toBeInstanceOf(ConflictException);
+  });
+  it('serializes duplicate purchase corrections and retains one correction only', async () => {
+    const f=await fixture(10), p=await buy(f);
+    expectOneConflict(await race(f.item.id,[()=>service.deleteMovement(f.admin.id,f.company.id,p.id),()=>otherService.deleteMovement(f.admin.id,f.company.id,p.id)]));
+    expect(await db.orm.public.StockMovement.where({companyId:f.company.id,correctsMovementId:p.id}).all()).toHaveLength(1);
+  });
+  it('rejects unknown-cost returns without changing quantity, value or the original sale', async () => {
+    const f=await fixture(10);
+    const sale=await db.orm.public.StockMovement.create({companyId:f.company.id,itemId:f.item.id,locationId:f.shop.id,type:'sale',quantity:1,unitPriceCents:175,unitCostCents:null,movementDate});
+    await expect(service.createMovement(f.admin.id,f.company.id,{itemId:f.item.id,locationId:f.shop.id,type:Type.RETURN_IN,quantity:1,relatedMovementId:sale.id,movementDate})).rejects.toThrow('No historical cost can be invented');
+    expect(await db.orm.public.StockMovement.first({id:sale.id})).toEqual(sale);
+    expect(await db.orm.public.StockMovement.where({relatedMovementId:sale.id}).all()).toHaveLength(0);
+  });
+  it('keeps a corrected company pool across transfers, counts and supplier returns, and blocks direct repricing', async () => {
+    const f=await fixture(10), p=await buy(f);
+    await service.deleteMovement(f.admin.id,f.company.id,p.id);
+    await transfer(f,4);
+    let snap=await service.snapshot(f.admin.id,f.company.id);
+    expect(snap.positions.map(p=>p.valueCents).sort()).toEqual([400,600]);
+    await service.createStockCount(f.admin.id,f.company.id,{itemId:f.item.id,locationId:f.warehouse.id,countedQuantity:5,countedAt:new Date().toISOString().slice(0,10),note:'Count'});
+    await service.createMovement(f.admin.id,f.company.id,{itemId:f.item.id,locationId:f.shop.id,type:Type.RETURN_OUT,quantity:1,movementDate});
+    snap=await service.snapshot(f.admin.id,f.company.id);
+    expect(snap.positions.reduce((s,p)=>s+p.valueCents,0)).toBe(800);
+    await expect(service.updateItem(f.admin.id,f.company.id,f.item.id,{unitCostCents:999})).rejects.toBeInstanceOf(ConflictException);
+    await expect(service.deleteMovement(f.admin.id,f.company.id,(await db.orm.public.StockMovement.first({companyId:f.company.id,type:'transfer'}))!.id)).rejects.toBeInstanceOf(ConflictException);
   });
 });

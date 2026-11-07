@@ -34,6 +34,7 @@ describe('SettingsService', () => {
   const tx = { query, execute, orm: { public: {
     User: { first: userFirst },
     Company: { first: companyFirst, where: companyWhere },
+    InventoryItem: { where: vi.fn(() => ({ all: vi.fn().mockResolvedValue([]) })) },
     InventoryValuationCheckpoint: {first: vi.fn().mockResolvedValue(null)},
     Location: { first: locationFirst },
     AuditEvent: { create: auditCreate, where: auditWhere },

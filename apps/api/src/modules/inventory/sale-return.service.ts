@@ -1,3 +1,5 @@
+import { recordedPool, saveRecordedPool } from './prospective-costing.js';
+import type { MovementRecord } from './inventory-calculations.js';
 import { createHash } from 'node:crypto';
 import {
   BadRequestException,
@@ -90,6 +92,7 @@ export class SaleReturnService {
         type: 'return_in',
       }).all();
       portions.push({
+        costTotalCents: movement.costTotalCents,
         movementId: movement.id,
         itemId: item.id,
         quantity: movement.quantity,
@@ -373,6 +376,16 @@ export class SaleReturnService {
           states.set(choice.itemId, state);
         }
       }
+      const prospective = new Map<string, { quantity: number; valueCents: number }>();
+      for (const choice of input.lines) {
+        if (states.has(choice.itemId)) continue;
+        const item = await tx.orm.public.InventoryItem.first({ companyId, id: choice.itemId });
+        const [stocks, movements] = await Promise.all([
+          tx.orm.public.LocationStock.where({ companyId, itemId: choice.itemId }).all(),
+          tx.orm.public.StockMovement.where({ companyId, itemId: choice.itemId }).all(),
+        ]);
+        prospective.set(choice.itemId, recordedPool(item!, stocks, movements as MovementRecord[]));
+      }
       const saved = await tx.orm.public.SaleReturn.create({
         companyId,
         requestId: request.id,
@@ -431,6 +444,12 @@ export class SaleReturnService {
           cogsCents: part.cogsCents,
           disposition: v<12>(part.disposition),
         });
+        const current = prospective.get(part.itemId);
+        if (current && part.disposition === 'resellable') {
+          current.quantity += part.quantity;
+          current.valueCents += part.cogsCents;
+          validatePool(current);
+        }
         const state = states.get(part.itemId);
         if (state) {
           const resell = part.disposition === 'resellable';
@@ -455,6 +474,7 @@ export class SaleReturnService {
           state.pool = pool;
         }
       }
+      for (const [itemId, pool] of prospective) await saveRecordedPool(tx, companyId, itemId, pool);
       for (const [itemId, state] of states) {
         const average = averageCost(state.pool);
         if (average !== null)
