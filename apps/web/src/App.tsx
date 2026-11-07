@@ -57,7 +57,7 @@ function WorkspaceErrorPreview() {
 function AuthenticatedApp() {
   const { accessToken, restoring, user, refreshState, resumeSession, signOut } = useAuth();
 
-  if (restoring || (accessToken && !user)) return <AppLoader />;
+  if (restoring || (accessToken && !user) || (!accessToken && refreshState === 'refreshing')) return <AppLoader />;
 
   if (!accessToken && refreshState === 'error') return <WorkspaceErrorState
     error={{ title: 'We could not restore your session.', description: 'The server may be waking up or your connection may be offline. Try again to continue where you left off.' }}

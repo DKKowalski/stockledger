@@ -8,6 +8,7 @@ for (const width of [390, 1440]) {
     let failed = true, requests = 0;
     await page.route('**/auth/refresh', async route => {
       requests++;
+      if (!failed) await new Promise(resolve => setTimeout(resolve, 150));
       return failed ? route.fulfill({ status: 503, json: { message: 'Unavailable' } }) : route.fulfill({ json: { accessToken: 'recovered-session', user: { id: 'attendant', companyId: 'company', role: 'shop_attendant', fullName: 'Staff', locationId: 'shop', isActive: true } } });
     });
     await page.route('**/inventory/sale-completion', route => route.fulfill({ json: { available: false } }));
@@ -20,6 +21,7 @@ for (const width of [390, 1440]) {
     await page.getByRole('button', { name: 'Try again', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Sell', exact: true })).toBeVisible();
     expect(requests).toBe(2);
+    await expect(page).toHaveURL('/sell');
   });
 }
 
