@@ -1,0 +1,11 @@
+# Dependency security checks
+
+Run `npm run security:check` on the lockfile before release. This checks installed production dependencies and fails for high/critical advisories. Run `npm audit --json` separately to review development tooling. These checks consult the current registry; an audit inventory is not proof of exploitability. CI wiring is intentionally left to the repository owner because this task excludes `.github` changes.
+
+The November 2026 audit fix uses Nest's first patched 12.x platform release (12.3.0, bringing Express 5.3.0/body-parser 2.4.0 and Multer 2.5.0), Zod 4.6.6, Vite 8.3.3, and source-map-js 1.2.2. No force upgrade or framework major upgrade was used. Zod has no patched v3 release for GHSA-mrhx-c7xc-m3w5; v4 is explicitly reviewed with strict input, UUID normalization, quantity/date limits and overflow regressions. Existing application schemas use the supported API without source changes.
+
+Reachability: Nest's JSON parser is public, so the compressed-request body-parser issue is relevant. No application Multer interceptors/file filters exist, but its installed API runtime copy is patched. Zod validates return/valuation requests and environment settings. Vite editor/file-serving advisories affect development servers, and source maps are tooling input; patching them does not establish prior public API exposure. Do not expose a development server to untrusted networks.
+
+Advisories: [body-parser](https://github.com/advisories/GHSA-27r3-jxmh-p828), [Multer](https://github.com/advisories/GHSA-q7qp-rjg7-q26m), [Zod](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5). See the implementation report for the exact resolved inventory and any remaining advisories.
+
+Remaining production audit entries (7 November 2026): four moderate entries, `@sentry/node` → `@sentry/bundler-plugins` → `glob`/`minimatch`. They concern build/source traversal and cancellation; no user-supplied glob pattern is passed by the application's API code. Their telemetry/toolchain upgrade is deferred to keep this security change limited to the requested high-severity patches. Both production-only and full audits report zero high/critical entries after the fix; rerun at release because advisories change.

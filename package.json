@@ -20,7 +20,8 @@
     "web:lint": "npm run lint --workspace=apps/web",
     "e2e": "playwright test",
     "e2e:ui": "playwright test --ui",
-    "e2e:install": "playwright install chromium"
+    "e2e:install": "playwright install chromium",
+    "security:check": "npm audit --omit=dev --audit-level=high"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0"
