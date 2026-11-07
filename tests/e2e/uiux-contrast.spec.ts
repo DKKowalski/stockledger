@@ -62,6 +62,20 @@ for (const width of [360, 390, 1440]) {
         if (route === '/profitability') await page.locator('.profit-kpis').waitFor();
         await page.evaluate(value => { document.documentElement.dataset.accent = value; }, theme);
         samples[`${theme}${route}`] = await checkText(page, selector, route === '/profitability' ? 13 : 12);
+        if (route === '/profitability') {
+          samples[`${theme}-profit-controls`] = await checkText(page, '.profit-filter-grid .select-trigger, .profit-filter-grid .date-trigger', 13);
+          const day = page.locator('.profit-chart-day').first();
+          await day.focus();
+          await expect(day).toBeFocused();
+          await expect(day).toHaveAttribute('aria-label', /sales.*profit/i);
+          await expect(day.getByRole('tooltip')).toHaveCSS('opacity', '1');
+          samples[`${theme}-profit-tooltip`] = await checkText(page, '.profit-chart-day:first-child .profit-chart-tooltip b, .profit-chart-day:first-child .profit-chart-tooltip small');
+          if (width === 1440) samples[`${theme}-profit-dates`] = await checkText(page, '.profit-chart-day > small');
+          // Pointer users on a phone can reveal the same readable date and values.
+          await day.click();
+          await expect(day.getByRole('tooltip')).toHaveCSS('opacity', '1');
+        }
+
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
         if (width !== 360) await uiuxEvidence(page, `ux05-${route.slice(1)}`);
       }
