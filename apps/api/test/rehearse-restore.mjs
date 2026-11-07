@@ -22,6 +22,26 @@ try {
   for (const name of names) await admin.query(`CREATE DATABASE "${name}"`);
   execFileSync('npm',['run','db:migrate'],{cwd:directory,env,stdio:'pipe'});
   execFileSync('node',['dist/prisma/seed.js'],{cwd:directory,env,stdio:'pipe'});
+  // Include completed sale snapshots with cash, MoMo, unpaid and unknown tender
+  // in the backup, using the real atomic sale service rather than invented rows.
+  execFileSync(process.execPath,['--input-type=module','-e',`
+    import {randomUUID} from 'node:crypto';
+    import {PrismaService} from './dist/prisma/prisma.service.js';
+    import {PricingPreviewService} from './dist/modules/inventory/pricing-preview.service.js';
+    import {SaleCompletionService} from './dist/modules/inventory/sale-completion.service.js';
+    const prisma=new PrismaService();
+    const config={get:key=>key==='app.environment'?'test':[],getOrThrow:()=>process.env.JWT_SECRET};
+    try {
+      const actor=await prisma.client.orm.public.User.first({role:'shop_attendant'});
+      const item=await prisma.client.orm.public.InventoryItem.first({companyId:actor.companyId,sku:'ADM-0007'});
+      const sales=new SaleCompletionService(prisma,config,new PricingPreviewService(prisma,config));
+      for(const method of [null,'cash','momo','unpaid']) {
+        const quote=await sales.quote(actor.id,actor.companyId,{movementDate:new Date().toISOString().slice(0,10),lines:[{itemId:item.id,quantity:1,expectedVersion:0,expectedRetailPriceCents:item.sellingPriceCents}]});
+        const tender=method?{method,amountReceivedCents:method==='unpaid'?0:quote.totalCents+(method==='cash'?100:0)}:undefined;
+        await sales.complete(actor.id,actor.companyId,{idempotencyKey:randomUUID(),quoteToken:quote.quoteToken,tender});
+      }
+    } finally {await prisma.client.close();}
+  `],{cwd:directory,env,stdio:'pipe'});
   source = new pg.Client({connectionString:localUrl(names[0])}); await source.connect();
   const before = await snapshot(source);
   const dump = execFileSync('docker',['exec',container,'pg_dump','-U','stockledger','-d',names[0],'-Fc','--no-owner'],{maxBuffer:64*1024*1024});
