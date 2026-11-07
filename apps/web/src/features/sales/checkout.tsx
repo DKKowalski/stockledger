@@ -1,4 +1,4 @@
-import { useSearchParams } from 'react-router-dom';
+import { NavLink, useSearchParams } from 'react-router-dom';
 import { ProductPicker } from '../../components/ui/product-picker';
 import { companyDay } from '../../lib/date-range';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
@@ -6,13 +6,13 @@ import { api, ApiError } from '../../api';
 import { useAuth } from '../../auth-context';
 import { useInventoryStore } from '../../app/inventory-store';
 import { useCompanySettings } from '../../app/company-settings-store';
-import { PageHeader, PageState, Panel } from '../../components/inventory-ui';
+import { PageHeader, PageState, Panel, SelectControl } from '../../components/inventory-ui';
 import { InputControl } from '../../components/ui/input-control';
 import { safeErrorMessage } from '../../lib/user-facing-error';
-import { formatMoney } from '../../lib/presentation';
-import type { CompletedSale, SaleQuote, User } from '../../types';
+import { parseMoneyCents, formatMoney } from '../../lib/presentation';
+import type { CompletedSale, SaleQuote, SaleTender, User } from '../../types';
 
-type Pending = { idempotencyKey: string; quoteToken: string };
+type Pending = { idempotencyKey: string; quoteToken: string; tender?: SaleTender };
 const generationKey = (user: User) => `stockledger:sale-generation:${user.companyId}:${user.id}:${user.locationId}`;
 const prefix = (user: User) => `stockledger:sale-request:${user.companyId}:${user.id}:${user.locationId}:`;
 function stored(user: User): Pending | null {
@@ -44,6 +44,8 @@ export function Checkout({ enabled }: { enabled: boolean }) {
   const [itemId, setItemId] = useState(searchParams.get('item') ?? '');
   const [quantity, setQuantity] = useState('');
   const [basket, setBasket] = useState<Array<{ itemId: string; quantity: number }>>([]);
+  const [tenderMethod, setTenderMethod] = useState<'not_recorded' | SaleTender['method']>('not_recorded');
+  const [received, setReceived] = useState('');
   const [quote, setQuote] = useState<SaleQuote | null>(null);
   const [pending, setPending] = useState<Pending | null>(null);
   const [completed, setCompleted] = useState<CompletedSale | null>(null);
@@ -112,7 +114,7 @@ export function Checkout({ enabled }: { enabled: boolean }) {
     if (!user) return;
     // Resolve the durable request before refreshing; failed refresh must never resubmit this sale.
     localStorage.removeItem(`${prefix(user)}${request.idempotencyKey}`);
-    setPending(stored(user)); setQuote(null); setItemId(''); setQuantity(''); setBasket([]); setCompleted(sale);
+    setPending(stored(user)); setQuote(null); setItemId(''); setQuantity(''); setBasket([]); setTenderMethod('not_recorded'); setReceived(''); setCompleted(sale);
     await mutate(async () => sale, 'Sale recorded.');
   };
   const send = async (request: Pending) => {
@@ -137,7 +139,9 @@ export function Checkout({ enabled }: { enabled: boolean }) {
       if (reviewGeneration.current !== (localStorage.getItem(generationKey(user)) ?? '')) {
         setQuote(null); throw new Error('Another sale request changed this checkout. Review a new quote.');
       }
-      const next = { idempotencyKey: crypto.randomUUID(), quoteToken: quote.quoteToken };
+      const amount = tenderMethod === 'unpaid' ? 0 : parseMoneyCents(received);
+      if (tenderMethod !== 'not_recorded' && (amount === null || (tenderMethod === 'cash' && amount < quote.totalCents) || (tenderMethod === 'momo' && amount !== quote.totalCents))) throw new Error('Check the amount received. Cash must cover the total; MoMo must equal it.');
+      const next: Pending = { idempotencyKey: crypto.randomUUID(), quoteToken: quote.quoteToken, ...(tenderMethod === 'not_recorded' ? {} : {tender:{method:tenderMethod,amountReceivedCents:amount!}}) };
       // Retained after completion so a suspended tab cannot reuse an earlier review.
       localStorage.setItem(generationKey(user), crypto.randomUUID());
       localStorage.setItem(`${prefix(user)}${next.idempotencyKey}`, JSON.stringify(next));
@@ -183,9 +187,15 @@ export function Checkout({ enabled }: { enabled: boolean }) {
           <div className="checkout-pay"><dt>Customer pays</dt><dd>{money(quote.totalCents)}</dd></div>
         </dl>
         {quote.lines.map(line => <section className="checkout-quote-line" key={line.itemId}><h3>{line.itemName}</h3><p>{line.quantity} {line.baseUnit} · {money(line.totalCents)}</p><div className="table-wrap"><table><thead><tr><th>Price used</th><th className="num">Quantity</th><th className="num">Each</th><th className="num">Total</th></tr></thead><tbody>{line.components.map((part, index) => <tr key={index}><td>{part.category === 'box' && line.package ? `${line.package.label.charAt(0).toUpperCase()}${line.package.label.slice(1)} price (${line.package.size} per ${line.package.label})` : pricingLabels[part.category]}</td><td className="num">{part.quantity}</td><td className="num">{money(part.unitPriceCents)}</td><td className="num">{money(part.totalCents)}</td></tr>)}</tbody></table></div></section>)}
+        <div className="checkout-payment">
+          <label><span>Payment record (manual)</span><SelectControl aria-label="Payment record (manual)" value={tenderMethod} disabled={busy} onValueChange={value => { setTenderMethod(value as typeof tenderMethod); setReceived(''); }} options={[{value:'not_recorded',label:'Payment not recorded'},{value:'cash',label:'Cash received'},{value:'momo',label:'MoMo received — confirmed manually'},{value:'unpaid',label:'Unpaid'}]} /></label>
+          {(tenderMethod === 'cash' || tenderMethod === 'momo') && <label><span>Amount received ({quote.currency})</span><InputControl aria-label="Amount received" type="number" min="0" step="0.01" disabled={busy} value={received} onValueChange={setReceived} /></label>}
+          {tenderMethod === 'cash' && parseMoneyCents(received) !== null && parseMoneyCents(received)! >= quote.totalCents && <p role="status">Change to give: {money(parseMoneyCents(received)! - quote.totalCents)}</p>}
+          <p>{tenderMethod === 'unpaid' ? 'The full sale amount is still due. No payment has been recorded.' : tenderMethod === 'not_recorded' ? 'This sale will have no payment confirmation.' : 'Confirm the money was received before recording it. This does not collect or verify a payment.'}</p>
+        </div>
         <button className="button" disabled={busy || !enabled || !!inventoryError} onClick={complete}>Complete sale</button>
       </div>}
-      {completed && <p role="status">Sale recorded · {money(completed.totalCents, completed.currency)}</p>}
+      {completed && <div><p role="status">Sale recorded · {money(completed.totalCents, completed.currency)}</p><NavLink className="button secondary" to={`/sales/${completed.id}/receipt`}>View customer receipt</NavLink></div>}
     </div></Panel>
   </PageState>;
 }

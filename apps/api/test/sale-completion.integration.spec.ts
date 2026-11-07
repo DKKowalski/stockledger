@@ -438,3 +438,57 @@ describe('durable development sale completion via real HTTP and restricted runti
   });
 
 });
+
+describe('manual sale tender and customer receipt data', () => {
+  it.each([
+    {method:'cash' as const,amountReceivedCents:20000,changeCents:1500,paymentStatus:'recorded'},
+    {method:'momo' as const,amountReceivedCents:18500,changeCents:null,paymentStatus:'recorded'},
+    {method:'unpaid' as const,amountReceivedCents:0,changeCents:null,paymentStatus:'unpaid'},
+  ])('atomically records $method and recovers the same amount without taking another payment',async({method,amountReceivedCents,changeCents,paymentStatus})=>{
+    const f=await fixture(),quote=await quoted(f),key=randomUUID();
+    const body={idempotencyKey:key,quoteToken:quote.quoteToken,tender:{method,amountReceivedCents}};
+    const results=await Promise.all([request('/inventory/sales/complete',f.attendant.token,'POST',body),request('/inventory/sales/complete',f.attendant.token,'POST',body)]);
+    expect(results.map(r=>r.status)).toEqual([201,201]);expect(results[0]!.body).toEqual(results[1]!.body);
+    const sale=results[0]!.body;
+    expect(sale).toMatchObject({tenderMethod:method,amountReceivedCents,changeCents,paymentStatus,totalCents:18500});
+    expect(await counts(f)).toEqual({sales:1,movements:2});
+    const retryChanged=await request('/inventory/sales/complete',f.attendant.token,'POST',{...body,tender:{method:'cash',amountReceivedCents:25000}});
+    expect(retryChanged.status).toBe(409);expect(await counts(f)).toEqual({sales:1,movements:2});
+    await db.orm.public.InventoryItem.where({companyId:f.company.id,id:f.items[0]!.id}).update({name:varchar<120>('Renamed after sale'),sellingPriceCents:1});
+    const receipt=await request(`/inventory/sales/${sale.id}`,f.attendant.token);
+    expect(receipt.status).toBe(200);expect(receipt.body.lines[0]).toMatchObject({itemName:'Test item 0',totalCents:18500});
+    expect(receipt.body.lines[0].unitCostCents).toBeUndefined();expect(receipt.body.cogsCents).toBeUndefined();
+    expect((await request(`/inventory/sales/${sale.id}`,f.other.token)).status).toBe(404);
+    const foreign=await fixture();expect((await request(`/inventory/sales/${sale.id}`,foreign.admin.token)).status).toBe(404);
+    const lookup=await request(`/inventory/sales/requests/${key}`,f.attendant.token);
+    expect(lookup.body.sale).toMatchObject({id:sale.id,tenderMethod:method,amountReceivedCents});
+    const exported=await request('/settings/exports/workspace-v3',f.admin.token);
+    expect(exported.body.sales[0]).toMatchObject({tenderMethod:method,amountReceivedCents});
+  });
+  it('keeps omitted tender unknown, including retries from pre-tender browsers',async()=>{
+    const f=await fixture(),quote=await quoted(f),key=randomUUID();
+    const first=await complete(f,quote,key),again=await complete(f,quote,key);
+    expect(first.status).toBe(201);expect(again.body).toEqual(first.body);
+    expect(first.body).toMatchObject({tenderMethod:null,amountReceivedCents:null,changeCents:null,paymentStatus:'not_recorded'});
+  });
+  it.each([
+    {method:'cash',amountReceivedCents:18499},
+    {method:'momo',amountReceivedCents:20000},
+    {method:'unpaid',amountReceivedCents:1},
+    {method:'cash',amountReceivedCents:20000.5},
+    {method:'cash',amountReceivedCents:-1},
+    {method:'other',amountReceivedCents:18500},
+  ])('rejects invalid tender before any stock or sale write: $method/$amountReceivedCents',async(tender)=>{
+    const f=await fixture(),quote=await quoted(f);
+    expect((await request('/inventory/sales/complete',f.attendant.token,'POST',{idempotencyKey:randomUUID(),quoteToken:quote.quoteToken,tender})).status).toBe(400);
+    expect(await counts(f)).toEqual({sales:0,movements:0});expect(await closing(f)).toBe(40);
+  });
+  it('enforces tender consistency in PostgreSQL as well as the API',async()=>{
+    const f=await fixture(),sale=(await complete(f,await quoted(f))).body;
+    for(const [method,received] of [[null,1],['cash',null],['momo',18501],['unpaid',1],['wire',18500]]) {
+      await expect(sql.query('UPDATE sales SET tender_method=$1,amount_received_cents=$2 WHERE id=$3',[method,received,sale.id])).rejects.toMatchObject({code:'23514'});
+    }
+    const row=(await sql.query('SELECT tender_method,amount_received_cents FROM sales WHERE id=$1',[sale.id])).rows[0];
+    expect(row).toEqual({tender_method:null,amount_received_cents:null});
+  });
+});

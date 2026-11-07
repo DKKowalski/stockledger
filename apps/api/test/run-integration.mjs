@@ -94,12 +94,17 @@ try {
     const tables = (await client.query("SELECT relname FROM pg_class WHERE relnamespace='public'::regnamespace AND relkind='r' AND relrowsecurity ORDER BY relname")).rows.map(row => row.relname);
     const allRows = async () => {
       const rows = {};
-      for (const table of tables) rows[table] = (await client.query(`SELECT coalesce(jsonb_agg(to_jsonb(r) ORDER BY id), '[]'::jsonb) AS rows FROM public.${table} r`)).rows[0].rows;
+      for (const table of tables) {
+        // The tender upgrade adds nullable fields, without changing any old sale value.
+        const value = table === 'sales' ? "to_jsonb(r)-'tender_method'-'amount_received_cents'" : 'to_jsonb(r)';
+        rows[table] = (await client.query(`SELECT coalesce(jsonb_agg(${value} ORDER BY id), '[]'::jsonb) AS rows FROM public.${table} r`)).rows[0].rows;
+      }
       return rows;
     };
     const baseline = await allRows();
     migrate(['--to', '0a5e3f164465a966bac6eb041f64856deb7b954fac9c6b6640394913ac060faf']);
     assert.deepEqual(await allRows(), baseline, 'Retail receipt upgrade changed existing rows from 770df3a');
+    assert.equal((await client.query('SELECT count(*)::int AS n FROM sales WHERE tender_method IS NOT NULL OR amount_received_cents IS NOT NULL')).rows[0].n, 0, 'Old sales must not acquire invented tender');
     assert.equal((await client.query('SELECT count(*)::int AS n FROM retail_sale_requests')).rows[0].n, 0);
     assert.equal((await client.query("SELECT relrowsecurity FROM pg_class WHERE oid='public.retail_sale_requests'::regclass")).rows[0].relrowsecurity, true);
     assert.equal((await client.query("SELECT count(*)::int AS n FROM pg_policies WHERE tablename='retail_sale_requests'")).rows[0].n, 3);

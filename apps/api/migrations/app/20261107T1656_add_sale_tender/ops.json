@@ -1,0 +1,128 @@
+[
+  {
+    "id": "column.public.sales.amount_received_cents",
+    "label": "Add column \"amount_received_cents\" to \"sales\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "amount_received_cents",
+        "table": "sales"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"amount_received_cents\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "sales",
+          "amount_received_cents"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"amount_received_cents\"",
+        "sql": "ALTER TABLE \"public\".\"sales\" ADD COLUMN \"amount_received_cents\" int4"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"amount_received_cents\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "sales",
+          "amount_received_cents"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.sales.tender_method",
+    "label": "Add column \"tender_method\" to \"sales\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "tender_method",
+        "table": "sales"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"tender_method\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "sales",
+          "tender_method"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"tender_method\"",
+        "sql": "ALTER TABLE \"public\".\"sales\" ADD COLUMN \"tender_method\" character varying(10)"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"tender_method\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "sales",
+          "tender_method"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "checkConstraint.sales.sale_tender_valid_7cb54514",
+    "label": "Add check constraint \"sale_tender_valid_7cb54514\" on \"sales\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "sale_tender_valid_7cb54514",
+        "table": "sales"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"sale_tender_valid_7cb54514\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_tender_valid_7cb54514",
+          "public",
+          "\"public\".\"sales\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add check constraint \"sale_tender_valid_7cb54514\"",
+        "sql": "ALTER TABLE \"public\".\"sales\" ADD CONSTRAINT \"sale_tender_valid_7cb54514\" CHECK ((tender_method IS NULL AND amount_received_cents IS NULL) OR (tender_method IS NOT NULL AND amount_received_cents IS NOT NULL AND ((tender_method = 'unpaid' AND amount_received_cents = 0) OR (tender_method = 'cash' AND amount_received_cents >= total_cents) OR (tender_method = 'momo' AND amount_received_cents = total_cents))))"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"sale_tender_valid_7cb54514\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_tender_valid_7cb54514",
+          "public",
+          "\"public\".\"sales\""
+        ]
+      }
+    ]
+  }
+]

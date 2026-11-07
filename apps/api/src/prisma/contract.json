@@ -2363,6 +2363,13 @@
           },
           "Sale": {
             "fields": {
+              "amountReceivedCents": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
               "automaticDiscountCents": {
                 "nullable": false,
                 "type": {
@@ -2453,6 +2460,16 @@
                   }
                 }
               },
+              "tenderMethod": {
+                "nullable": true,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 10
+                  }
+                }
+              },
               "totalCents": {
                 "nullable": false,
                 "type": {
@@ -2501,6 +2518,9 @@
             },
             "storage": {
               "fields": {
+                "amountReceivedCents": {
+                  "column": "amount_received_cents"
+                },
                 "automaticDiscountCents": {
                   "column": "automatic_discount_cents"
                 },
@@ -2536,6 +2556,9 @@
                 },
                 "requestHash": {
                   "column": "request_hash"
+                },
+                "tenderMethod": {
+                  "column": "tender_method"
                 },
                 "totalCents": {
                   "column": "total_cents"
@@ -8599,9 +8622,19 @@
                   "expression": "gross_sales_cents >= 0 AND automatic_discount_cents >= 0 AND total_cents >= 0 AND cogs_cents >= 0 AND gross_sales_cents::bigint - automatic_discount_cents = total_cents",
                   "name": "sale_amounts_valid_10975e07",
                   "prefix": "sale_amounts_valid"
+                },
+                {
+                  "expression": "(tender_method IS NULL AND amount_received_cents IS NULL) OR (tender_method IS NOT NULL AND amount_received_cents IS NOT NULL AND ((tender_method = 'unpaid' AND amount_received_cents = 0) OR (tender_method = 'cash' AND amount_received_cents >= total_cents) OR (tender_method = 'momo' AND amount_received_cents = total_cents)))",
+                  "name": "sale_tender_valid_7cb54514",
+                  "prefix": "sale_tender_valid"
                 }
               ],
               "columns": {
+                "amount_received_cents": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": true
+                },
                 "automatic_discount_cents": {
                   "codecId": "pg/int4@1",
                   "nativeType": "int4",
@@ -8670,6 +8703,14 @@
                   "nullable": false,
                   "typeParams": {
                     "length": 64
+                  }
+                },
+                "tender_method": {
+                  "codecId": "sql/varchar@1",
+                  "nativeType": "character varying",
+                  "nullable": true,
+                  "typeParams": {
+                    "length": 10
                   }
                 },
                 "total_cents": {
@@ -9830,7 +9871,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "da8b67a64c6f11c18e09a8670d0b3755bd08da63a0764b5e848b416e77b2e62e"
+    "storageHash": "b85e5d8a6216c5ec341fbc2b59e28374598f4962b6963c31acf6254477db53ca"
   },
   "execution": {
     "executionHash": "438fdd98bbe39b3fbbec169de7af55f8c94a9f97a8abd0580b38a7344ff205c8",

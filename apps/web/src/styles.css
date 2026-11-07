@@ -2128,3 +2128,24 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px soli
   .checkout-basket-line { grid-template-columns: minmax(0, 1fr) auto; }
   .checkout-basket-line > b { grid-column: 1 / -1; }
 }
+
+.checkout-payment { display: grid; gap: 14px; margin: 20px 0; }
+.checkout-payment label { display: grid; gap: 8px; }
+.checkout-payment p { color: var(--muted); font-size: 14px; }
+.customer-receipt { width: 100%; max-width: 680px; padding: 24px; margin: 0 auto; color: var(--ink); background: var(--card-pure); border: 1px solid var(--border); border-radius: 14px; }
+.customer-receipt h2 { font-size: 22px; margin-top: 0; }
+.receipt-reference { overflow-wrap: anywhere; font-size: 13px; }
+.receipt-lines { list-style: none; margin: 20px 0; padding: 0; }
+.receipt-lines li { display: flex; justify-content: space-between; gap: 16px; padding: 14px 0; border-top: 1px solid var(--border); }
+.receipt-lines li > div { display: grid; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
+.receipt-lines li span, .receipt-disclosure { color: var(--muted); font-size: 14px; line-height: 1.6; }
+.receipt-lines li > strong { white-space: nowrap; }
+.receipt-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
+@media (max-width: 600px) { .customer-receipt { padding: 18px; } }
+@media print {
+  body:has(.customer-receipt) .topbar, body:has(.customer-receipt) .skip-link,
+  body:has(.customer-receipt) .demo-mode-banner, body:has(.customer-receipt) .error-banner,
+  body:has(.customer-receipt) .receipt-screen-only, body:has(.customer-receipt) [data-sonner-toaster] { display: none !important; }
+  body:has(.customer-receipt) .page { padding: 0; }
+  .customer-receipt { max-width: 100%; border: 0; }
+}

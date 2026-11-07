@@ -175,7 +175,9 @@ export type PricingQuote = {
 
 export type SaleQuoteInput = { locationId?: string; movementDate: string; lines: Array<{ itemId: string; quantity: number; quantityUnit?: 'base' | 'package'; expectedVersion: number; expectedRetailPriceCents: number }> };
 export type SaleQuote = Omit<PricingQuote, 'previewOnly' | 'canComplete' | 'currency'> & { currency: Currency; canComplete: true; developmentOnly: true; quoteToken: string; expiresAt: string; movementDate: string };
+export type SaleTender = { method: 'cash' | 'momo' | 'unpaid'; amountReceivedCents: number };
 export type CompletedSale = {
+  locationId: string; createdAt: string; tenderMethod: SaleTender['method'] | null; amountReceivedCents: number | null; changeCents: number | null; paymentStatus: 'not_recorded' | 'unpaid' | 'recorded';
   id: string; idempotencyKey: string; status: 'completed'; currency: Currency; movementDate: string;
   grossSalesCents: number; automaticDiscountCents: number; totalCents: number;
   lines: Array<{ id: string; itemName: string; baseUnit: string; quantity: number; totalCents: number; components: PricingQuote['lines'][number]['components'] }>;

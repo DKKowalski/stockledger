@@ -1,4 +1,5 @@
 const OwnerSalesPage = lazy(() => import('../features/sales/owner-sales-page').then(m => ({ default: m.OwnerSalesPage })));
+const ReceiptPage = lazy(() => import('../features/sales/receipt-page').then(m => ({ default: m.ReceiptPage })));
 import { lazy } from 'react';
 import { FeatureBoundary } from '../components/feature-boundary';
 const FinancePage = lazy(() => import('../features/finance/finance-page').then(m => ({ default: m.FinancePage })));
@@ -72,6 +73,7 @@ function AdministratorWorkspace() {
   return <Routes><Route element={<AppShell navigation={administratorNavigation} />}>
     <Route path="sell" element={<FeatureBoundary><OwnerSalesPage /></FeatureBoundary>} />
     <Route index element={<FeatureBoundary><OperationsDashboardPage /></FeatureBoundary>} />
+    <Route path="sales/:id/receipt" element={<FeatureBoundary><ReceiptPage /></FeatureBoundary>} />
     <Route path="items" element={<FeatureBoundary><AdminItemsPage /></FeatureBoundary>} />
     <Route path="movements" element={<FeatureBoundary><MovementsPage /></FeatureBoundary>} />
     <Route path="reports" element={<FeatureBoundary><OperationsReportsPage /></FeatureBoundary>} />
@@ -109,6 +111,7 @@ function ShopWorkspace() {
   return <Routes><Route element={<AppShell navigation={attendantNavigation} />}>
     <Route index element={<FeatureBoundary><ShopDashboardPage /></FeatureBoundary>} />
     <Route path="sell" element={<FeatureBoundary><ShopSalesPage /></FeatureBoundary>} />
+    <Route path="sales/:id/receipt" element={<FeatureBoundary><ReceiptPage /></FeatureBoundary>} />
     <Route path="items" element={<FeatureBoundary><ShopCatalogPage /></FeatureBoundary>} />
     <Route path="reports" element={<FeatureBoundary><ShopReportsPage /></FeatureBoundary>} />
     <Route path="account" element={<FeatureBoundary><AccountSettingsPage /></FeatureBoundary>} />

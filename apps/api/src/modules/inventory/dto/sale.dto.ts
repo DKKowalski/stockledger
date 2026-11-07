@@ -16,7 +16,15 @@ export class SaleQuoteDto {
   lines!: SaleQuoteLineDto[];
 }
 
+export class SaleTenderDto {
+  @IsIn(['cash','momo','unpaid']) method!: 'cash' | 'momo' | 'unpaid';
+  @IsInt() @Min(0) @Max(2147483647) amountReceivedCents!: number;
+}
+
 export class CompleteSaleDto {
+  @IsOptional() @IsObject() @ValidateNested() @Type(() => SaleTenderDto)
+  tender?: SaleTenderDto;
+
   @IsUUID() idempotencyKey!: string;
   @IsString() @Matches(/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/) @MaxLength(100000)
   quoteToken!: string;

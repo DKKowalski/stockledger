@@ -1,4 +1,5 @@
 import { recordedPool, saveRecordedPool } from './prospective-costing.js';
+import { validateTender, tenderPresentation } from './sale-tender.js';
 import { averageCost, issueValue, splitCostComponents } from './exact-costing.js';
 import { reconcileValuation, valuationState } from './valuation-ledger.js';
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
@@ -141,7 +142,8 @@ export class SaleCompletionService {
       await tx.query(this.prisma.client.raw.sql`
         SELECT true AS locked FROM pg_advisory_xact_lock(hashtextextended(${`${companyId}:${key}`}, 0))
       `.returnsRow({ locked: 'pg/bool@1' }).build());
-      const requestHash = hash(body.quoteToken);
+      // Preserve the hash contract for pending requests created before tender support.
+      const requestHash = hash(body.tender ? JSON.stringify({quoteToken:body.quoteToken,tender:{method:body.tender.method,amountReceivedCents:body.tender.amountReceivedCents}}) : body.quoteToken);
       const prior = await tx.orm.public.Sale.first({ companyId, idempotencyKey: key });
       if (prior) {
         if (prior.createdByUserId !== userId || (actor.role === 'shop_attendant' && prior.locationId !== actor.locationId) || prior.requestHash !== requestHash) throw new ConflictException('This sale request key has already been used');
@@ -172,9 +174,10 @@ export class SaleCompletionService {
         const available = Math.max(0, lowestBalanceFrom(stocks, movements as MovementRecord[], line.itemId, actor.locationId!, envelope.input.movementDate));
         if (line.quantity > available) throw new ConflictException(`Only ${available} ${line.baseUnit} of ${line.itemName} available from this sale date onward. Review later stock changes or check the sale date before trying again.`);
       }
+      const tender = validateTender(body.tender, result.totalCents);
       const sale = await tx.orm.public.Sale.create({ companyId, locationId: actor.locationId!, createdByUserId: userId,
         idempotencyKey: key, requestHash: varchar<64>(requestHash), currency: varchar<3>(result.currency), movementDate: envelope.input.movementDate,
-        grossSalesCents: result.grossSalesCents, automaticDiscountCents: result.automaticDiscountCents, totalCents: result.totalCents, cogsCents: result.cogsCents });
+        grossSalesCents: result.grossSalesCents, automaticDiscountCents: result.automaticDiscountCents, totalCents: result.totalCents, cogsCents: result.cogsCents, tenderMethod:tender ? varchar<10>(tender.method) : null, amountReceivedCents:tender?.amountReceivedCents ?? null });
       for (const [position, line] of result.lines.entries()) {
         const savedLine = await tx.orm.public.SaleLine.create({ companyId, saleId: sale.id, itemId: line.itemId, position,
           itemName: varchar<120>(line.itemName), sku: line.sku, category: line.category, baseUnit: varchar<20>(line.baseUnit), quantity: line.quantity,
@@ -219,7 +222,7 @@ export class SaleCompletionService {
       presented.push({ ...publicLine, ...(actor.role === 'administrator' ? { unitCostCents, cogsCents } : {}), components });
     }
     const { cogsCents, requestHash: _hash, ...publicSale } = sale;
-    return { ...publicSale, ...(actor.role === 'administrator' ? { cogsCents } : {}), status: 'completed' as const, lines: presented };
+    return { ...publicSale, ...(actor.role === 'administrator' ? { cogsCents } : {}), ...tenderPresentation(sale.tenderMethod,sale.amountReceivedCents,sale.totalCents), status: 'completed' as const, lines: presented };
   }
 
   async get(userId: string, companyId: string, id: string) {

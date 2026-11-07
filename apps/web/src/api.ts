@@ -5,7 +5,7 @@ import type { OperationRecord } from './features/movements/durable-operation';
 import type { ExactCostState, ExactCostInput, ExactCostRequest } from './types';
 import type { MovementLedger, ReturnableSale } from './types';
 import type { AccountAccessLink, ActivityEvent, BusinessType, CompanyProfileSettings, CompanySettings, CreateUserResponse, DataSummary, InventorySettings, InventorySource, Item, LocationType, LoginResponse, MovementType, OnboardingStatus, Place, Profitability, ProfitabilityFilters, RegistrationResponse, SecurityOverview, Snapshot, StockCount, Supplier, TerminologySettings, User, UserRole } from './types';
-import type { SaleQuoteInput, SaleQuote, CompletedSale } from './types';
+import type { SaleQuoteInput, SaleQuote, CompletedSale, SaleTender } from './types';
 import type { PricingPreviewConfiguration, PricingPreviewInput, PricingQuote } from './types';
 import type { CostReview, CostReviewInput } from './types';
 
@@ -87,7 +87,8 @@ export const api = {
   confirmCost: (accessToken: string, itemId: string, body: CostReviewInput) => request<CostReview>(`/inventory/items/${itemId}/cost-review`, { method: 'POST', body: JSON.stringify(body) }, accessToken),
   saleCompletionStatus: (accessToken: string) => request<{ available: boolean; basketAvailable?: boolean; developmentOnly: true }>('/inventory/sale-completion', undefined, accessToken),
   saleQuote: (accessToken: string, body: SaleQuoteInput) => request<SaleQuote>('/inventory/sales/quote', { method: 'POST', body: JSON.stringify(body) }, accessToken),
-  completeSale: (accessToken: string, body: { idempotencyKey: string; quoteToken: string }) => request<CompletedSale>('/inventory/sales/complete', { method: 'POST', body: JSON.stringify(body) }, accessToken),
+  completeSale: (accessToken: string, body: { idempotencyKey: string; quoteToken: string; tender?: SaleTender }) => request<CompletedSale>('/inventory/sales/complete', { method: 'POST', body: JSON.stringify(body) }, accessToken),
+  sale: (accessToken: string, id: string) => request<CompletedSale>(`/inventory/sales/${encodeURIComponent(id)}`, undefined, accessToken),
   saleByKey: (accessToken: string, key: string) => request<{ sale: CompletedSale | null }>(`/inventory/sales/requests/${key}`, undefined, accessToken),
   pricingPreviewStatus: (accessToken: string) => request<{ available: boolean; previewOnly: true }>('/inventory/pricing-preview', undefined, accessToken),
   pricingPreview: (accessToken: string, itemId: string) => request<PricingPreviewConfiguration>(`/inventory/items/${itemId}/pricing-preview`, undefined, accessToken),

@@ -255,6 +255,8 @@ model Sale {
   automaticDiscountCents Int               @map("automatic_discount_cents")
   totalCents             Int               @map("total_cents")
   cogsCents              Int               @map("cogs_cents")
+  tenderMethod           VarChar(10)?      @map("tender_method")
+  amountReceivedCents    Int?              @map("amount_received_cents")
   createdAt              TimestamptzString @default(now()) @map("created_at")
 
   location               Location @relation(fields:[companyId, locationId], references:[companyId, id], onDelete: Restrict, onUpdate: Cascade)
@@ -263,6 +265,7 @@ model Sale {
   @@unique([companyId, id])
   @@unique([companyId, idempotencyKey])
   @@check(expression: "gross_sales_cents >= 0 AND automatic_discount_cents >= 0 AND total_cents >= 0 AND cogs_cents >= 0 AND gross_sales_cents::bigint - automatic_discount_cents = total_cents", name: "sale_amounts_valid")
+  @@check(expression: "(tender_method IS NULL AND amount_received_cents IS NULL) OR (tender_method IS NOT NULL AND amount_received_cents IS NOT NULL AND ((tender_method = 'unpaid' AND amount_received_cents = 0) OR (tender_method = 'cash' AND amount_received_cents >= total_cents) OR (tender_method = 'momo' AND amount_received_cents = total_cents)))", name: "sale_tender_valid")
   @@index([companyId, locationId, createdAt])
   @@index([companyId, createdByUserId])
   @@rls

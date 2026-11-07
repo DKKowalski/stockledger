@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import {randomUUID} from 'node:crypto';
 import {expect,test} from '@playwright/test';
 import pg from 'pg';
@@ -40,6 +41,10 @@ for(const width of [390,1440]) test(`retail basket edits, revalidates atomically
     await page.getByRole('button',{name:'Refresh stock and prices',exact:true}).click();await page.getByRole('button',{name:'Review sale',exact:true}).click();
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
     await testInfo.attach(`basket-${width}.png`,{body:await page.screenshot({fullPage:true}),contentType:'image/png'});
+    await page.getByRole('combobox',{name:'Payment record (manual)',exact:true}).click();
+    await page.getByRole('option',{name:'Cash received',exact:true}).click();
+    await page.getByLabel('Amount received',{exact:true}).fill('15.00');
+    await expect(page.locator('.checkout-payment').getByRole('status')).toContainText('3.50');
     let key='';
     await page.route('**/inventory/sales/complete',async route=>{key=route.request().postDataJSON().idempotencyKey;const result=await route.fetch();expect(result.status()).toBe(201);await route.abort('connectionreset');});
     await page.getByRole('button',{name:'Complete sale',exact:true}).click();await expect(page.getByRole('heading',{name:'Confirm pending sale',exact:true})).toBeVisible();
@@ -47,5 +52,27 @@ for(const width of [390,1440]) test(`retail basket edits, revalidates atomically
     expect((await db.query('SELECT idempotency_key,total_cents FROM sales WHERE company_id=$1',[company])).rows).toEqual([{idempotency_key:key,total_cents:1150}]);
     expect((await db.query('SELECT count(*)::int n,sum(quantity)::int qty FROM stock_movements WHERE company_id=$1',[company])).rows[0]).toEqual({n:2,qty:5});
     await expect(page.getByRole('button',{name:'Retry same sale',exact:true})).toHaveCount(0);
+    const recorded=(await db.query('SELECT id,tender_method,amount_received_cents FROM sales WHERE company_id=$1',[company])).rows[0];
+    expect(recorded.tender_method).toBe('cash');expect(recorded.amount_received_cents).toBe(1500);
+    await page.getByRole('link',{name:'View customer receipt',exact:true}).click();
+    const receipt=page.getByRole('article',{name:'Customer receipt',exact:true});
+    await expect(receipt).toContainText(`Sale ${recorded.id}`);
+    await expect(receipt).toContainText('Cash — recorded manually');
+    await expect(receipt).toContainText('Amount received:');await expect(receipt).toContainText('15.00');
+    await expect(receipt).toContainText('Change to give:');await expect(receipt).toContainText('3.50');
+    await expect(receipt).not.toContainText(/COGS|cost of goods|unit cost/i);
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+    await testInfo.attach(`receipt-${width}.png`,{body:await page.screenshot({fullPage:true}),contentType:'image/png'});
+    const downloadEvent=page.waitForEvent('download');await page.getByRole('button',{name:'Download receipt',exact:true}).click();
+    const download=await downloadEvent;expect(download.suggestedFilename()).toBe(`receipt-${recorded.id}.txt`);
+    await download.saveAs(testInfo.outputPath(`receipt-${width}.txt`));
+    const receiptText=await readFile(testInfo.outputPath(`receipt-${width}.txt`),'utf8');
+    expect(receiptText).toContain(`Sale ${recorded.id}`);expect(receiptText).toContain('Cash — recorded manually');expect(receiptText).not.toMatch(/COGS|unit cost/i);
+    await page.emulateMedia({media:'print'});
+    await expect(page.locator('.topbar')).toBeHidden();await expect(page.getByRole('button',{name:'Print receipt',exact:true})).toBeHidden();
+    await expect(receipt).toBeVisible();
+    await testInfo.attach(`receipt-print-${width}.png`,{body:await page.screenshot({fullPage:true}),contentType:'image/png'});
+    await page.emulateMedia({media:'screen'});
+
   } finally {await db.end();}
 });

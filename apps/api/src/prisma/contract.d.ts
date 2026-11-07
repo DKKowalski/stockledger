@@ -34,7 +34,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'da8b67a64c6f11c18e09a8670d0b3755bd08da63a0764b5e848b416e77b2e62e'>;
+  StorageHashBase<'b85e5d8a6216c5ec341fbc2b59e28374598f4962b6963c31acf6254477db53ca'>;
 export type ExecutionHash =
   ExecutionHashBase<'438fdd98bbe39b3fbbec169de7af55f8c94a9f97a8abd0580b38a7344ff205c8'>;
 export type ProfileHash =
@@ -431,6 +431,8 @@ export type FieldOutputTypes = {
       readonly automaticDiscountCents: CodecTypes['pg/int4@1']['output'];
       readonly totalCents: CodecTypes['pg/int4@1']['output'];
       readonly cogsCents: CodecTypes['pg/int4@1']['output'];
+      readonly tenderMethod: Varchar<10> | null;
+      readonly amountReceivedCents: CodecTypes['pg/int4@1']['output'] | null;
       readonly createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
     };
     readonly SaleComponent: {
@@ -776,6 +778,8 @@ export type FieldInputTypes = {
       readonly automaticDiscountCents: CodecTypes['pg/int4@1']['input'];
       readonly totalCents: CodecTypes['pg/int4@1']['input'];
       readonly cogsCents: CodecTypes['pg/int4@1']['input'];
+      readonly tenderMethod: CodecTypes['sql/varchar@1']['input'] | null;
+      readonly amountReceivedCents: CodecTypes['pg/int4@1']['input'] | null;
       readonly createdAt: CodecTypes['pg/timestamptz-string@1']['input'];
     };
     readonly SaleComponent: {
@@ -1187,6 +1191,7 @@ export type StorageColumnTypes = {
       readonly source_sale_id: CodecTypes['pg/uuid@1']['output'] | null;
     };
     readonly sales: {
+      readonly amount_received_cents: CodecTypes['pg/int4@1']['output'] | null;
       readonly automatic_discount_cents: CodecTypes['pg/int4@1']['output'];
       readonly cogs_cents: CodecTypes['pg/int4@1']['output'];
       readonly company_id: CodecTypes['pg/uuid@1']['output'];
@@ -1199,6 +1204,7 @@ export type StorageColumnTypes = {
       readonly location_id: CodecTypes['pg/uuid@1']['output'];
       readonly movement_date: CodecTypes['pg/date-string@1']['output'];
       readonly request_hash: Varchar<64>;
+      readonly tender_method: Varchar<10> | null;
       readonly total_cents: CodecTypes['pg/int4@1']['output'];
     };
     readonly stock_counts: {
@@ -1534,6 +1540,7 @@ export type StorageColumnInputTypes = {
       readonly source_sale_id: CodecTypes['pg/uuid@1']['input'] | null;
     };
     readonly sales: {
+      readonly amount_received_cents: CodecTypes['pg/int4@1']['input'] | null;
       readonly automatic_discount_cents: CodecTypes['pg/int4@1']['input'];
       readonly cogs_cents: CodecTypes['pg/int4@1']['input'];
       readonly company_id: CodecTypes['pg/uuid@1']['input'];
@@ -1546,6 +1553,7 @@ export type StorageColumnInputTypes = {
       readonly location_id: CodecTypes['pg/uuid@1']['input'];
       readonly movement_date: CodecTypes['pg/date-string@1']['input'];
       readonly request_hash: CodecTypes['sql/varchar@1']['input'];
+      readonly tender_method: CodecTypes['sql/varchar@1']['input'] | null;
       readonly total_cents: CodecTypes['pg/int4@1']['input'];
     };
     readonly stock_counts: {
@@ -1789,6 +1797,8 @@ export namespace Models {
     automaticDiscountCents: CodecTypes['pg/int4@1']['output'];
     totalCents: CodecTypes['pg/int4@1']['output'];
     cogsCents: CodecTypes['pg/int4@1']['output'];
+    tenderMethod: Varchar<10> | null;
+    amountReceivedCents: CodecTypes['pg/int4@1']['output'] | null;
     createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
     createdBy: public_User;
     location: public_Location;
@@ -4369,6 +4379,17 @@ type ContractBase = Omit<
                   readonly codecId: 'pg/int4@1';
                   readonly nullable: false;
                 };
+                readonly tender_method: {
+                  readonly nativeType: 'character varying';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly length: 10 };
+                };
+                readonly amount_received_cents: {
+                  readonly nativeType: 'int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: true;
+                };
                 readonly created_at: {
                   readonly nativeType: 'timestamptz';
                   readonly codecId: 'pg/timestamptz-string@1';
@@ -6670,6 +6691,18 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
               };
+              readonly tenderMethod: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly typeParams: { readonly length: 10 };
+                };
+              };
+              readonly amountReceivedCents: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
               readonly createdAt: {
                 readonly nullable: false;
                 readonly type: {
@@ -6717,6 +6750,8 @@ type ContractBase = Omit<
                 readonly automaticDiscountCents: { readonly column: 'automatic_discount_cents' };
                 readonly totalCents: { readonly column: 'total_cents' };
                 readonly cogsCents: { readonly column: 'cogs_cents' };
+                readonly tenderMethod: { readonly column: 'tender_method' };
+                readonly amountReceivedCents: { readonly column: 'amount_received_cents' };
                 readonly createdAt: { readonly column: 'created_at' };
               };
             };
