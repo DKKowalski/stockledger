@@ -54,14 +54,65 @@ export type MovementRecord = {
   createdAt: string;
 };
 
-function sum(movements: readonly MovementRecord[], type: StockMovementType) {
-  return movements
-    .filter((movement) => movement.type === type)
-    .reduce((total, movement) => total + movement.quantity, 0);
+export type LineAggregate = {
+  /** Quantity leaving this line, by movement type. */
+  sourced: Partial<Record<StockMovementType, number>>;
+  transferredIn: number;
+  outLastPeriod: number;
+  lastOutDate: string | null;
+};
+export type LineAggregates = ReadonlyMap<string, LineAggregate>;
+export const lineKey = (itemId: string, placeId: string) => `${itemId}:${placeId}`;
+const isOutbound = (type: StockMovementType) => type === StockMovementType.TRANSFER || type === StockMovementType.SALE;
+
+/** Folds a movement list into per-line totals. The SQL snapshot path produces the same shape. */
+export function aggregateMovements(movements: readonly MovementRecord[], startDate: string, endDate: string): Map<string, LineAggregate> {
+  const lines = new Map<string, LineAggregate>();
+  const line = (key: string) => {
+    let value = lines.get(key);
+    if (!value) lines.set(key, value = { sourced: {}, transferredIn: 0, outLastPeriod: 0, lastOutDate: null });
+    return value;
+  };
+  for (const movement of movements) {
+    const source = line(lineKey(movement.itemId, movement.locationId));
+    source.sourced[movement.type] = (source.sourced[movement.type] ?? 0) + movement.quantity;
+    if (isOutbound(movement.type)) {
+      if (movement.movementDate >= startDate && movement.movementDate <= endDate) source.outLastPeriod += movement.quantity;
+      if (source.lastOutDate === null || movement.movementDate > source.lastOutDate) source.lastOutDate = movement.movementDate;
+    }
+    if (movement.destinationLocationId) {
+      const destination = line(lineKey(movement.itemId, movement.destinationLocationId));
+      if (movement.type === StockMovementType.TRANSFER) destination.transferredIn += movement.quantity;
+    }
+  }
+  return lines;
+}
+
+export function presentMovement(
+  movement: MovementRecord,
+  itemById: ReadonlyMap<string, ItemRecord>,
+  locationById: ReadonlyMap<string, LocationRecord>,
+) {
+  return {
+    ...movement,
+    saleTotalCents: (movement.type === StockMovementType.SALE || movement.type === StockMovementType.RETURN_IN) && movement.unitPriceCents !== null
+      ? movement.unitPriceCents * movement.quantity : null,
+    costTotalCents: movementCost(movement),
+    item: itemById.get(movement.itemId) ?? null,
+    location: locationById.get(movement.locationId) ?? null,
+    destination: movement.destinationLocationId ? locationById.get(movement.destinationLocationId) ?? null : null,
+    sign: MOVEMENT_SIGN[movement.type],
+  };
 }
 
 function touches(movement: MovementRecord, locationId: string) {
   return movement.locationId === locationId || movement.destinationLocationId === locationId;
+}
+
+export function snapshotPeriod(days: number, now: Date, range?: { from: string; to: string }) {
+  const periodStart = new Date(now);
+  periodStart.setUTCDate(periodStart.getUTCDate() - days);
+  return { startDate: range?.from ?? periodStart.toISOString().slice(0, 10), endDate: range?.to ?? now.toISOString().slice(0, 10) };
 }
 
 export function buildSnapshot(
@@ -74,55 +125,33 @@ export function buildSnapshot(
   now = new Date(),
   pools: ReadonlyMap<string, ValuePool> = new Map(),
   range?: { from: string; to: string },
+  /** Supply when `movements` is only the displayed subset; totals then come from SQL. */
+  precomputed?: { lines: LineAggregates; poolMovements: readonly MovementRecord[] },
 ) {
-  const periodStart = new Date(now);
-  periodStart.setUTCDate(periodStart.getUTCDate() - days);
-  const startDate = range?.from ?? periodStart.toISOString().slice(0, 10);
-  const endDate = range?.to ?? now.toISOString().slice(0, 10);
+  const { startDate, endDate } = snapshotPeriod(days, now, range);
   const visibleLocations = locationId
     ? locations.filter((location) => location.id === locationId)
     : locations;
 
-  // Index once so each item-and-place line does not rescan the whole ledger.
-  const lineKey = (itemId: string, placeId: string) => `${itemId}:${placeId}`;
   const openingByLine = new Map(stocks.map((stock) => [lineKey(stock.itemId, stock.locationId), stock.openingStock]));
-  const sourcedByLine = new Map<string, MovementRecord[]>();
-  const receivedByLine = new Map<string, MovementRecord[]>();
-  const touchedLines = new Set<string>();
-  for (const movement of movements) {
-    const source = lineKey(movement.itemId, movement.locationId);
-    if (!sourcedByLine.has(source)) sourcedByLine.set(source, []);
-    sourcedByLine.get(source)!.push(movement);
-    touchedLines.add(source);
-    if (movement.destinationLocationId) {
-      const destination = lineKey(movement.itemId, movement.destinationLocationId);
-      touchedLines.add(destination);
-      if (movement.type === StockMovementType.TRANSFER) {
-        if (!receivedByLine.has(destination)) receivedByLine.set(destination, []);
-        receivedByLine.get(destination)!.push(movement);
-      }
-    }
-  }
+  const aggregates = precomputed?.lines ?? aggregateMovements(movements, startDate, endDate);
 
   const lines = locations.flatMap((location) => items.map((item) => {
     const key = lineKey(item.id, location.id);
     const opening = openingByLine.get(key) ?? 0;
-    const sourced = sourcedByLine.get(key) ?? [];
-    const received = receivedByLine.get(key) ?? [];
-    const purchases = sum(sourced, StockMovementType.PURCHASE);
-    const returnsIn = sum(sourced, StockMovementType.RETURN_IN);
-    const transferredOut = sum(sourced, StockMovementType.TRANSFER);
-    const returnsOut = sum(sourced, StockMovementType.RETURN_OUT);
-    const damaged = sum(sourced, StockMovementType.DAMAGE);
-    const sales = sum(sourced, StockMovementType.SALE);
-    const adjustmentsIn = sum(sourced, StockMovementType.ADJUSTMENT_IN);
-    const adjustmentsOut = sum(sourced, StockMovementType.ADJUSTMENT_OUT);
-    const transferredIn = received.reduce((total, movement) => total + movement.quantity, 0);
+    const aggregate = aggregates.get(key);
+    const sourced = aggregate?.sourced ?? {};
+    const purchases = sourced[StockMovementType.PURCHASE] ?? 0;
+    const returnsIn = sourced[StockMovementType.RETURN_IN] ?? 0;
+    const transferredOut = sourced[StockMovementType.TRANSFER] ?? 0;
+    const returnsOut = sourced[StockMovementType.RETURN_OUT] ?? 0;
+    const damaged = sourced[StockMovementType.DAMAGE] ?? 0;
+    const sales = sourced[StockMovementType.SALE] ?? 0;
+    const adjustmentsIn = sourced[StockMovementType.ADJUSTMENT_IN] ?? 0;
+    const adjustmentsOut = sourced[StockMovementType.ADJUSTMENT_OUT] ?? 0;
+    const transferredIn = aggregate?.transferredIn ?? 0;
     const closing = opening + purchases + returnsIn + transferredIn + adjustmentsIn - transferredOut - returnsOut - damaged - sales - adjustmentsOut;
-    const outbound = sourced.filter((movement) => (
-      movement.type === StockMovementType.TRANSFER || movement.type === StockMovementType.SALE
-    ));
-    const active = opening > 0 || touchedLines.has(key);
+    const active = opening > 0 || aggregate !== undefined;
     return {
       item,
       location,
@@ -138,16 +167,14 @@ export function buildSnapshot(
       adjustmentsOut,
       closing,
       valueCents: closing * item.unitCostCents,
-      outLastPeriod: outbound
-        .filter((movement) => movement.movementDate >= startDate && movement.movementDate <= endDate)
-        .reduce((total, movement) => total + movement.quantity, 0),
-      lastOutDate: outbound.map((movement) => movement.movementDate).sort().at(-1) ?? null,
+      outLastPeriod: aggregate?.outLastPeriod ?? 0,
+      lastOutDate: aggregate?.lastOutDate ?? null,
       isLowStock: active && closing <= item.reorderLevel,
       active,
     };
   }));
 
-  for (const [itemId, pool] of new Map([...prospectivePools(items, stocks, movements), ...pools])) {
+  for (const [itemId, pool] of new Map([...prospectivePools(items, stocks, precomputed?.poolMovements ?? movements), ...pools])) {
     const matching = lines.filter(line => line.item.id === itemId);
     const values = locationValues(pool,matching.map(line => ({locationId:line.location.id,quantity:line.closing})));
     for (const line of matching) line.valueCents = values.get(line.location.id)!;
@@ -179,19 +206,9 @@ export function buildSnapshot(
     locationId === null || touches(movement, locationId)
   ));
 
-  const presentMovement = (movement: MovementRecord) => ({
-    ...movement,
-    saleTotalCents: (movement.type === StockMovementType.SALE || movement.type === StockMovementType.RETURN_IN) && movement.unitPriceCents !== null
-      ? movement.unitPriceCents * movement.quantity : null,
-    costTotalCents: movementCost(movement),
-    item: itemById.get(movement.itemId) ?? null,
-    location: locationById.get(movement.locationId) ?? null,
-    destination: movement.destinationLocationId ? locationById.get(movement.destinationLocationId) ?? null : null,
-    sign: MOVEMENT_SIGN[movement.type],
-  });
   const presentedMovements = [...visibleMovements]
     .sort((left, right) => right.movementDate.localeCompare(left.movementDate) || right.createdAt.localeCompare(left.createdAt))
-    .map(presentMovement);
+    .map((movement) => presentMovement(movement, itemById, locationById));
 
   return {
     items,

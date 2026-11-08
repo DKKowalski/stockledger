@@ -34,7 +34,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'b85e5d8a6216c5ec341fbc2b59e28374598f4962b6963c31acf6254477db53ca'>;
+  StorageHashBase<'c5d7a158871ec529bd305865c9f0ff7543ce959baffc4d4cc2dcfa5e323a4ef3'>;
 export type ExecutionHash =
   ExecutionHashBase<'438fdd98bbe39b3fbbec169de7af55f8c94a9f97a8abd0580b38a7344ff205c8'>;
 export type ProfileHash =
@@ -4741,6 +4741,12 @@ type ContractBase = Omit<
                   readonly name: 'stock_movements_stock_count_id_idx_eae46c55';
                   readonly prefix: 'stock_movements_stock_count_id_idx';
                   readonly columns: readonly ['stock_count_id'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'stock_movements_company_id_movement_date_idx_b0e8bdf3';
+                  readonly prefix: 'stock_movements_company_id_movement_date_idx';
+                  readonly columns: readonly ['company_id', 'movement_date'];
                   readonly unique: false;
                 },
                 {

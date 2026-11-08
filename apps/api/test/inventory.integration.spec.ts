@@ -8,6 +8,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import type { Contract } from '../src/prisma/contract.d.js';
 import contractJson from '../src/prisma/contract.json' with { type: 'json' };
 import { PrismaService } from '../src/prisma/prisma.service.js';
+import { buildSnapshot, type ItemRecord, type LocationRecord, type MovementRecord, type StockRecord } from '../src/modules/inventory/inventory-calculations.js';
 import { InventoryService } from '../src/modules/inventory/inventory.service.js';
 import { StockMovementType as Type } from '../src/modules/inventory/inventory.types.js';
 import { DataExportService } from '../src/modules/settings/data-export.service.js';
@@ -1648,5 +1649,47 @@ describe('return source discovery beyond recent sales', () => {
     expect(await service.returnableSales(f.admin.id,f.company.id,query({locationId:foreign.shop.id}))).toEqual([]);
     expect((await returns.getSource(f.admin.id,f.company.id,'legacy',ids[0]!)).lines[0]?.remainingQuantity).toBe(2);
     await expect(returns.getSource(foreign.admin.id,foreign.company.id,'legacy',ids[0]!)).rejects.toThrow();
+  });
+});
+
+describe('stock overview aggregated in SQL', () => {
+  it('matches the in-memory snapshot for every movement type, place filter and period', async () => {
+    const f = await fixture(40);
+    const second = await service.createItem(f.admin.id, f.company.id, {
+      sku: 'TEST-TWO', name: 'Second item', category: 'Test', unit: 'pcs',
+      unitCostCents: 50, sellingPriceCents: 90, reorderLevel: 5, openingStock: 7, locationId: f.shop.id,
+    });
+    await db.runtime().execute(db.raw.sql`
+      INSERT INTO public.stock_movements(id, company_id, item_id, location_id, destination_location_id, type, quantity, unit_price_cents, unit_cost_cents, movement_date, created_at)
+      SELECT gen_random_uuid(), ${f.company.id}::uuid, CASE WHEN n % 5 = 0 THEN ${second.id}::uuid ELSE ${f.item.id}::uuid END,
+        CASE WHEN n % 2 = 0 THEN ${f.warehouse.id}::uuid ELSE ${f.shop.id}::uuid END,
+        CASE WHEN n % 8 = 2 THEN ${f.shop.id}::uuid END,
+        (ARRAY['purchase','sale','transfer','damage','return_in','return_out','adjustment_in','adjustment_out'])[1 + n % 8],
+        1 + n % 4, CASE WHEN n % 8 IN (1, 4) THEN 175 END, 100,
+        ('2026-09-01'::date + (n % 70))::date, '2026-09-01T00:00:00Z'::timestamptz + make_interval(secs => n)
+      FROM generate_series(1,160) n
+    `.affectedCount().build());
+    const reference = async (place: string | null, days: number, range?: { from: string; to: string }) => {
+      const items = await db.orm.public.InventoryItem.where({ companyId: f.company.id }).all() as ItemRecord[];
+      const locations = (await db.orm.public.Location.where({ companyId: f.company.id }).all()).map(l => ({ id: l.id, name: l.name, type: l.type })) as LocationRecord[];
+      const stocks = await db.orm.public.LocationStock.where({ companyId: f.company.id }).all() as StockRecord[];
+      const movements = await db.orm.public.StockMovement.where({ companyId: f.company.id }).all() as MovementRecord[];
+      return buildSnapshot(items, locations, stocks, movements, days, place, new Date(), new Map(), range);
+    };
+    const cases: Array<[string | null, number, { from: string; to: string }?]> = [
+      [null, 30], [f.warehouse.id, 30], [f.shop.id, 365], [null, 30, { from: '2026-09-10', to: '2026-10-05' }],
+    ];
+    for (const [place, days, range] of cases) {
+      const actual = await service.snapshot(f.admin.id, f.company.id, days, place ?? undefined, range ?? {});
+      const expected = await reference(place, days, range);
+      const strip = (snapshot: typeof expected) => ({
+        summary: snapshot.summary, periodStart: snapshot.periodStart, periodEnd: snapshot.periodEnd,
+        positions: snapshot.positions,
+        recent: snapshot.movements.slice(0, 50).map(m => m.id),
+        period: snapshot.periodMovements.map(m => m.id),
+      });
+      expect(strip(actual as typeof expected)).toEqual(strip(expected));
+      expect(actual.movements.length).toBeLessThanOrEqual(50);
+    }
   });
 });

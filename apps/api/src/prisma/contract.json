@@ -9382,6 +9382,15 @@
                 {
                   "columns": [
                     "company_id",
+                    "movement_date"
+                  ],
+                  "name": "stock_movements_company_id_movement_date_idx_b0e8bdf3",
+                  "prefix": "stock_movements_company_id_movement_date_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "company_id",
                     "related_movement_id"
                   ],
                   "name": "stock_movements_company_id_related_movement_id_idx_5b843ea9",
@@ -9871,7 +9880,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "b85e5d8a6216c5ec341fbc2b59e28374598f4962b6963c31acf6254477db53ca"
+    "storageHash": "c5d7a158871ec529bd305865c9f0ff7543ce959baffc4d4cc2dcfa5e323a4ef3"
   },
   "execution": {
     "executionHash": "438fdd98bbe39b3fbbec169de7af55f8c94a9f97a8abd0580b38a7344ff205c8",

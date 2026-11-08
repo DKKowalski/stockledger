@@ -16,7 +16,7 @@ import {
 import type { Varchar } from '@prisma/orm-postgres/target/codec-types';
 import { PrismaService, type PrismaTransaction } from '../../prisma/prisma.service.js';
 import type { UserRole } from '../auth/auth.types.js';
-import { buildSnapshot, lowestBalanceFrom, withoutCosts, type ItemRecord, type LocationRecord, type MovementRecord, type StockRecord } from './inventory-calculations.js';
+import { buildSnapshot, lowestBalanceFrom, snapshotPeriod, lineKey, type LineAggregate, withoutCosts, type ItemRecord, type LocationRecord, type MovementRecord, type StockRecord } from './inventory-calculations.js';
 import { CreateItemDto } from './dto/create-item.dto.js';
 import { CreateLocationDto } from './dto/create-location.dto.js';
 import { CreateMovementDto } from './dto/create-movement.dto.js';
@@ -40,6 +40,11 @@ type Actor = {
 };
 
 const RECENT_MOVEMENTS = 50;
+const MOVEMENT_ROW = { id: 'pg/uuid@1', itemId: 'pg/uuid@1', locationId: 'pg/uuid@1', destinationLocationId: 'pg/uuid@1',
+  type: 'pg/text@1', quantity: 'pg/int4@1', unitPriceCents: 'pg/int4@1', unitCostCents: 'pg/int4@1', supplierId: 'pg/uuid@1',
+  costTotalCents: 'pg/int4@1', correctsMovementId: 'pg/uuid@1', correctedByMovementId: 'pg/uuid@1',
+  relatedMovementId: 'pg/uuid@1', stockCountId: 'pg/uuid@1', movementDate: 'pg/text@1', reference: 'pg/text@1', note: 'pg/text@1',
+  createdAt: 'pg/timestamptz-string@1', saleId: 'pg/uuid@1', saleLineId: 'pg/uuid@1', pricingCategory: 'pg/text@1' } as const;
 
 function sameItemName(left: string, right: string) {
   const key = (name: string) => name.trim().replace(/\s+/g, ' ').toLowerCase();
@@ -55,21 +60,25 @@ export class InventoryService {
   async snapshot(userId: string, companyId: string, days = 30, locationId?: string, query: { from?: string; to?: string } = {}) {
     return this.prisma.withCompany(companyId, async (tx) => {
       const actor = await this.actor(tx, companyId, userId);
-      const scope = await this.scope(tx, companyId);
+      const scope = await this.snapshotScope(tx, companyId);
       const selected = this.visibleLocation(actor, scope.locations, locationId);
       const company = await tx.orm.public.Company.first({ id: companyId });
       const range = dateRange(query, days, company?.timeZone);
       const pools = await valuationPools(tx,companyId);
+      const now = new Date();
+      const { startDate, endDate } = snapshotPeriod(days, now, range ?? undefined);
+      const history = await this.snapshotHistory(tx, companyId, selected, startDate, endDate);
       const snapshot = buildSnapshot(
         scope.items.map(item => pools.has(item.id) ? {...item,preciseCosting:true} : item),
         scope.locations,
         scope.stocks,
-        scope.movements,
+        history.movements,
         days,
         selected,
-        new Date(),
+        now,
         pools,
         range ?? undefined,
+        { lines: history.lines, poolMovements: history.poolMovements },
       );
       // The full history is paged through movementLedger; the snapshot carries only recent activity.
       const recent = { ...snapshot, movements: snapshot.movements.slice(0, RECENT_MOVEMENTS) };
@@ -182,7 +191,7 @@ export class InventoryService {
       const actor = await this.actor(tx, companyId, userId);
       this.assertAdministrator(actor);
       await this.lockCompany(tx, companyId);
-      const scope = await this.scope(tx, companyId);
+      const scope = await this.snapshotScope(tx, companyId);
       const company = await tx.orm.public.Company.first({ id: companyId });
       if (!company) throw new UnauthorizedException('Business no longer exists');
       const locationId = body.locationId ?? company.defaultLocationId;
@@ -229,7 +238,7 @@ export class InventoryService {
       const actor = await this.actor(tx, companyId, userId);
       this.assertAdministrator(actor);
       await this.lockCompany(tx, companyId);
-      const scope = await this.scope(tx, companyId);
+      const scope = await this.snapshotScope(tx, companyId);
       const company = await tx.orm.public.Company.first({ id: companyId });
       if (!company) throw new UnauthorizedException('Business no longer exists');
       const locationId = body.locationId ?? company.defaultLocationId;
@@ -919,6 +928,90 @@ export class InventoryService {
   private assertNewItemName(items: readonly { id: string; name: string; sku: string; isActive: boolean }[], name: string, exceptId?: string) {
     const match = items.find((item) => item.isActive && item.id !== exceptId && sameItemName(item.name, name));
     if (match) throw new ConflictException(`${match.name} already exists (${match.sku}). To add more of it, record a purchase. If this is a different product, add something that tells them apart, such as the size.`);
+  }
+
+  /** Items, places and opening stock only. Movement history is aggregated in SQL by snapshotHistory. */
+  private async snapshotScope(tx: PrismaTransaction, companyId: string) {
+    const [items, locations, stocks] = await Promise.all([
+      tx.orm.public.InventoryItem.where({ companyId }).all(),
+      tx.orm.public.Location.where({ companyId }).all(),
+      tx.orm.public.LocationStock.where({ companyId }).all(),
+    ]);
+    return { items: items as ItemRecord[], locations: locations.map((location) => this.presentLocation(location)), stocks: stocks as StockRecord[] };
+  }
+
+  /**
+   * Per item-and-place totals computed by the database, plus only the movements the
+   * snapshot displays: the latest RECENT_MOVEMENTS and those inside the period.
+   */
+  async snapshotHistory(tx: PrismaTransaction, companyId: string, locationId: string | null, startDate: string, endDate: string) {
+    const place = locationId ?? '';
+    const sourced = await tx.query(this.prisma.client.raw.sql`
+      SELECT m.item_id AS "itemId", m.location_id AS "locationId", m.type::text AS type, sum(m.quantity)::int AS total,
+        coalesce(sum(m.quantity) FILTER (WHERE m.type::text IN ('sale', 'transfer') AND m.movement_date BETWEEN ${startDate}::date AND ${endDate}::date), 0)::int AS "periodOut",
+        max(m.movement_date) FILTER (WHERE m.type::text IN ('sale', 'transfer'))::text AS "lastOut"
+      FROM public.stock_movements m
+      WHERE m.company_id = ${companyId}::uuid
+      GROUP BY m.item_id, m.location_id, m.type
+    `.returnsRow({ itemId: 'pg/uuid@1', locationId: 'pg/uuid@1', type: 'pg/text@1', total: 'pg/int4@1', periodOut: 'pg/int4@1', lastOut: 'pg/text@1' }).build());
+    const received = await tx.query(this.prisma.client.raw.sql`
+      SELECT m.item_id AS "itemId", m.destination_location_id AS "locationId", (m.type::text = 'transfer') AS "isTransfer", sum(m.quantity)::int AS total
+      FROM public.stock_movements m
+      WHERE m.company_id = ${companyId}::uuid AND m.destination_location_id IS NOT NULL
+      GROUP BY m.item_id, m.destination_location_id, (m.type::text = 'transfer')
+    `.returnsRow({ itemId: 'pg/uuid@1', locationId: 'pg/uuid@1', isTransfer: 'pg/bool@1', total: 'pg/int4@1' }).build());
+    const lines = new Map<string, LineAggregate>();
+    const line = (key: string) => {
+      let value = lines.get(key);
+      if (!value) lines.set(key, value = { sourced: {}, transferredIn: 0, outLastPeriod: 0, lastOutDate: null });
+      return value;
+    };
+    for (const row of sourced) {
+      const aggregate = line(lineKey(row.itemId, row.locationId));
+      aggregate.sourced[row.type as StockMovementType] = row.total;
+      aggregate.outLastPeriod += row.periodOut;
+      if (row.lastOut && (aggregate.lastOutDate === null || row.lastOut > aggregate.lastOutDate)) aggregate.lastOutDate = row.lastOut;
+    }
+    for (const row of received) {
+      const aggregate = line(lineKey(row.itemId, row.locationId));
+      if (row.isTransfer) aggregate.transferredIn += row.total;
+    }
+    const rows = await tx.query(this.prisma.client.raw.sql`
+      WITH recent AS (
+        SELECT v.id FROM public.stock_movements v
+        WHERE v.company_id = ${companyId}::uuid
+          AND (${place} = '' OR v.location_id = NULLIF(${place}, '')::uuid OR v.destination_location_id = NULLIF(${place}, '')::uuid)
+        ORDER BY v.movement_date DESC, v.created_at DESC, v.id DESC
+        LIMIT ${RECENT_MOVEMENTS}
+      )
+      SELECT m.id, m.item_id AS "itemId", m.location_id AS "locationId", m.destination_location_id AS "destinationLocationId",
+        m.type::text AS type, m.quantity, m.unit_price_cents AS "unitPriceCents", m.unit_cost_cents AS "unitCostCents",
+        m.cost_total_cents AS "costTotalCents", m.corrects_movement_id AS "correctsMovementId", correction.id AS "correctedByMovementId",
+        m.supplier_id AS "supplierId", m.related_movement_id AS "relatedMovementId", m.stock_count_id AS "stockCountId",
+        m.movement_date::text AS "movementDate", m.reference, m.note, m.created_at AS "createdAt",
+        l.sale_id AS "saleId", c.sale_line_id AS "saleLineId", c.category::text AS "pricingCategory"
+      FROM public.stock_movements m
+      LEFT JOIN public.stock_movements correction ON correction.company_id = m.company_id AND correction.corrects_movement_id = m.id
+      LEFT JOIN public.sale_components c ON c.company_id = m.company_id AND c.movement_id = m.id
+      LEFT JOIN public.sale_lines l ON l.company_id = c.company_id AND l.id = c.sale_line_id
+      WHERE m.company_id = ${companyId}::uuid
+        AND (${place} = '' OR m.location_id = NULLIF(${place}, '')::uuid OR m.destination_location_id = NULLIF(${place}, '')::uuid)
+        AND (m.id IN (SELECT id FROM recent) OR m.movement_date BETWEEN ${startDate}::date AND ${endDate}::date)
+      ORDER BY m.movement_date DESC, m.created_at DESC, m.id DESC
+    `.returnsRow(MOVEMENT_ROW).build());
+    // Recorded-value items rebuild their balances from every movement, so fetch just those items' history.
+    const poolMovements = await tx.query(this.prisma.client.raw.sql`
+      SELECT m.id, m.item_id AS "itemId", m.location_id AS "locationId", m.destination_location_id AS "destinationLocationId",
+        m.type::text AS type, m.quantity
+      FROM public.stock_movements m
+      JOIN public.inventory_items i ON i.company_id = m.company_id AND i.id = m.item_id
+      WHERE m.company_id = ${companyId}::uuid AND i.pooled_value_cents IS NOT NULL
+    `.returnsRow({ id: 'pg/uuid@1', itemId: 'pg/uuid@1', locationId: 'pg/uuid@1', destinationLocationId: 'pg/uuid@1', type: 'pg/text@1', quantity: 'pg/int4@1' }).build());
+    return {
+      lines,
+      movements: rows as unknown as MovementRecord[],
+      poolMovements: poolMovements as unknown as MovementRecord[],
+    };
   }
 
   private async scope(tx: PrismaTransaction, companyId: string, itemId?: string) {

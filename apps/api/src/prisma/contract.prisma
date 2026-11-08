@@ -489,6 +489,7 @@ model StockMovement {
   @@index([supplierId])
   @@index([relatedMovementId])
   @@index([stockCountId])
+  @@index([companyId, movementDate])
   @@index([movementDate])
   @@rls
   @@map("stock_movements")

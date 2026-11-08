@@ -1,0 +1,41 @@
+[
+  {
+    "id": "index.stock_movements.stock_movements_company_id_movement_date_idx_b0e8bdf3",
+    "label": "Create index \"stock_movements_company_id_movement_date_idx_b0e8bdf3\" on \"stock_movements\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "stock_movements_company_id_movement_date_idx_b0e8bdf3",
+        "table": "stock_movements"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"stock_movements_company_id_movement_date_idx_b0e8bdf3\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"stock_movements_company_id_movement_date_idx_b0e8bdf3\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"stock_movements_company_id_movement_date_idx_b0e8bdf3\"",
+        "sql": "CREATE INDEX \"stock_movements_company_id_movement_date_idx_b0e8bdf3\" ON \"public\".\"stock_movements\" (\"company_id\", \"movement_date\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"stock_movements_company_id_movement_date_idx_b0e8bdf3\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"stock_movements_company_id_movement_date_idx_b0e8bdf3\""
+        ]
+      }
+    ]
+  }
+]
