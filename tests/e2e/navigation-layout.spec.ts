@@ -15,14 +15,34 @@ async function signIn(page: Page, width = 1280) {
   await expect(page).toHaveURL('/');
 }
 
+async function useHeaderLayout(page: Page) {
+  await page.evaluate(() => localStorage.setItem('stockledger.nav-layout.v1', 'header'));
+  await page.reload();
+  await expect(page.locator('header.topbar')).toBeVisible();
+}
+
 async function chooseLayout(page: Page, layout: 'Header' | 'Sidebar') {
   await page.locator('header').getByRole('button', { name: 'Open account menu' }).or(page.locator('[data-slot="sidebar"]').getByRole('button', { name: 'Open account menu' })).and(page.locator(':visible')).click();
   await page.getByRole('menuitemradio', { name: layout }).click();
   await page.keyboard.press('Escape');
 }
 
-test('header layout is the default and shows icon + label tabs with an active indicator', async ({ page }) => {
+test('sidebar layout is the default and starts expanded', async ({ page }) => {
   await signIn(page);
+  const sidebar = page.locator('[data-slot="sidebar"]');
+  await expect(sidebar).toHaveAttribute('data-state', 'expanded');
+  await expect(sidebar.getByRole('navigation', { name: 'Main navigation' })).toBeVisible();
+  await expect(page.locator('header.topbar')).toBeHidden();
+  await shot(page, 'nav-default-1280');
+  // An explicit Header choice is kept after a reload.
+  await chooseLayout(page, 'Header');
+  await page.reload();
+  await expect(page.locator('header.topbar')).toBeVisible();
+});
+
+test('header layout shows icon + label tabs with an active indicator', async ({ page }) => {
+  await signIn(page);
+  await useHeaderLayout(page);
   const nav = page.getByRole('navigation', { name: 'Main navigation' });
   await expect(nav).toBeVisible();
   await expect(nav.getByRole('link', { name: 'Overview' })).toHaveAttribute('aria-current', 'page');
@@ -42,7 +62,6 @@ test('header layout is the default and shows icon + label tabs with an active in
 
 test('switches to the sidebar, collapses, expands and remembers both choices after reload', async ({ page }) => {
   await signIn(page);
-  await chooseLayout(page, 'Sidebar');
   const sidebar = page.locator('[data-slot="sidebar"]');
   const nav = sidebar.getByRole('navigation', { name: 'Main navigation' });
   await expect(nav).toBeVisible();
@@ -84,7 +103,7 @@ test('switches to the sidebar, collapses, expands and remembers both choices aft
 
 for (const layout of ['Header', 'Sidebar'] as const) test(`mobile ${layout} layout uses a top bar and a sheet at 375px`, async ({ page }) => {
   await signIn(page, 1280);
-  if (layout === 'Sidebar') await chooseLayout(page, 'Sidebar');
+  if (layout === 'Header') await useHeaderLayout(page);
   await page.setViewportSize({ width: 375, height: 700 });
   const open = page.getByRole('button', { name: 'Open navigation', exact: true });
   await expect(open).toBeVisible();

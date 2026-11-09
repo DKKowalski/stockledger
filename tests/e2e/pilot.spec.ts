@@ -210,7 +210,7 @@ test('previews the demo as the Makola shop attendant', async ({ page }) => {
   await page.getByRole('button', { name: 'Preview as shop attendant' }).click();
   await expect(page).toHaveURL('/');
   await expect(page.getByText('You are viewing a read-only demo.')).toBeVisible();
-  await expect(page.getByText('Joyce Baidoo').first()).toBeVisible();
+  await expect(page.getByText('Joyce Baidoo').locator('visible=true').first()).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Deals are on' })).toBeVisible();
   await page.getByRole('button', { name: 'Got it' }).click();
   await expect(page.getByRole('heading', { name: 'Deals are on' })).toBeHidden();

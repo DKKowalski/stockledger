@@ -19,4 +19,4 @@ Components land in `src/components/ui`. Existing hand-written files there (`sele
 
 ## Navigation layout
 
-`src/components/app-shell.tsx` + `app-nav.tsx`. Users pick Header or Sidebar in the account menu. The choice and the sidebar collapsed state live in `localStorage` (`src/lib/nav-layout.ts`, keys `stockledger.nav-layout.v1`, `stockledger.nav-collapsed.v1`), per device. No user-preferences API exists; moving this to the server would need an API change. Below 768px both layouts use one top bar plus a Sheet.
+`src/components/app-shell.tsx` + `app-nav.tsx`. The sidebar (expanded) is the default; users can pick Header in the account menu and that explicit choice is kept. The choice and the sidebar collapsed state live in `localStorage` (`src/lib/nav-layout.ts`, keys `stockledger.nav-layout.v1`, `stockledger.nav-collapsed.v1`), per device. No user-preferences API exists; moving this to the server would need an API change. Below 768px both layouts use one top bar plus a Sheet.

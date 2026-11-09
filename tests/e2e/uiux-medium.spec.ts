@@ -58,6 +58,7 @@ for (const width of [390, 1440]) test(`first-run guidance leads with the next ta
 });
 
 for (const width of [390, 1440]) test(`top navigation and item tabs support keyboard at ${width}px`, async ({ page }) => {
+  await page.addInitScript(() => { try { localStorage.setItem('stockledger.nav-layout.v1', 'header'); } catch { /* ignore */ } });
   await page.setViewportSize({ width, height: 900 });
   await mediumSession(page);
   await page.goto('/items');
@@ -116,6 +117,7 @@ test('purchase safeguards automatically expose required delivery details', async
 
 
 test('header tabs keep labels, overflow into More, and compact menus retain labels', async ({ page }) => {
+  await page.addInitScript(() => { try { localStorage.setItem('stockledger.nav-layout.v1', 'header'); } catch { /* ignore */ } });
   await mediumSession(page);
   await page.setViewportSize({ width: 1100, height: 900 });
   await page.goto('/items');

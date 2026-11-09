@@ -3,7 +3,7 @@
 import { useSyncExternalStore } from 'react';
 
 export type NavLayout = 'header' | 'sidebar';
-export const defaultNavLayout: NavLayout = 'header';
+export const defaultNavLayout: NavLayout = 'sidebar';
 
 const layoutKey = 'stockledger.nav-layout.v1';
 const collapsedKey = 'stockledger.nav-collapsed.v1';
@@ -26,7 +26,10 @@ function subscribe(listener: () => void) {
 function stored(key: string) { return memory[key] ?? read(key); }
 function set(key: string, value: string) { memory[key] = value; write(key, value); emit(); }
 
-export function readNavLayout(): NavLayout { return stored(layoutKey) === 'sidebar' ? 'sidebar' : defaultNavLayout; }
+export function readNavLayout(): NavLayout {
+  const value = stored(layoutKey);
+  return value === 'header' || value === 'sidebar' ? value : defaultNavLayout;
+}
 export function saveNavLayout(layout: NavLayout) { set(layoutKey, layout); }
 export function useNavLayout() { return useSyncExternalStore(subscribe, readNavLayout, () => defaultNavLayout); }
 

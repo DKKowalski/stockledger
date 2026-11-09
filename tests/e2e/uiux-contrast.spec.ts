@@ -45,7 +45,7 @@ for (const width of [360, 390, 1440]) {
       samples[`${theme}-health`] = await checkText(page, '.health-legend small, .chart-legend, .chart-period, .health-metric > span');
       // Use the shared focus treatment on an always-visible keyboard target.
       await page.keyboard.press('Tab');
-      const target = page.locator('.notification-trigger');
+      const target = page.locator('.notification-trigger:visible');
       await target.focus();
       const focus = await target.evaluate(element => {
         const style = getComputedStyle(element);

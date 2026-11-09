@@ -55,6 +55,9 @@ test('key mobile screens have no WCAG A/AA axe violations', async ({ page }, tes
     await scan(page, 'navigation sheet (header layout)');
     await page.keyboard.press('Escape');
     await page.setViewportSize({ width: 1280, height: 800 });
+    await page.evaluate((key) => localStorage.setItem(key, 'header'), layoutKey);
+    await page.reload();
+    await expect(page.locator('header.topbar')).toBeVisible();
     await scan(page, 'header layout desktop');
     await page.evaluate((key) => localStorage.setItem(key, 'sidebar'), layoutKey);
     await page.reload();
