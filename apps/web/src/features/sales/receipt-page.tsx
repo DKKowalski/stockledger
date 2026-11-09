@@ -36,11 +36,20 @@ export function ReceiptPage() {
     const blob=await createReceiptPdf({sale:sale!,companyName:settings?.name??'Customer receipt',shop,dateLabel:calendarDate(sale!.movementDate),payment,disclosure,money});
     return new File([blob],`receipt-${sale!.id}.pdf`,{type:'application/pdf'});
   };
+  // Build the PDF once the receipt is on screen: phone browsers only allow sharing straight after the tap.
+  const [ready,setReady]=useState<{id:string;file:File}|null>(null);
+  const readyKey=sale?`${sale.id}|${settings?.name??''}|${shop??''}`:'';
+  useEffect(()=>{
+    if(!sale) return;
+    let active=true;
+    void makePdf().then(file=>{if(active)setReady({id:readyKey,file});}).catch(()=>undefined);
+    return()=>{active=false;};
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[readyKey]);
   const share=async()=>{
     setMessage('');setBusy('share');
     try {
-      let file:File|undefined;
-      try {file=await makePdf();} catch {file=undefined;}
+      const file=ready?.id===readyKey?ready.file:undefined;
       if(file&&navigator.canShare?.({files:[file]})) await navigator.share({title:`Receipt ${sale!.id}`,text,files:[file]});
       else if(navigator.share) await navigator.share({title:`Receipt ${sale!.id}`,text});
       else {await navigator.clipboard.writeText(text);setMessage('Receipt copied.');}
@@ -50,7 +59,7 @@ export function ReceiptPage() {
   };
   const download=async()=>{
     setMessage('');setBusy('download');
-    try {const file=await makePdf();const url=URL.createObjectURL(file);const link=document.createElement('a');link.href=url;link.download=file.name;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+    try {const file=ready?.id===readyKey?ready.file:await makePdf();const url=URL.createObjectURL(file);const link=document.createElement('a');link.href=url;link.download=file.name;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
     catch {const failure='Could not create the receipt PDF. Try again or use print.';setMessage(failure);toast.error(failure);}
     finally {setBusy(null);}
   };
