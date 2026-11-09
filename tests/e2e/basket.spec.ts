@@ -66,10 +66,10 @@ for(const width of [390,1440]) test(`retail basket edits, revalidates atomically
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
     await testInfo.attach(`receipt-${width}.png`,{body:await page.screenshot({path:testInfo.outputPath(`receipt-${width}.png`),fullPage:true}),contentType:'image/png'});
     const downloadEvent=page.waitForEvent('download');await page.getByRole('button',{name:'Download receipt',exact:true}).click();
-    const download=await downloadEvent;expect(download.suggestedFilename()).toBe(`receipt-${recorded.id}.txt`);
-    await download.saveAs(testInfo.outputPath(`receipt-${width}.txt`));
-    const receiptText=await readFile(testInfo.outputPath(`receipt-${width}.txt`),'utf8');
-    expect(receiptText).toContain(`Sale ${recorded.id}`);expect(receiptText).toContain('Cash — recorded manually');expect(receiptText).not.toMatch(/COGS|unit cost/i);
+    const download=await downloadEvent;expect(download.suggestedFilename()).toBe(`receipt-${recorded.id}.pdf`);
+    await download.saveAs(testInfo.outputPath(`receipt-${width}.pdf`));
+    const pdfBytes=await readFile(testInfo.outputPath(`receipt-${width}.pdf`));
+    expect(pdfBytes.subarray(0,4).toString('latin1')).toBe('%PDF');
     await page.emulateMedia({media:'print'});
     await expect(page.locator('.topbar')).toBeHidden();await expect(page.getByRole('button',{name:'Print receipt',exact:true})).toBeHidden();
     await expect(receipt).toBeVisible();

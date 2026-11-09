@@ -17,6 +17,7 @@
     "clsx": "2.1.1",
     "cn": "^0.5.2",
     "gsap": "^3.15.0",
+    "jspdf": "4.2.1",
     "lucide-react": "^1.46.0",
     "react": "19.2.3",
     "react-day-picker": "^9.14.0",
