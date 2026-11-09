@@ -2,9 +2,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { ApiError, api } from '../../api';
 import { useAuth } from '../../auth-context';
 import { useCompanySettings } from '../../app/company-settings-store';
-import { PageHeader, Panel, SelectControl } from '../../components/inventory-ui';
+import { PageHeader, SelectControl } from '../../components/inventory-ui';
+import { Alert, AlertDescription } from '../../components/ui/alert';
+import { Button } from '../../components/ui/button';
+import { Separator } from '../../components/ui/separator';
 import { companyDay } from '../../lib/date-range';
 import { safeErrorMessage } from '../../lib/user-facing-error';
+import { BankingCard } from './banking-card';
 import { ProfitSplitSection } from './profit-split-section';
 import { StockCapitalSection } from './stock-capital-section';
 import { useProfitSplit } from './use-profit-split';
@@ -38,7 +42,7 @@ function BankingWorkspace() {
       <section className="panel finance-toolbar" aria-label="Banking filters">
         <label><span>Year</span><SelectControl aria-label="Banking year" value={String(year)} onValueChange={value => setYear(Number(value))} options={Array.from({ length: 8 }, (_, i) => String(thisYear + 1 - i)).map(value => ({ value, label: value }))} /></label>
         <label><span>Month</span><SelectControl aria-label="Banking month" value={monthNumber} onValueChange={setMonthNumber} options={Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0')).map(value => ({ value, label: monthName(`${year}-${value}`) }))} /></label>
-        <div className="finance-editor-buttons"><button className={`button secondary ${editing ? 'is-active' : ''}`} type="button" aria-expanded={editing} onClick={() => setEditing(value => !value)}>Split settings</button></div>
+        <div className="finance-editor-buttons"><Button type="button" variant="outline" className="h-[42px] px-4 text-[13px]" aria-expanded={editing} onClick={() => setEditing(value => !value)}>Split settings</Button></div>
       </section>
     </div>
     <BankedSummaryPanel accessToken={accessToken} year={year} revision={revision} onUnauthorized={signOut} />
@@ -61,26 +65,26 @@ function BankedSummaryPanel({ accessToken, year, revision, onUnauthorized }: { a
     return () => { active = false; };
   }, [accessToken, year, revision, retry, onUnauthorized]);
   const title = `Banked in ${year}`;
-  if (error) return <Panel className="banking-summary" title={title}><div role="alert" className="form-error"><p>{error}</p><button className="button secondary" type="button" onClick={() => setRetry(value => value + 1)}>Retry</button></div></Panel>;
-  if (!loaded || loaded.year !== year) return <Panel className="banking-summary" title={title}><p className="profit-split-empty" role="status">Loading what you have banked</p></Panel>;
+  if (error) return <BankingCard className="banking-summary mb-4" title={title}><Alert variant="destructive"><AlertDescription>{error}</AlertDescription><div className="mt-2"><Button type="button" variant="outline" className="h-11 px-4" onClick={() => setRetry(value => value + 1)}>Retry</Button></div></Alert></BankingCard>;
+  if (!loaded || loaded.year !== year) return <BankingCard className="banking-summary mb-4" title={title}><p className="text-sm text-muted-foreground" role="status">Loading what you have banked</p></BankingCard>;
   const nothing = loaded.accounts.length === 0 && loaded.capital.count === 0;
-  return <Panel className="banking-summary" title={title} subtitle="Everything ticked Done for this year's months: stock capital and profit parts.">
-    {nothing ? <p className="profit-split-empty" role="status">Nothing banked yet in {year}. Tick a part as Done once you&apos;ve moved the money.</p> : <>
-      <ul className="banking-accounts">
-        {loaded.capital.count > 0 && <li key="stock-capital" data-testid="banked-capital">
-          <div><b>{loaded.capital.destination}</b><span>{loaded.capital.partName} · {loaded.capital.count} {loaded.capital.count === 1 ? 'time' : 'times'}</span></div>
-          <strong>{money(loaded.capital.amountCents)}</strong>
-        </li>}
-        {loaded.accounts.map(account => <li key={account.destination}>
-          <div><b>{account.destination}</b><span>{account.partNames.join(', ')} · {account.count} {account.count === 1 ? 'time' : 'times'}</span></div>
-          <strong>{money(account.amountCents)}</strong>
-        </li>)}
+  const times = (count: number) => `${count} ${count === 1 ? 'time' : 'times'}`;
+  const row = (key: string, name: string, detail: string, amountCents: number, testId?: string) => <li key={key} data-testid={testId} className="flex items-start justify-between gap-3 rounded-xl border border-border bg-card p-3">
+    <div className="grid min-w-0 gap-0.5"><b className="text-sm [overflow-wrap:anywhere]">{name}</b><span className="text-xs text-muted-foreground [overflow-wrap:anywhere]">{detail}</span></div>
+    <strong className="shrink-0 text-base tabular-nums">{money(amountCents)}</strong>
+  </li>;
+  return <BankingCard className="banking-summary mb-4" title={title} description="Everything ticked Done for this year's months: stock capital and profit parts.">
+    {nothing ? <p className="text-sm text-muted-foreground" role="status">Nothing banked yet in {year}. Tick a part as Done once you&apos;ve moved the money.</p> : <>
+      <ul className="grid gap-2">
+        {loaded.capital.count > 0 && row('stock-capital', loaded.capital.destination, `${loaded.capital.partName} · ${times(loaded.capital.count)}`, loaded.capital.amountCents, 'banked-capital')}
+        {loaded.accounts.map(account => row(account.destination, account.destination, `${account.partNames.join(', ')} · ${times(account.count)}`, account.amountCents))}
       </ul>
-      <dl className="banking-subtotals mx-6 my-2 grid gap-1 text-sm text-muted-foreground">
+      <dl className="grid gap-1 text-sm text-muted-foreground">
         <div className="flex justify-between gap-2"><dt>Capital banked</dt><dd className="font-semibold tabular-nums text-foreground" data-testid="capital-banked">{money(loaded.capitalCents)}</dd></div>
         <div className="flex justify-between gap-2"><dt>Profit banked</dt><dd className="font-semibold tabular-nums text-foreground" data-testid="profit-banked">{money(loaded.profitCents)}</dd></div>
       </dl>
-      <p className="profit-split-total">Total banked <strong>{money(loaded.grandTotalCents)}</strong></p>
+      <Separator />
+      <p className="profit-split-total flex flex-wrap items-baseline justify-between gap-2 text-sm text-muted-foreground">Total banked <strong className="text-xl tabular-nums text-foreground">{money(loaded.grandTotalCents)}</strong></p>
     </>}
-  </Panel>;
+  </BankingCard>;
 }

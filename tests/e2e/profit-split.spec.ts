@@ -135,19 +135,19 @@ test('owner sees the split on a phone, marks a part done and edits the settings'
 
   const box = await split.getByRole('checkbox', { name: 'Done' }).first().boundingBox();
   expect(box!.width).toBeGreaterThanOrEqual(20);
-  await tax.getByLabel('Done').check();
+  await tax.getByRole('checkbox', { name: 'Done' }).check();
   await tax.getByLabel('Note for Tax reserve').fill('Paid to GRA');
   await tax.getByRole('button', { name: 'Save as done' }).click();
   await expect(tax).toContainText('Paid to GRA');
-  await expect(tax.getByLabel(/^Done on/)).toBeChecked();
+  await expect(tax.getByRole('checkbox', { name: /^Done on/ })).toBeChecked();
   await expect(summary.locator('li', { hasText: 'Tax account' })).toContainText('123.46');
   await expect(summary.locator('li', { hasText: 'Tax account' })).toContainText('Tax reserve');
   await expect(summary.locator('.profit-split-total')).toContainText('123.46');
   expect(state.done['default-1']).toMatchObject({ note: 'Paid to GRA', doneOn: '2026-11-06' });
   await page.screenshot({ path: process.env.SPLIT_SHOT ?? 'test-results/banking-375.png', fullPage: true });
 
-  await tax.getByLabel(/^Done on/).click();
-  await expect(tax.getByLabel('Done', { exact: true })).not.toBeChecked();
+  await tax.getByRole('checkbox', { name: /^Done on/ }).click();
+  await expect(tax.getByRole('checkbox', { name: 'Done', exact: true })).not.toBeChecked();
   await expect(summary.getByText('Nothing banked yet in 2026.')).toBeVisible();
 
   await page.getByRole('button', { name: 'Split settings' }).click();
@@ -206,7 +206,7 @@ test('stock capital is banked on its own and updates the Banked in summary at 37
 
   // Profit and capital stay separate in the totals.
   const tax = split.locator('li', { hasText: 'Tax reserve' });
-  await tax.getByLabel('Done').check();
+  await tax.getByRole('checkbox', { name: 'Done' }).check();
   await tax.getByRole('button', { name: 'Save as done' }).click();
   await expect(summary.getByTestId('profit-banked')).toContainText('123.46');
   await expect(summary.getByTestId('capital-banked')).toContainText('40.00');

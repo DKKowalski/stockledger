@@ -8,8 +8,13 @@ import { api, ApiError } from '../../api';
 import { useInventoryStore } from '../../app/inventory-store';
 import { useCompanySettings } from '../../app/company-settings-store';
 import { useAuth } from '../../auth-context';
-import { EmptyState, PageHeader, PageState, Panel } from '../../components/inventory-ui';
-import { InputControl } from '../../components/ui/input-control';
+import { EmptyState, PageHeader, PageState } from '../../components/inventory-ui';
+import { Alert, AlertDescription } from '../../components/ui/alert';
+import { Button, buttonVariants } from '../../components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { Input } from '../../components/ui/input';
+import { Label } from '../../components/ui/label';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
 import { AsyncActionButton } from '../../components/ui/async-action-button';
 import type { User } from '../../types';
 import { useAsyncActionState } from '../../components/ui/use-async-action-state';
@@ -152,26 +157,37 @@ function RetailSalePage({ onResolved, basketAvailable = false }: { onResolved?: 
   };
 
   return <PageState>
-    <PageHeader title="Sell" actions={basketAvailable ? <NavLink className="button secondary" to="/sell?basket=1">Basket sale</NavLink> : undefined} subtitle={shop ? `A sale reduces stock at ${shop.name} only.` : `A sale reduces stock at your ${terms.shop} only.`} />
-    <Panel title="Record a sale">
-      {recovery.error && <p role="alert">{recovery.error}</p>}
-      {message && <p role="status">{message}</p>}
-      {recovery.pending && <p role="status">The last sale needs confirmation: {recovery.pending.body.quantity} {recovery.pending.unit} of {recovery.pending.itemName}. Retry this request before starting another sale.</p>}
-      {stocked.length || recovery.pending ? <form className="form-grid sell-form" onSubmit={(event) => void submit(event).catch(() => {})}>
-        <fieldset disabled={!!recovery.pending || !!recovery.error || busy}>
-        <label><span>{terms.Item}</span><ProductPicker items={snapshot?.items.filter(item => item.isActive) ?? []} locationId={user?.locationId} selling required value={form.itemId} onValueChange={(itemId) => setForm({ itemId, quantity: '' })} /></label>
-        <label><span className="quantity-label">Quantity{selected && <small className="selected-availability">{selected.closing} {selected.item.unit} available at {shop?.name ?? 'your shop'}</small>}</span><InputControl aria-label="Quantity" type="number" min="1" max={selected?.closing} required value={form.quantity} onValueChange={(quantity) => setForm({ ...form, quantity })} /></label>
-        <label><span>Unit price</span><InputControl readOnly value={unitPriceCents == null ? 'Not set' : money(unitPriceCents)} /></label>
-        <label><span>Total</span><output className="sale-total" aria-live="polite">{totalCents == null ? '—' : money(totalCents)}</output></label>
-        </fieldset>
-        {recovery.pending ? <button className="button" type="button" disabled={busy || saleAction.state === 'pending'} onClick={() => void submit()}>Retry same sale</button> : <AsyncActionButton disabled={busy || !selected || unitPriceCents == null || !!recovery.error} idleLabel="Sell" pendingLabel="Recording" state={saleAction.state} successLabel="Sale recorded" />}
-        {recovery.error && !recovery.pending && <button className="button secondary" type="button" onClick={() => setRecovery({ pending: null, error: null })}>Review entries</button>}
-        {selected && unitPriceCents == null && <p className="price-hint" role="status">Ask an administrator to set a selling price for this {terms.item}.</p>}
-      </form> : <EmptyState text={`Nothing to sell yet. Stock arrives when someone transfers it to this ${terms.shop}.`} />}
-    </Panel>
-    <Panel title={`Sales in selected period (${sales.length})`} className="spaced">
-      <div className="sales-period-filter"><InventoryDateRangeFilter /></div>
-      {sales.length ? <div className="table-wrap" tabIndex={0} role="region" aria-label="Scrollable table"><table><thead><tr><th>Date</th><th>{terms.Item}</th><th className="num">Qty</th><th className="num">Unit price</th><th className="num">Total</th></tr></thead><tbody>{sales.map((sale) => <tr key={sale.id}><td>{calendarDate(sale.movementDate)}</td><td><b>{sale.item?.name ?? `Deleted ${terms.item}`}</b><small>{sale.item?.sku}</small></td><td className="num negative">−{sale.quantity}</td><td className="num">{sale.unitPriceCents == null ? 'Not recorded' : money(sale.unitPriceCents)}</td><td className="num">{sale.saleTotalCents == null ? 'Not recorded' : money(sale.saleTotalCents)}</td></tr>)}</tbody></table></div> : <EmptyState text={`No sales recorded at this ${terms.shop} yet.`} />}
-    </Panel>
+    <PageHeader title="Sell" actions={basketAvailable ? <NavLink className={buttonVariants({ variant: 'outline', className: 'h-11 px-4' })} to="/sell?basket=1">Basket sale</NavLink> : undefined} subtitle={shop ? `A sale reduces stock at ${shop.name} only.` : `A sale reduces stock at your ${terms.shop} only.`} />
+    <Card>
+      <CardHeader><CardTitle><h2 className="text-base font-semibold">Record a sale</h2></CardTitle></CardHeader>
+      <CardContent className="grid gap-4">
+        {recovery.error && <Alert variant="destructive"><AlertDescription>{recovery.error}</AlertDescription></Alert>}
+        {message && <Alert role="status"><AlertDescription>{message}</AlertDescription></Alert>}
+        {recovery.pending && <Alert role="status"><AlertDescription>The last sale needs confirmation: {recovery.pending.body.quantity} {recovery.pending.unit} of {recovery.pending.itemName}. Retry this request before starting another sale.</AlertDescription></Alert>}
+        {stocked.length || recovery.pending ? <form className="grid gap-4" onSubmit={(event) => void submit(event).catch(() => {})}>
+          <fieldset className="m-0 grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,190px),1fr))] items-end gap-4 border-0 p-0" disabled={!!recovery.pending || !!recovery.error || busy}>
+            <Label className="grid gap-2"><span>{terms.Item}</span><ProductPicker items={snapshot?.items.filter(item => item.isActive) ?? []} locationId={user?.locationId} selling required value={form.itemId} onValueChange={(itemId) => setForm({ itemId, quantity: '' })} /></Label>
+            <div className="grid gap-2"><Label htmlFor="sale-quantity">Quantity{selected && <small className="selected-availability block text-[13px] font-medium text-muted-foreground">{selected.closing} {selected.item.unit} available at {shop?.name ?? 'your shop'}</small>}</Label><Input id="sale-quantity" className="h-11" aria-label="Quantity" type="number" min="1" max={selected?.closing} required value={form.quantity} onChange={(event) => setForm({ ...form, quantity: event.target.value })} /></div>
+            <div className="grid gap-2"><Label htmlFor="sale-unit-price">Unit price</Label><Input id="sale-unit-price" className="h-11" readOnly value={unitPriceCents == null ? 'Not set' : money(unitPriceCents)} /></div>
+            <div className="grid gap-2"><Label htmlFor="sale-total">Total</Label><output id="sale-total" className="flex min-h-11 items-center text-lg font-medium tabular-nums" aria-live="polite">{totalCents == null ? '—' : money(totalCents)}</output></div>
+          </fieldset>
+          <div className="flex flex-wrap gap-2.5">
+            {recovery.pending ? <Button type="button" className="h-11 px-4" disabled={busy || saleAction.state === 'pending'} onClick={() => void submit()}>Retry same sale</Button> : <AsyncActionButton disabled={busy || !selected || unitPriceCents == null || !!recovery.error} idleLabel="Sell" pendingLabel="Recording" state={saleAction.state} successLabel="Sale recorded" />}
+            {recovery.error && !recovery.pending && <Button type="button" variant="outline" className="h-11 px-4" onClick={() => setRecovery({ pending: null, error: null })}>Review entries</Button>}
+          </div>
+          {selected && unitPriceCents == null && <p className="text-[13px]" role="status">Ask an administrator to set a selling price for this {terms.item}.</p>}
+        </form> : <EmptyState text={`Nothing to sell yet. Stock arrives when someone transfers it to this ${terms.shop}.`} />}
+      </CardContent>
+    </Card>
+    <Card className="mt-4">
+      <CardHeader><CardTitle><h2 className="text-base font-semibold">{`Sales in selected period (${sales.length})`}</h2></CardTitle></CardHeader>
+      <CardContent className="grid gap-4 px-0">
+        <div className="px-4"><InventoryDateRangeFilter /></div>
+        {sales.length ? <Table containerProps={{ tabIndex: 0, role: 'region', 'aria-label': 'Scrollable table' }}>
+          <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>{terms.Item}</TableHead><TableHead className="num">Qty</TableHead><TableHead className="num">Unit price</TableHead><TableHead className="num">Total</TableHead></TableRow></TableHeader>
+          <TableBody>{sales.map((sale) => <TableRow key={sale.id}><TableCell>{calendarDate(sale.movementDate)}</TableCell><TableCell><b>{sale.item?.name ?? `Deleted ${terms.item}`}</b><small>{sale.item?.sku}</small></TableCell><TableCell className="num negative">−{sale.quantity}</TableCell><TableCell className="num">{sale.unitPriceCents == null ? 'Not recorded' : money(sale.unitPriceCents)}</TableCell><TableCell className="num">{sale.saleTotalCents == null ? 'Not recorded' : money(sale.saleTotalCents)}</TableCell></TableRow>)}</TableBody>
+        </Table> : <EmptyState text={`No sales recorded at this ${terms.shop} yet.`} />}
+      </CardContent>
+    </Card>
   </PageState>;
 }
