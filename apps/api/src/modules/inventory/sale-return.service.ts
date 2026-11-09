@@ -1,6 +1,7 @@
 import { recordedPool, saveRecordedPool } from './prospective-costing.js';
 import type { MovementRecord } from './inventory-calculations.js';
 import { SaleSearchDto } from './dto/sale-search.dto.js';
+import { returnSourceTender } from './sale-tender.js';
 import { searchSaleSources } from './sale-source-search.js';
 import { createHash } from 'node:crypto';
 import {
@@ -83,6 +84,7 @@ export class SaleReturnService {
       originalUnit: string;
     }> = [];
     let locationId: string, currency: string, date: string;
+    let tender: ReturnType<typeof returnSourceTender> = null;
     const append = async (movementId: string, originalUnit?: string) => {
       const movement = await tx.orm.public.StockMovement.first({ companyId, id: movementId, type: 'sale' });
       if (!movement) throw new ConflictException('Original sale movement is missing');
@@ -118,6 +120,7 @@ export class SaleReturnService {
       locationId = sale.locationId;
       currency = sale.currency;
       date = sale.movementDate;
+      tender = returnSourceTender(sale.tenderMethod, sale.amountReceivedCents, sale.totalCents);
       const lines = await tx.orm.public.SaleLine.where({ companyId, saleId: id })
         .orderBy([(r) => r.position.asc()])
         .all();
@@ -152,6 +155,7 @@ export class SaleReturnService {
       currency,
       movementDate: date,
       revision,
+      tender,
       lines,
       portions,
     };

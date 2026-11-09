@@ -13,3 +13,9 @@ export function validateTender(tender: SaleTender | null | undefined, totalCents
 export function tenderPresentation(method: string | null, received: number | null, total: number) {
   return { paymentStatus: method === null ? 'not_recorded' as const : method === 'unpaid' ? 'unpaid' as const : 'recorded' as const, changeCents: method === 'cash' && received !== null ? received - total : null };
 }
+// Return-source summary: null for legacy/untendered sales. Unpaid = recorded as unpaid, or less received than the total.
+export function returnSourceTender(method: string | null, received: number | null, total: number) {
+  if (method === null) return null;
+  const amountReceivedCents = received ?? 0;
+  return { method, amountReceivedCents, unpaid: method === 'unpaid' || amountReceivedCents < total };
+}

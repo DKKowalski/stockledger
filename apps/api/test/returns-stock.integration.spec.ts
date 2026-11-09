@@ -187,12 +187,13 @@ async function quote(f: F, quantity = 1) {
     ],
   });
 }
-async function sell(f: F, quantity = 1) {
+async function sell(f: F, quantity = 1, tender?: { method: string; amountReceivedCents: number }) {
   const q = await quote(f, quantity);
   expect(q.status, JSON.stringify(q.body)).toBe(201);
   const r = await request('/inventory/sales/complete', f.tokens.attendant, 'POST', {
     idempotencyKey: randomUUID(),
     quoteToken: q.body.quoteToken,
+    ...(tender ? { tender } : {}),
   });
   expect(r.status, JSON.stringify(r.body)).toBe(201);
   return r.body;
@@ -332,6 +333,23 @@ describe('original-allocation returns and complete exact stock operations', () =
     expect(results.filter((r) => r.status === 201).length).toBeGreaterThanOrEqual(1);
     expect(await db.orm.public.SaleReturn.where({ companyId: f.company.id }).all()).toHaveLength(1);
     expect((await current(f)).body).toMatchObject({ quantity: 3, valueCents: 302 });
+  });
+  it('reports the original sale tender on the return source so unpaid sales can be flagged', async () => {
+    const f = await stocked();
+    await pricing(f);
+    const src = async (id: string) =>
+      (await request(`/inventory/sale-returns/sources/grouped/${id}`, f.tokens.admin)).body.tender;
+    expect(await src((await sell(f, 1, { method: 'unpaid', amountReceivedCents: 0 })).id)).toEqual({
+      method: 'unpaid',
+      amountReceivedCents: 0,
+      unpaid: true,
+    });
+    expect(await src((await sell(f, 1, { method: 'cash', amountReceivedCents: 200 })).id)).toEqual({
+      method: 'cash',
+      amountReceivedCents: 200,
+      unpaid: false,
+    });
+    expect(await src((await sell(f, 1)).id)).toBeNull();
   });
   it('reverses only remaining allocations after a partial return and retains readable results after flag-off', async () => {
     const f = await stocked();

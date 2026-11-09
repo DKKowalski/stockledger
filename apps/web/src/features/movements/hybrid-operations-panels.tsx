@@ -17,6 +17,7 @@ export type ReturnSource = {
   sourceType: 'grouped' | 'legacy';
   sourceId: string;
   revision: string;
+  tender?: { method: string; amountReceivedCents: number; unpaid: boolean } | null;
   currency: Currency;
   lines: Array<{ itemId: string; name: string; unit: string; remainingQuantity: number; costKnown: boolean }>;
 };
@@ -364,6 +365,15 @@ function CustomerReturns() {
                     <span>Return reason</span>
                     <InputControl required maxLength={200} value={reason} onValueChange={setReason} />
                   </label>
+                  {source.tender?.unpaid && (
+                    <div className="ownership-warning" role="status">
+                      {source.tender.amountReceivedCents > 0
+                        ? 'This sale was recorded as part-paid.'
+                        : 'This sale was recorded as unpaid.'}{' '}
+                      Finance will still count this return as a refund — don&apos;t hand back cash the customer
+                      never paid.
+                    </div>
+                  )}
                   <label className="pricing-checkbox">
                     <input
                       type="checkbox"
