@@ -2190,3 +2190,12 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px soli
 
 /* Empty select values describe an active report scope (for example All places). */
 .profit-filter-grid .select-value[data-placeholder] { color: var(--muted); }
+.banking-summary { margin-bottom: 16px; }
+.banking-summary > .profit-split-empty, .banking-summary > .profit-split-total, .banking-summary > .banking-accounts, .banking-summary > .form-error { margin-inline: 24px; }
+.banking-accounts { display: grid; gap: 8px; margin-block: 12px; padding: 0; list-style: none; }
+.banking-accounts li { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--card-pure); }
+.banking-accounts li > div { display: grid; gap: 2px; min-width: 0; }
+.banking-accounts b { font-size: 14px; overflow-wrap: anywhere; }
+.banking-accounts span { color: var(--ink-soft); font-size: 12px; line-height: 1.4; overflow-wrap: anywhere; }
+.banking-accounts strong { font: 700 16px/1.2 var(--font-number); flex: 0 0 auto; }
+@media (max-width: 600px) { .banking-summary > .profit-split-empty, .banking-summary > .profit-split-total, .banking-summary > .banking-accounts, .banking-summary > .form-error { margin-inline: 16px; } }

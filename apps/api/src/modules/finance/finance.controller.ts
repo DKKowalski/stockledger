@@ -28,6 +28,11 @@ export class FinanceController {
   profitSplit(@Req() request: AuthenticatedRequest, @Query('month') month: string) {
     return this.finance.profitSplit(request.user.sub, request.user.companyId, String(month ?? ''));
   }
+  @Get('profit-split/summary')
+  @Header('Cache-Control', 'no-store')
+  profitSplitSummary(@Req() request: AuthenticatedRequest, @Query('year') year: string) {
+    return this.finance.profitSplitSummary(request.user.sub, request.user.companyId, String(year ?? ''));
+  }
   @Put('profit-split/settings')
   profitSplitSettings(@Req() request: AuthenticatedRequest, @Body() body: SaveProfitSplitDto) {
     return this.finance.saveProfitSplitSettings(request.user.sub, request.user.companyId, body);

@@ -17,8 +17,8 @@ const formatPercent = (percent: number) => `${percent}%`;
 type Row = { key?: string; name: string; destination: string; percent: string };
 
 // The split is a plan and a record only: nothing here moves money.
-export function ProfitSplitSection({ accessToken, month, monthLabel, revision, readOnly, editing, onCloseEditor, onUnauthorized }: {
-  accessToken: string; month: string; monthLabel: string; revision: number; readOnly: boolean; editing: boolean; onCloseEditor: () => void; onUnauthorized: () => void;
+export function ProfitSplitSection({ accessToken, month, monthLabel, readOnly, editing, onCloseEditor, onChanged, onUnauthorized }: {
+  accessToken: string; month: string; monthLabel: string; onChanged: () => void; readOnly: boolean; editing: boolean; onCloseEditor: () => void; onUnauthorized: () => void;
 }) {
   const { money, calendarDate } = useCompanySettings();
   const [loaded, setSplit] = useState<ProfitSplit | null>(null);
@@ -34,14 +34,14 @@ export function ProfitSplitSection({ accessToken, month, monthLabel, revision, r
       else if (active) setError(safeErrorMessage(caught, 'Could not load the profit split'));
     });
     return () => { active = false; };
-  }, [accessToken, month, revision, refresh, onUnauthorized]);
+  }, [accessToken, month, refresh, onUnauthorized]);
 
   const run = useCallback(async (action: () => Promise<unknown>, success: string) => {
     setBusy(true);
-    try { await action(); toast.success(success); setRefresh(value => value + 1); return true; }
+    try { await action(); toast.success(success); setRefresh(value => value + 1); onChanged(); return true; }
     catch (caught) { toast.error(safeErrorMessage(caught, 'Could not save the profit split')); return false; }
     finally { setBusy(false); }
-  }, []);
+  }, [onChanged]);
 
   if (error) return <Panel className="profit-split" title="Profit split"><div role="alert" className="form-error"><p>{error}</p><button className="button secondary" type="button" onClick={() => setRefresh(value => value + 1)}>Retry</button></div></Panel>;
   if (!split) return <Panel className="profit-split" title="Profit split"><p className="profit-split-empty" role="status">Loading profit split</p></Panel>;

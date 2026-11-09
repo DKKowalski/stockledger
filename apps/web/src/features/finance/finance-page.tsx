@@ -13,11 +13,10 @@ import { MotionTabs } from '../../components/ui/motion-tabs';
 import { companyDay, rangeQuery, type DateRangeValue } from '../../lib/date-range';
 import { parseMoneyCents } from '../../lib/presentation';
 import { safeErrorMessage } from '../../lib/user-facing-error';
-import { ProfitSplitSection } from './profit-split-section';
 import type { FinanceBudgetInput, FinanceCategory, FinanceEntry, FinanceEntryInput, FinanceEntryList, FinanceLine, FinanceMonth, FinancePeriod, FinanceReport, FinanceStatus } from './finance-types';
 
 type View = 'month' | 'months' | 'year';
-type Editor = 'budget' | 'entries' | 'categories' | 'split' | null;
+type Editor = 'budget' | 'entries' | 'categories' | null;
 type Metric = 'actual' | 'budget' | 'variance';
 
 // Drafts belong to this signed-in Finance page, not an editor's mount lifetime.
@@ -112,13 +111,13 @@ function FinanceWorkspacePage() {
   return <DraftContext.Provider value={{ drafts, setDrafts }}><div className={`finance-page finance-view-${view}`}>
     <div className="finance-controls">
       <PageHeader title="Finance" subtitle="Your profit, spending and budget" />
-      {headerPeriod && <FinanceAnswer period={headerPeriod} label={view === 'month' ? `${monthName(month)} ${year}` : String(year)} />}
+      {headerPeriod && <FinanceAnswer monthly={view === 'month'} period={headerPeriod} label={view === 'month' ? `${monthName(month)} ${year}` : String(year)} />}
       <div className="finance-report-actions"><button className="button" type="button" onClick={() => setEditor('entries')}>Add expense</button><details className="finance-more"><summary className="button secondary">More report actions</summary><div><button className="button secondary" type="button" disabled={!loaded || busy} onClick={() => void exportFile()}><Download size={16} />Export CSV</button><button className="button secondary" type="button" disabled={!loaded} onClick={() => window.print()}><Printer size={16} />Print</button></div></details></div>
       <MotionTabs aria-label="Finance report view" items={views} value={view} onValueChange={setView} />
       <section className="panel finance-toolbar" aria-label="Finance report filters">
         <label><span>Year</span><SelectControl aria-label="Finance year" value={String(year)} onValueChange={value => setYear(Number(value))} options={Array.from({ length: 8 }, (_, i) => String(thisYear + 1 - i)).map(value => ({ value, label: value }))} /></label>
         {view === 'month' && <label><span>Month</span><SelectControl aria-label="Finance month" value={monthNumber} onValueChange={setMonthNumber} options={Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0')).map(value => ({ value, label: monthName(`${year}-${value}`) }))} /></label>}
-        <div className="finance-editor-buttons">{editorButton('budget', 'Set budget')}{editorButton('entries', 'Expenses and other revenue')}{editorButton('categories', 'Categories')}{view === 'month' && editorButton('split', 'Profit split settings')}</div>
+        <div className="finance-editor-buttons">{editorButton('budget', 'Set budget')}{editorButton('entries', 'Expenses and other revenue')}{editorButton('categories', 'Categories')}</div>
       </section>
     </div>
     {Object.keys(drafts).some(key => /^(budget|entry|category):/.test(key)) && <p className="finance-draft-status finance-controls" role="status">Unsaved Finance drafts are kept while you switch editors, views and months. Save or discard them in their editor. Leaving Finance or reloading clears them.</p>}
@@ -142,20 +141,21 @@ function FinanceWorkspacePage() {
           {view === 'months' && <Reconciliation period={loaded.yearly} />}
         </div>
       </section>
-      {view === 'month' && user?.role === 'administrator' && <ProfitSplitSection accessToken={accessToken!} month={month} monthLabel={`${monthName(month)} ${year}`} revision={revision} readOnly={readOnly} editing={editor === 'split'} onCloseEditor={() => setEditor(null)} onUnauthorized={signOut} />}
     </>}
     {!report && !error && <EmptyState text="Loading finance report" />}
   </div></DraftContext.Provider>;
 }
 
-function FinanceAnswer({ period, label }: { period: FinancePeriod; label: string }) {
+function FinanceAnswer({ period, label, monthly }: { period: FinancePeriod; label: string; monthly: boolean }) {
   const { money, calendarDate } = useCompanySettings();
+  const isAdmin = useAuth().user?.role === 'administrator';
   const actual = (key: string) => lineOf(period, key).actualCents;
   const amount = (value: number | null) => value === null ? '—' : money(value);
   const net = actual('net_profit');
   return <section className="panel finance-answer" aria-label="Actual money summary">
     <p className="finance-answer-period">{label} · All places{period.status === 'in_progress' && period.actualsTo ? ` · To ${calendarDate(period.actualsTo)}` : ''}</p>
     <h2>{net !== null && net < 0 ? 'Net loss' : 'Net profit'}</h2><strong className="finance-answer-net">{amount(net)}</strong>
+    {monthly && isAdmin && net !== null && net > 0 && period.status !== 'future' && <p><Link to="/banking">Split this profit in Banking →</Link></p>}
     <dl><div><dt>Net sales</dt><dd>{period.status === 'future' ? '—' : money(period.profitability.netSalesCents)}</dd></div><div><dt>Cost of stock sold</dt><dd>{amount(actual('cogs'))}</dd></div><div><dt>Expenses</dt><dd>{amount(actual('expenses'))}</dd></div><div><dt>Other revenue</dt><dd>{amount(actual('other_revenue'))}</dd></div></dl>
     <p>{period.status === 'future' ? 'This period has not started. Only the budget is available below.' : 'Recorded sales after discounts and returns, plus other revenue, less stock costs and expenses. These figures do not show cash collected.'}</p>
     {period.profitability.uncostedSaleUnits > 0 && <p className="finance-answer-warning">{period.profitability.uncostedSaleUnits} sold units have no recorded cost or price. Cost coverage: {period.costCoveragePercent}%. Profit may differ when their costs are known.</p>}

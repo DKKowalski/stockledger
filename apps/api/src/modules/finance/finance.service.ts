@@ -211,6 +211,27 @@ export class FinanceService {
     return this.prisma.withCompany(companyId, tx => this.splitView(tx, userId, companyId, month), { consistentSnapshot: true });
   }
 
+  // "Banked in <year>": the Done ticks for months of that year, grouped by the destination stored at tick time.
+  async profitSplitSummary(userId: string, companyId: string, yearText: string) {
+    if (!/^\d{4}$/.test(yearText) || Number(yearText) < 2000 || Number(yearText) > 2100) throw new BadRequestException('Choose a year between 2000 and 2100');
+    await this.prepare(userId, companyId);
+    return this.prisma.withCompany(companyId, async tx => {
+      const settings = await this.splitParts(tx, companyId);
+      const rows = (await tx.orm.public.ProfitSplitCompletion.where({ companyId }).all()).filter(row => row.month.startsWith(`${yearText}-`));
+      const groups = new Map<string, { destination: string; partNames: Set<string>; amountCents: number; count: number }>();
+      for (const row of rows) {
+        const group = groups.get(row.destination) ?? { destination: row.destination, partNames: new Set<string>(), amountCents: 0, count: 0 };
+        group.partNames.add(row.partName); group.amountCents += row.amountCents; group.count += 1;
+        groups.set(row.destination, group);
+      }
+      const order = new Map<string, number>();
+      settings.parts.forEach((part, index) => { if (!order.has(part.destination)) order.set(part.destination, index); });
+      const accounts = [...groups.values()].sort((a, b) => (order.get(a.destination) ?? Infinity) - (order.get(b.destination) ?? Infinity) || a.destination.localeCompare(b.destination))
+        .map(group => ({ destination: group.destination, partNames: [...group.partNames].sort((a, b) => a.localeCompare(b)), amountCents: group.amountCents, count: group.count }));
+      return { year: Number(yearText), accounts, totalCents: accounts.reduce((sum, account) => sum + account.amountCents, 0) };
+    }, { consistentSnapshot: true });
+  }
+
   async saveProfitSplitSettings(userId: string, companyId: string, body: SaveProfitSplitDto) {
     const checked = validateSplitParts(body.parts);
     if ('error' in checked) throw new BadRequestException(checked.error);

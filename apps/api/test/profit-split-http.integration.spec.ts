@@ -170,4 +170,40 @@ describe('profit split', () => {
     expect(await db.orm.public.ProfitSplitPart.where({ companyId: otherCompanyId }).all()).toHaveLength(0);
     expect(await db.orm.public.ProfitSplitPart.where({ companyId }).all()).toHaveLength(3);
   });
+
+  it('summarises Done ticks per account for a year', async () => {
+    const summaryCompany = randomUUID();
+    const summaryOwner = randomUUID();
+    await db.orm.public.Company.create({ id: summaryCompany, name: v<120>('Summary fixture') });
+    await db.orm.public.User.create({ id: summaryOwner, companyId: summaryCompany, role: 'administrator', locationId: null, fullName: v<120>('owner'), email: v<255>(`${summaryOwner}@test.invalid`), passwordHash: v<255>('unused') });
+    const token = await app.get(JwtService).signAsync({ sub: summaryOwner, companyId: summaryCompany, role: 'administrator' });
+    const empty = await call('/finance/profit-split/summary?year=2025', token);
+    expect(empty).toMatchObject({ status: 200, body: { year: 2025, accounts: [], totalCents: 0 } });
+    const tick = (month: string, partKey: string, partName: string, destination: string, amountCents: number) => db.orm.public.ProfitSplitCompletion.create({
+      companyId: summaryCompany, month: `${month}-01`, partKey: v<40>(partKey), partName: v<80>(partName), destination: v<120>(destination), amountCents, percentBasisPoints: 1000, doneOn: `${month}-28`, note: v<200>(''), createdByUserId: summaryOwner,
+    });
+    await tick('2024-12', 'a', 'Tax', 'Zed account', 999);
+    await tick('2025-01', 'a', 'Tax', 'Zed account', 100);
+    await tick('2025-06', 'a', 'Tax reserve', 'Zed account', 250);
+    await tick('2025-06', 'b', 'Growth', 'Alpha account', 40);
+    await tick('2025-12', 'c', 'Old part', 'Gone account', 7);
+    await tick('2026-01', 'a', 'Tax', 'Zed account', 555);
+    await call('/finance/profit-split/settings', token, 'PUT', { parts: [{ key: 'a', name: 'Tax', destination: 'Zed account', percent: 50 }, { key: 'b', name: 'Growth', destination: 'Alpha account', percent: 50 }] });
+    const result = await call('/finance/profit-split/summary?year=2025', token);
+    expect(result.status).toBe(200);
+    expect(result.body).toEqual({ year: 2025, totalCents: 397, accounts: [
+      { destination: 'Zed account', partNames: ['Tax', 'Tax reserve'], amountCents: 350, count: 2 },
+      { destination: 'Alpha account', partNames: ['Growth'], amountCents: 40, count: 1 },
+      { destination: 'Gone account', partNames: ['Old part'], amountCents: 7, count: 1 },
+    ] });
+    expect((await call('/finance/profit-split/summary?year=2026', token)).body).toMatchObject({ totalCents: 555, accounts: [{ destination: 'Zed account', count: 1 }] });
+    // Another company's ticks and settings never leak in.
+    expect((await call('/finance/profit-split/summary?year=2025', tokens.owner!)).body).toEqual({ year: 2025, accounts: [], totalCents: 0 });
+  });
+
+  it('rejects managers, attendants and bad years on the summary', async () => {
+    for (const role of ['manager', 'attendant']) expect((await call('/finance/profit-split/summary?year=2025', tokens[role]!)).status).toBe(403);
+    expect((await call('/finance/profit-split/summary?year=abc', tokens.owner!)).status).toBe(400);
+    expect((await call('/finance/profit-split/summary', tokens.owner!)).status).toBe(400);
+  });
 });

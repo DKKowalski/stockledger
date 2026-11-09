@@ -3,7 +3,7 @@ const ReceiptPage = lazy(() => import('../features/sales/receipt-page').then(m =
 import { lazy } from 'react';
 import { FeatureBoundary } from '../components/feature-boundary';
 const FinancePage = lazy(() => import('../features/finance/finance-page').then(m => ({ default: m.FinancePage })));
-import { ArrowLeftRight, ChartColumn, CircleDollarSign, Landmark, LayoutDashboard, MapPin, Package, ShoppingBag, Users } from 'lucide-react';
+import { ArrowLeftRight, ChartColumn, CircleDollarSign, Landmark, LayoutDashboard, MapPin, Package, PiggyBank, ShoppingBag, Users } from 'lucide-react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { useAuth } from '../auth-context';
 const AccountSettingsPage = lazy(() => import('../features/account/account-settings-page').then(m => ({ default: m.AccountSettingsPage })));
@@ -24,6 +24,7 @@ const MovementsPage = lazy(() => import('../features/movements/movements-page').
 const OperationsReportsPage = lazy(() => import('../features/reports/report-pages').then(m => ({ default: m.OperationsReportsPage })));
 const ShopReportsPage = lazy(() => import('../features/reports/report-pages').then(m => ({ default: m.ShopReportsPage })));
 const ShopSalesPage = lazy(() => import('../features/sales/shop-sales-page').then(m => ({ default: m.ShopSalesPage })));
+const BankingPage = lazy(() => import('../features/banking/banking-page').then(m => ({ default: m.BankingPage })));
 const ProfitabilityPage = lazy(() => import('../features/profitability/profitability-page').then(m => ({ default: m.ProfitabilityPage })));
 const StockCountsPage = lazy(() => import('../features/stock-counts/stock-counts-page').then(m => ({ default: m.StockCountsPage })));
 const SuppliersPage = lazy(() => import('../features/suppliers/suppliers-page').then(m => ({ default: m.SuppliersPage })));
@@ -37,6 +38,7 @@ const administratorNavigation = [
   ['/reports', 'Reports', ChartColumn, 'reports'],
   ['/profitability', 'Profit', CircleDollarSign, 'reports'],
   ['/finance', 'Finance', Landmark, 'reports'],
+  ['/banking', 'Banking', PiggyBank, 'reports'],
   ['/places', 'Places', MapPin, 'places'],
   ['/team', 'Team', Users, 'team'],
 ] as const satisfies readonly NavigationItem[];
@@ -79,6 +81,7 @@ function AdministratorWorkspace() {
     <Route path="reports" element={<FeatureBoundary><OperationsReportsPage /></FeatureBoundary>} />
     <Route path="profitability" element={<FeatureBoundary><ProfitabilityPage /></FeatureBoundary>} />
     <Route path="finance" element={<FeatureBoundary><FinancePage /></FeatureBoundary>} />
+    <Route path="banking" element={<FeatureBoundary><BankingPage /></FeatureBoundary>} />
     <Route path="stock-counts" element={<FeatureBoundary><StockCountsPage /></FeatureBoundary>} />
     <Route path="suppliers" element={<FeatureBoundary><SuppliersPage /></FeatureBoundary>} />
     <Route path="places" element={<FeatureBoundary><PlacesPage /></FeatureBoundary>} />

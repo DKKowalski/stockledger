@@ -1,6 +1,12 @@
-# Profit split
+# Banking / profit split
 
-Finance, Month view, shows a "Profit split" section below the month statement. It divides the month's Net Profit / Loss (the same actual figure Finance already reports) into parts, for example tax, reserve, reinvestment, owner's draw, debt and growth.
+The owner-only **Banking** page (main navigation, right after Finance, route `/banking`) divides a month's Net Profit / Loss (the same actual figure Finance already reports) into parts, for example tax, reserve, owner's draw and growth, and records what has been banked. It has its own Year and Month pickers, opening on the last completed month. Finance's Month view only shows a "Split this profit in Banking →" link under the net profit.
+
+## Banked in <year>
+
+The top of the page totals what has been banked in the selected year: one row per account (the destination saved on each Done tick) with the part name(s) and the amount, plus a grand total. Amounts come from the snapshot stored when a part was ticked Done, so later settings changes never rewrite them. A tick counts towards the year of the profit month it belongs to (not the date it was ticked). Rows follow the current settings' part order where the destination still exists, then alphabetical. With no ticks: "Nothing banked yet in <year>. Tick a part as Done once you've moved the money."
+
+API: `GET /finance/profit-split/summary?year=YYYY` (administrator only, company-scoped) returns `{ year, accounts: [{ destination, partNames, amountCents, count }], totalCents }`.
 
 It is a plan and a record only. StockLedger does not move money: ticking a part "Done" just records that you did it.
 
@@ -19,7 +25,7 @@ The reserve target is text only; no target is calculated. Until a company saves 
 
 ## Settings
 
-"Profit split settings" (Month view) lets the owner rename parts, change destinations and percents, and add or remove parts. Rules, enforced by the API as well as the form:
+"Split settings" (Banking page) lets the owner rename parts, change destinations and percents, and add or remove parts. Rules, enforced by the API as well as the form:
 
 - 1 to 10 parts, each with a name (80 characters) and a destination (120 characters).
 - Percents are above 0, whole numbers or up to 2 decimals, and must total exactly 100%.

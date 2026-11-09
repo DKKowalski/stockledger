@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import type { FinanceLine, FinanceReport } from '../../apps/web/src/features/finance/finance-types';
-import type { ProfitSplit, ProfitSplitCompletion, ProfitSplitSetting } from '../../apps/web/src/features/finance/profit-split-types';
+import type { ProfitSplit, ProfitSplitCompletion, ProfitSplitSetting } from '../../apps/web/src/features/banking/profit-split-types';
 
 // The API is mocked here (like finance.spec.ts); the API itself is covered by integration tests.
 const companyId = '31000000-0000-4000-8000-000000000098';
@@ -67,6 +67,14 @@ async function session(page: Page) {
   await page.route('http://localhost:3100/finance/profit-split**', async route => {
     const request = route.request();
     const url = new URL(request.url());
+    if (url.pathname.endsWith('/profit-split/summary')) {
+      const done = Object.values(state.done);
+      const accounts = [...new Set(done.map(row => row.destination))].map(destination => {
+        const rows = done.filter(row => row.destination === destination);
+        return { destination, partNames: rows.map(row => row.partName), amountCents: rows.reduce((sum, row) => sum + row.amountCents, 0), count: rows.length };
+      });
+      return route.fulfill({ json: { year: Number(url.searchParams.get('year')), accounts, totalCents: accounts.reduce((sum, row) => sum + row.amountCents, 0) } });
+    }
     const match = /\/finance\/profit-split\/(\d{4}-\d{2})\/parts\/([^/]+)$/.exec(url.pathname);
     if (url.pathname.endsWith('/profit-split/settings')) { state.saves.push(request.postDataJSON()); state.settings = (request.postDataJSON().parts as ProfitSplitSetting[]).map((part, i) => ({ ...part, key: part.key ?? `new-${i}` })); return route.fulfill({ json: { saved: true } }); }
     if (match && request.method() === 'PUT') {
@@ -84,15 +92,25 @@ async function session(page: Page) {
 test('owner sees the split on a phone, marks a part done and edits the settings', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 667 });
   const state = await session(page);
-  await page.goto('/finance');
-  await expect(page.getByRole('heading', { name: 'Mensah Trading' })).toBeVisible();
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Open navigation' }).click();
+  await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link', { name: 'Banking', exact: true }).click();
+  await expect(page).toHaveURL(/\/banking$/);
+  await expect(page.getByRole('heading', { name: 'Banking', exact: true })).toBeVisible();
+
+  // Nothing is banked yet; the page opens on the last completed month (October).
+  const summary = page.locator('.banking-summary');
+  await expect(summary.getByRole('heading', { name: 'Banked in 2026' })).toBeVisible();
+  await expect(summary.getByText("Nothing banked yet in 2026. Tick a part as Done once you've moved the money.")).toBeVisible();
+  const split = page.locator('.profit-split');
+  await expect(split.getByText('Estimate so far')).toHaveCount(0);
 
   // The current month is an estimate and cannot be marked done.
-  const split = page.locator('.profit-split');
+  await page.getByRole('combobox', { name: 'Banking month' }).click();
+  await page.getByRole('option', { name: 'November', exact: true }).click();
   await expect(split.getByText("Estimate so far — the month isn't finished")).toBeVisible();
   await expect(split.getByRole('checkbox', { name: 'Done' }).first()).toBeDisabled();
-
-  await page.getByRole('combobox', { name: 'Finance month' }).click();
+  await page.getByRole('combobox', { name: 'Banking month' }).click();
   await page.getByRole('option', { name: 'October', exact: true }).click();
   await expect(split.getByRole('heading', { name: 'Profit split' })).toBeVisible();
   await expect(split.getByText("Estimate so far")).toHaveCount(0);
@@ -112,13 +130,17 @@ test('owner sees the split on a phone, marks a part done and edits the settings'
   await tax.getByRole('button', { name: 'Save as done' }).click();
   await expect(tax).toContainText('Paid to GRA');
   await expect(tax.getByLabel(/^Done on/)).toBeChecked();
+  await expect(summary.locator('li', { hasText: 'Tax account' })).toContainText('123.46');
+  await expect(summary.locator('li', { hasText: 'Tax account' })).toContainText('Tax reserve');
+  await expect(summary.locator('.profit-split-total')).toContainText('123.46');
   expect(state.done['default-1']).toMatchObject({ note: 'Paid to GRA', doneOn: '2026-11-06' });
-  await page.screenshot({ path: process.env.SPLIT_SHOT ?? 'test-results/profit-split-375.png', fullPage: true });
+  await page.screenshot({ path: process.env.SPLIT_SHOT ?? 'test-results/banking-375.png', fullPage: true });
 
   await tax.getByLabel(/^Done on/).click();
   await expect(tax.getByLabel('Done', { exact: true })).not.toBeChecked();
+  await expect(summary.getByText('Nothing banked yet in 2026.')).toBeVisible();
 
-  await page.getByRole('button', { name: 'Profit split settings' }).click();
+  await page.getByRole('button', { name: 'Split settings' }).click();
   const form = page.locator('.profit-split-settings');
   await expect(form.getByRole('status')).toContainText('Total 100%');
   await form.getByRole('button', { name: 'Add part' }).click();
