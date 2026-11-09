@@ -1,0 +1,881 @@
+[
+  {
+    "id": "table.profit_split_completions",
+    "label": "Create table \"profit_split_completions\"",
+    "summary": "Creates table \"profit_split_completions\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "profit_split_completions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"profit_split_completions\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"profit_split_completions\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"profit_split_completions\"",
+        "sql": "CREATE TABLE \"public\".\"profit_split_completions\" (\n  \"amount_cents\" int4 NOT NULL,\n  \"company_id\" uuid NOT NULL,\n  \"created_at\" timestamptz DEFAULT (now()) NOT NULL,\n  \"created_by_user_id\" uuid NOT NULL,\n  \"destination\" character varying(120) NOT NULL,\n  \"done_on\" date NOT NULL,\n  \"id\" uuid NOT NULL,\n  \"month\" date NOT NULL,\n  \"note\" character varying(200) NOT NULL,\n  \"part_key\" character varying(40) NOT NULL,\n  \"part_name\" character varying(80) NOT NULL,\n  \"percent_basis_points\" int4 NOT NULL,\n  \"updated_at\" timestamptz NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"profit_split_completion_valid_4fce09f3\" CHECK (amount_cents > 0 AND percent_basis_points BETWEEN 1 AND 10000 AND extract(day from month) = 1)\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"profit_split_completions\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"profit_split_completions\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.profit_split_parts",
+    "label": "Create table \"profit_split_parts\"",
+    "summary": "Creates table \"profit_split_parts\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "profit_split_parts"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"profit_split_parts\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"profit_split_parts\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"profit_split_parts\"",
+        "sql": "CREATE TABLE \"public\".\"profit_split_parts\" (\n  \"company_id\" uuid NOT NULL,\n  \"created_at\" timestamptz DEFAULT (now()) NOT NULL,\n  \"destination\" character varying(120) NOT NULL,\n  \"id\" uuid NOT NULL,\n  \"name\" character varying(80) NOT NULL,\n  \"part_key\" character varying(40) NOT NULL,\n  \"percent_basis_points\" int4 NOT NULL,\n  \"position\" int4 NOT NULL,\n  \"updated_at\" timestamptz NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"profit_split_part_valid_a4f6485b\" CHECK (position >= 1 AND percent_basis_points BETWEEN 1 AND 10000)\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"profit_split_parts\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"profit_split_parts\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.profit_split_completions.profit_split_completions_company_id_month_part_key_key",
+    "label": "Add unique constraint on \"profit_split_completions\" (company_id, month, part_key)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "profit_split_completions_company_id_month_part_key_key",
+        "table": "profit_split_completions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"profit_split_completions_company_id_month_part_key_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "profit_split_completions_company_id_month_part_key_key",
+          "public",
+          "\"public\".\"profit_split_completions\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"profit_split_completions_company_id_month_part_key_key\"",
+        "sql": "ALTER TABLE \"public\".\"profit_split_completions\" ADD CONSTRAINT \"profit_split_completions_company_id_month_part_key_key\" UNIQUE (\"company_id\", \"month\", \"part_key\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"profit_split_completions_company_id_month_part_key_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "profit_split_completions_company_id_month_part_key_key",
+          "public",
+          "\"public\".\"profit_split_completions\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.profit_split_parts.profit_split_parts_company_id_part_key_key",
+    "label": "Add unique constraint on \"profit_split_parts\" (company_id, part_key)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "profit_split_parts_company_id_part_key_key",
+        "table": "profit_split_parts"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"profit_split_parts_company_id_part_key_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "profit_split_parts_company_id_part_key_key",
+          "public",
+          "\"public\".\"profit_split_parts\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"profit_split_parts_company_id_part_key_key\"",
+        "sql": "ALTER TABLE \"public\".\"profit_split_parts\" ADD CONSTRAINT \"profit_split_parts_company_id_part_key_key\" UNIQUE (\"company_id\", \"part_key\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"profit_split_parts_company_id_part_key_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "profit_split_parts_company_id_part_key_key",
+          "public",
+          "\"public\".\"profit_split_parts\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.profit_split_completions.profit_split_completions_company_id_created_by_user_id_fd5eba49",
+    "label": "Create index \"profit_split_completions_company_id_created_by_user_id_fd5eba49\" on \"profit_split_completions\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "profit_split_completions_company_id_created_by_user_id_fd5eba49",
+        "table": "profit_split_completions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"profit_split_completions_company_id_created_by_user_id_fd5eba49\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"profit_split_completions_company_id_created_by_user_id_fd5eba49\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"profit_split_completions_company_id_created_by_user_id_fd5eba49\"",
+        "sql": "CREATE INDEX \"profit_split_completions_company_id_created_by_user_id_fd5eba49\" ON \"public\".\"profit_split_completions\" (\"company_id\", \"created_by_user_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"profit_split_completions_company_id_created_by_user_id_fd5eba49\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"profit_split_completions_company_id_created_by_user_id_fd5eba49\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.profit_split_completions.profit_split_completions_company_id_idx_1303a718",
+    "label": "Create index \"profit_split_completions_company_id_idx_1303a718\" on \"profit_split_completions\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "profit_split_completions_company_id_idx_1303a718",
+        "table": "profit_split_completions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"profit_split_completions_company_id_idx_1303a718\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"profit_split_completions_company_id_idx_1303a718\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"profit_split_completions_company_id_idx_1303a718\"",
+        "sql": "CREATE INDEX \"profit_split_completions_company_id_idx_1303a718\" ON \"public\".\"profit_split_completions\" (\"company_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"profit_split_completions_company_id_idx_1303a718\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"profit_split_completions_company_id_idx_1303a718\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.profit_split_parts.profit_split_parts_company_id_idx_1303a718",
+    "label": "Create index \"profit_split_parts_company_id_idx_1303a718\" on \"profit_split_parts\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "profit_split_parts_company_id_idx_1303a718",
+        "table": "profit_split_parts"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"profit_split_parts_company_id_idx_1303a718\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"profit_split_parts_company_id_idx_1303a718\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"profit_split_parts_company_id_idx_1303a718\"",
+        "sql": "CREATE INDEX \"profit_split_parts_company_id_idx_1303a718\" ON \"public\".\"profit_split_parts\" (\"company_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"profit_split_parts_company_id_idx_1303a718\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"profit_split_parts_company_id_idx_1303a718\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.profit_split_completions.profit_split_completions_company_id_fkey",
+    "label": "Add foreign key \"profit_split_completions_company_id_fkey\" on \"profit_split_completions\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "profit_split_completions_company_id_fkey",
+        "table": "profit_split_completions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"profit_split_completions_company_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "profit_split_completions_company_id_fkey",
+          "public",
+          "\"public\".\"profit_split_completions\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"profit_split_completions_company_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"profit_split_completions\"\nADD CONSTRAINT \"profit_split_completions_company_id_fkey\"\nFOREIGN KEY (\"company_id\")\nREFERENCES \"public\".\"companies\" (\"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"profit_split_completions_company_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "profit_split_completions_company_id_fkey",
+          "public",
+          "\"public\".\"profit_split_completions\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.profit_split_completions.profit_split_completions_company_id_created_by_user_id_fkey",
+    "label": "Add foreign key \"profit_split_completions_company_id_created_by_user_id_fkey\" on \"profit_split_completions\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "profit_split_completions_company_id_created_by_user_id_fkey",
+        "table": "profit_split_completions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"profit_split_completions_company_id_created_by_user_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "profit_split_completions_company_id_created_by_user_id_fkey",
+          "public",
+          "\"public\".\"profit_split_completions\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"profit_split_completions_company_id_created_by_user_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"profit_split_completions\"\nADD CONSTRAINT \"profit_split_completions_company_id_created_by_user_id_fkey\"\nFOREIGN KEY (\"company_id\", \"created_by_user_id\")\nREFERENCES \"public\".\"users\" (\"company_id\", \"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"profit_split_completions_company_id_created_by_user_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "profit_split_completions_company_id_created_by_user_id_fkey",
+          "public",
+          "\"public\".\"profit_split_completions\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.profit_split_parts.profit_split_parts_company_id_fkey",
+    "label": "Add foreign key \"profit_split_parts_company_id_fkey\" on \"profit_split_parts\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "profit_split_parts_company_id_fkey",
+        "table": "profit_split_parts"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"profit_split_parts_company_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "profit_split_parts_company_id_fkey",
+          "public",
+          "\"public\".\"profit_split_parts\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"profit_split_parts_company_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"profit_split_parts\"\nADD CONSTRAINT \"profit_split_parts_company_id_fkey\"\nFOREIGN KEY (\"company_id\")\nREFERENCES \"public\".\"companies\" (\"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"profit_split_parts_company_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "profit_split_parts_company_id_fkey",
+          "public",
+          "\"public\".\"profit_split_parts\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rowLevelSecurity.public.profit_split_completions",
+    "label": "Enable row-level security on \"profit_split_completions\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rowLevelSecurity",
+        "name": "profit_split_completions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "check RLS is not already enabled on \"profit_split_completions\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND NOT (\"c\".\"relrowsecurity\"))) AS \"result\"",
+        "params": [
+          "public",
+          "profit_split_completions"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "enable row-level security on \"profit_split_completions\"",
+        "sql": "ALTER TABLE \"public\".\"profit_split_completions\" ENABLE ROW LEVEL SECURITY"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify row-level security is enabled on \"profit_split_completions\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"c\".\"relrowsecurity\")) AS \"result\"",
+        "params": [
+          "public",
+          "profit_split_completions"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rowLevelSecurity.public.profit_split_parts",
+    "label": "Enable row-level security on \"profit_split_parts\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rowLevelSecurity",
+        "name": "profit_split_parts"
+      }
+    },
+    "precheck": [
+      {
+        "description": "check RLS is not already enabled on \"profit_split_parts\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND NOT (\"c\".\"relrowsecurity\"))) AS \"result\"",
+        "params": [
+          "public",
+          "profit_split_parts"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "enable row-level security on \"profit_split_parts\"",
+        "sql": "ALTER TABLE \"public\".\"profit_split_parts\" ENABLE ROW LEVEL SECURITY"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify row-level security is enabled on \"profit_split_parts\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"c\".\"relrowsecurity\")) AS \"result\"",
+        "params": [
+          "public",
+          "profit_split_parts"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.profit_split_completions.profit_split_completions_delete_f027a2a9",
+    "label": "Create RLS policy \"profit_split_completions_delete_f027a2a9\" on \"profit_split_completions\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "profit_split_completions_delete_f027a2a9",
+        "table": "profit_split_completions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"profit_split_completions_delete_f027a2a9\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "profit_split_completions",
+          "profit_split_completions_delete_f027a2a9"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"profit_split_completions_delete_f027a2a9\"",
+        "sql": "CREATE POLICY \"profit_split_completions_delete_f027a2a9\" ON \"public\".\"profit_split_completions\" AS PERMISSIVE FOR DELETE TO stockledger_app USING (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"profit_split_completions_delete_f027a2a9\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "profit_split_completions",
+          "profit_split_completions_delete_f027a2a9"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.profit_split_completions.profit_split_completions_insert_1c87de9a",
+    "label": "Create RLS policy \"profit_split_completions_insert_1c87de9a\" on \"profit_split_completions\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "profit_split_completions_insert_1c87de9a",
+        "table": "profit_split_completions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"profit_split_completions_insert_1c87de9a\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "profit_split_completions",
+          "profit_split_completions_insert_1c87de9a"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"profit_split_completions_insert_1c87de9a\"",
+        "sql": "CREATE POLICY \"profit_split_completions_insert_1c87de9a\" ON \"public\".\"profit_split_completions\" AS PERMISSIVE FOR INSERT TO stockledger_app WITH CHECK (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"profit_split_completions_insert_1c87de9a\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "profit_split_completions",
+          "profit_split_completions_insert_1c87de9a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.profit_split_completions.profit_split_completions_select_10e0fa81",
+    "label": "Create RLS policy \"profit_split_completions_select_10e0fa81\" on \"profit_split_completions\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "profit_split_completions_select_10e0fa81",
+        "table": "profit_split_completions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"profit_split_completions_select_10e0fa81\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "profit_split_completions",
+          "profit_split_completions_select_10e0fa81"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"profit_split_completions_select_10e0fa81\"",
+        "sql": "CREATE POLICY \"profit_split_completions_select_10e0fa81\" ON \"public\".\"profit_split_completions\" AS PERMISSIVE FOR SELECT TO stockledger_app USING (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"profit_split_completions_select_10e0fa81\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "profit_split_completions",
+          "profit_split_completions_select_10e0fa81"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.profit_split_completions.profit_split_completions_update_2c24cb4c",
+    "label": "Create RLS policy \"profit_split_completions_update_2c24cb4c\" on \"profit_split_completions\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "profit_split_completions_update_2c24cb4c",
+        "table": "profit_split_completions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"profit_split_completions_update_2c24cb4c\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "profit_split_completions",
+          "profit_split_completions_update_2c24cb4c"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"profit_split_completions_update_2c24cb4c\"",
+        "sql": "CREATE POLICY \"profit_split_completions_update_2c24cb4c\" ON \"public\".\"profit_split_completions\" AS PERMISSIVE FOR UPDATE TO stockledger_app USING (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid) WITH CHECK (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"profit_split_completions_update_2c24cb4c\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "profit_split_completions",
+          "profit_split_completions_update_2c24cb4c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.profit_split_parts.profit_split_parts_delete_f027a2a9",
+    "label": "Create RLS policy \"profit_split_parts_delete_f027a2a9\" on \"profit_split_parts\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "profit_split_parts_delete_f027a2a9",
+        "table": "profit_split_parts"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"profit_split_parts_delete_f027a2a9\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "profit_split_parts",
+          "profit_split_parts_delete_f027a2a9"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"profit_split_parts_delete_f027a2a9\"",
+        "sql": "CREATE POLICY \"profit_split_parts_delete_f027a2a9\" ON \"public\".\"profit_split_parts\" AS PERMISSIVE FOR DELETE TO stockledger_app USING (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"profit_split_parts_delete_f027a2a9\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "profit_split_parts",
+          "profit_split_parts_delete_f027a2a9"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.profit_split_parts.profit_split_parts_insert_1c87de9a",
+    "label": "Create RLS policy \"profit_split_parts_insert_1c87de9a\" on \"profit_split_parts\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "profit_split_parts_insert_1c87de9a",
+        "table": "profit_split_parts"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"profit_split_parts_insert_1c87de9a\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "profit_split_parts",
+          "profit_split_parts_insert_1c87de9a"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"profit_split_parts_insert_1c87de9a\"",
+        "sql": "CREATE POLICY \"profit_split_parts_insert_1c87de9a\" ON \"public\".\"profit_split_parts\" AS PERMISSIVE FOR INSERT TO stockledger_app WITH CHECK (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"profit_split_parts_insert_1c87de9a\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "profit_split_parts",
+          "profit_split_parts_insert_1c87de9a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.profit_split_parts.profit_split_parts_select_10e0fa81",
+    "label": "Create RLS policy \"profit_split_parts_select_10e0fa81\" on \"profit_split_parts\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "profit_split_parts_select_10e0fa81",
+        "table": "profit_split_parts"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"profit_split_parts_select_10e0fa81\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "profit_split_parts",
+          "profit_split_parts_select_10e0fa81"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"profit_split_parts_select_10e0fa81\"",
+        "sql": "CREATE POLICY \"profit_split_parts_select_10e0fa81\" ON \"public\".\"profit_split_parts\" AS PERMISSIVE FOR SELECT TO stockledger_app USING (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"profit_split_parts_select_10e0fa81\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "profit_split_parts",
+          "profit_split_parts_select_10e0fa81"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rlsPolicy.public.profit_split_parts.profit_split_parts_update_2c24cb4c",
+    "label": "Create RLS policy \"profit_split_parts_update_2c24cb4c\" on \"profit_split_parts\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rlsPolicy",
+        "name": "profit_split_parts_update_2c24cb4c",
+        "table": "profit_split_parts"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure RLS policy \"profit_split_parts_update_2c24cb4c\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "profit_split_parts",
+          "profit_split_parts_update_2c24cb4c"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create RLS policy \"profit_split_parts_update_2c24cb4c\"",
+        "sql": "CREATE POLICY \"profit_split_parts_update_2c24cb4c\" ON \"public\".\"profit_split_parts\" AS PERMISSIVE FOR UPDATE TO stockledger_app USING (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid) WITH CHECK (company_id = nullif(current_setting('app.current_company_id', true), '')::uuid)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify RLS policy \"profit_split_parts_update_2c24cb4c\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_policies\" WHERE (\"schemaname\" = $1 AND \"tablename\" = $2 AND \"policyname\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "profit_split_parts",
+          "profit_split_parts_update_2c24cb4c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "profit_split_parts.runtime_grants",
+    "label": "Grant tenant profit split access to profit_split_parts",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres"
+    },
+    "precheck": [
+      {
+        "description": "Profit split grants need applying",
+        "sql": "SELECT NOT has_table_privilege('stockledger_app', 'public.profit_split_parts', 'SELECT, INSERT, UPDATE, DELETE') AS result"
+      }
+    ],
+    "execute": [
+      {
+        "description": "Grant runtime profit split access",
+        "sql": "GRANT SELECT, INSERT, UPDATE, DELETE ON public.profit_split_parts TO stockledger_app"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "Profit split grants exist",
+        "sql": "SELECT has_table_privilege('stockledger_app', 'public.profit_split_parts', 'SELECT, INSERT, UPDATE, DELETE') AS result"
+      }
+    ]
+  },
+  {
+    "id": "profit_split_completions.runtime_grants",
+    "label": "Grant tenant profit split access to profit_split_completions",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres"
+    },
+    "precheck": [
+      {
+        "description": "Profit split grants need applying",
+        "sql": "SELECT NOT has_table_privilege('stockledger_app', 'public.profit_split_completions', 'SELECT, INSERT, UPDATE, DELETE') AS result"
+      }
+    ],
+    "execute": [
+      {
+        "description": "Grant runtime profit split access",
+        "sql": "GRANT SELECT, INSERT, UPDATE, DELETE ON public.profit_split_completions TO stockledger_app"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "Profit split grants exist",
+        "sql": "SELECT has_table_privilege('stockledger_app', 'public.profit_split_completions', 'SELECT, INSERT, UPDATE, DELETE') AS result"
+      }
+    ]
+  }
+]

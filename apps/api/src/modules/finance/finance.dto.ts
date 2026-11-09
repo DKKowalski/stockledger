@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { ArrayMaxSize, IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min, ValidateNested } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsBoolean, IsIn, IsInt, IsNumber, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min, ValidateNested } from 'class-validator';
 
 export class FinanceQueryDto {
   @IsOptional()
@@ -55,6 +55,35 @@ export class SaveBudgetDto {
   @IsOptional()
   @IsBoolean()
   copyToYear?: boolean;
+}
+export class SplitPartDto {
+  @IsOptional()
+  @Matches(/^[a-z0-9-]{1,40}$/)
+  key?: string;
+  @IsString()
+  @MaxLength(80)
+  name!: string;
+  @IsString()
+  @MaxLength(120)
+  destination!: string;
+  @IsNumber({ allowNaN: false, allowInfinity: false })
+  percent!: number;
+}
+export class SaveProfitSplitDto {
+  @IsArray()
+  @ArrayMaxSize(50)
+  @ValidateNested({ each: true })
+  @Type(() => SplitPartDto)
+  parts!: SplitPartDto[];
+}
+export class CompleteSplitPartDto {
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  doneOn?: string;
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  note?: string;
 }
 export class FinanceExportDto extends FinanceQueryDto {
   @IsOptional()

@@ -1,10 +1,10 @@
-import { Body, Controller, Delete, Get, Header, Param, ParseUUIDPipe, Patch, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Header, Param, ParseUUIDPipe, Patch, Post, Put, Query, Req, Res, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
 import { AuthGuard } from '../auth/auth.guard.js';
 import type { AuthenticatedRequest } from '../auth/auth.types.js';
 import { FinanceService } from './finance.service.js';
 import { DateRangeDto } from '../../common/date-range.js';
-import { FinanceCategoryDto, FinanceEntryDto, FinanceExportDto, FinanceQueryDto, SaveBudgetDto } from './finance.dto.js';
+import { FinanceCategoryDto, FinanceEntryDto, FinanceExportDto, FinanceQueryDto, SaveBudgetDto, SaveProfitSplitDto, CompleteSplitPartDto } from './finance.dto.js';
 
 @Controller('finance')
 @UseGuards(AuthGuard)
@@ -22,6 +22,23 @@ export class FinanceController {
     response.setHeader('Content-Type', 'text/csv; charset=utf-8');
     response.setHeader('Content-Disposition', `attachment; filename="${file.filename}"`);
     return file.content;
+  }
+  @Get('profit-split')
+  @Header('Cache-Control', 'no-store')
+  profitSplit(@Req() request: AuthenticatedRequest, @Query('month') month: string) {
+    return this.finance.profitSplit(request.user.sub, request.user.companyId, String(month ?? ''));
+  }
+  @Put('profit-split/settings')
+  profitSplitSettings(@Req() request: AuthenticatedRequest, @Body() body: SaveProfitSplitDto) {
+    return this.finance.saveProfitSplitSettings(request.user.sub, request.user.companyId, body);
+  }
+  @Put('profit-split/:month/parts/:partKey')
+  completeSplitPart(@Req() request: AuthenticatedRequest, @Param('month') month: string, @Param('partKey') partKey: string, @Body() body: CompleteSplitPartDto) {
+    return this.finance.completeSplitPart(request.user.sub, request.user.companyId, month, partKey, body);
+  }
+  @Delete('profit-split/:month/parts/:partKey')
+  uncompleteSplitPart(@Req() request: AuthenticatedRequest, @Param('month') month: string, @Param('partKey') partKey: string) {
+    return this.finance.uncompleteSplitPart(request.user.sub, request.user.companyId, month, partKey);
   }
   @Get('entries')
   @Header('Cache-Control', 'no-store')

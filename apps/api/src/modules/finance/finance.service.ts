@@ -5,7 +5,9 @@ import { calendarDay, dateRange } from '../../common/date-range.js';
 import { InventoryService } from '../inventory/inventory.service.js';
 import { toCsv } from '../settings/csv.js';
 import { buildFinanceYear, DEFAULT_FINANCE_CATEGORIES, FINANCE_LINES, type FinanceStatus } from './finance-calculations.js';
-import type { FinanceCategoryDto, FinanceEntryDto, FinanceExportDto, FinanceQueryDto, SaveBudgetDto } from './finance.dto.js';
+import { randomUUID } from 'node:crypto';
+import { allocateProfit, DEFAULT_SPLIT_PARTS, validateSplitParts, type SplitPartSetting } from './profit-split.js';
+import type { CompleteSplitPartDto, SaveProfitSplitDto, FinanceCategoryDto, FinanceEntryDto, FinanceExportDto, FinanceQueryDto, SaveBudgetDto } from './finance.dto.js';
 
 const ENTRY_LIST_LIMIT = 500;
 
@@ -160,6 +162,105 @@ export class FinanceService {
       await this.audit(tx, companyId, userId, 'finance.exported', 'company', companyId, { year: report.year, view, month: view === 'month' ? month!.month : null });
       return { content, filename: `stockledger-finance-${view === 'month' ? month!.month : report.year}-${view}.csv` };
     }, { consistentSnapshot: true });
+  }
+
+  // ---- Profit split: a plan and a record only; nothing here moves money. ----
+  private async splitParts(tx: PrismaTransaction, companyId: string): Promise<{ usingDefaults: boolean; parts: SplitPartSetting[] }> {
+    const rows = (await tx.orm.public.ProfitSplitPart.where({ companyId }).all()).sort((a, b) => a.position - b.position);
+    if (!rows.length) return { usingDefaults: true, parts: DEFAULT_SPLIT_PARTS.map(part => ({ ...part })) };
+    return { usingDefaults: false, parts: rows.map(row => ({ key: row.partKey, name: row.name, destination: row.destination, percentBasisPoints: row.percentBasisPoints })) };
+  }
+
+  private parseSplitMonth(month: string) {
+    const match = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(month);
+    if (!match || Number(match[1]) < 2000 || Number(match[1]) > 2100) throw new BadRequestException('Choose a month as YYYY-MM between 2000 and 2100');
+    return { year: Number(match[1]), from: `${month}-01` };
+  }
+
+  // Net profit is the Finance report's own Net Profit / Loss actual for the month, never recomputed.
+  private async splitView(tx: PrismaTransaction, userId: string, companyId: string, month: string) {
+    const { year, from } = this.parseSplitMonth(month);
+    const report = await this.read(tx, userId, companyId, { year });
+    const period = report.months.find(row => row.month === month)!;
+    const netProfitCents = period.lines.find(line => line.key === 'net_profit')?.actualCents ?? 0;
+    const settings = await this.splitParts(tx, companyId);
+    const completions = await tx.orm.public.ProfitSplitCompletion.where({ companyId }).where(row => row.month.eq(from)).all();
+    const today = calendarDay(new Date(), report.company.timeZone);
+    const hasProfit = period.status !== 'future' && netProfitCents > 0;
+    const amounts = hasProfit ? allocateProfit(netProfitCents, settings.parts.map(part => part.percentBasisPoints)) : [];
+    const byKey = new Map<string, (typeof completions)[number]>(completions.map(row => [row.partKey, row]));
+    const completionView = (row: (typeof completions)[number], currentAmountCents: number | null) => ({ doneOn: row.doneOn, note: row.note, amountCents: row.amountCents, percentBasisPoints: row.percentBasisPoints, partName: row.partName, destination: row.destination, changedSinceDone: currentAmountCents !== null && currentAmountCents !== row.amountCents });
+    const parts = hasProfit ? settings.parts.map((part, index) => {
+      const done = byKey.get(part.key);
+      return { key: part.key, name: part.name, destination: part.destination, percent: part.percentBasisPoints / 100, percentBasisPoints: part.percentBasisPoints, amountCents: amounts[index]!, completion: done ? completionView(done, amounts[index]!) : null };
+    }) : [];
+    const current = new Set(settings.parts.map(part => part.key));
+    // Parts removed after being marked done keep their record so history is never rewritten.
+    const retired = completions.filter(row => !current.has(row.partKey) || !hasProfit).map(row => ({ key: row.partKey, ...completionView(row, null) }));
+    return {
+      month, status: period.status, currency: report.company.currency, timeZone: report.company.timeZone, today,
+      netProfitCents, hasProfit, isEstimate: period.status === 'in_progress', canComplete: period.status === 'complete' && hasProfit,
+      usingDefaults: settings.usingDefaults, settings: settings.parts.map(part => ({ key: part.key, name: part.name, destination: part.destination, percent: part.percentBasisPoints / 100 })),
+      parts, retired,
+    };
+  }
+
+  async profitSplit(userId: string, companyId: string, month: string) {
+    this.parseSplitMonth(month);
+    await this.prepare(userId, companyId);
+    return this.prisma.withCompany(companyId, tx => this.splitView(tx, userId, companyId, month), { consistentSnapshot: true });
+  }
+
+  async saveProfitSplitSettings(userId: string, companyId: string, body: SaveProfitSplitDto) {
+    const checked = validateSplitParts(body.parts);
+    if ('error' in checked) throw new BadRequestException(checked.error);
+    return this.prisma.withCompany(companyId, async tx => {
+      await this.owner(tx, companyId, userId);
+      const taken = new Set(checked.parts.map(part => part.key).filter((key): key is string => Boolean(key)));
+      const rows = checked.parts.map((part, index) => {
+        let key = part.key;
+        while (!key) { const candidate = `p-${randomUUID().slice(0, 12)}`; if (!taken.has(candidate)) { key = candidate; taken.add(candidate); } }
+        return { key, position: index + 1, name: part.name, destination: part.destination, percentBasisPoints: part.percentBasisPoints };
+      });
+      await tx.orm.public.ProfitSplitPart.where({ companyId }).delete();
+      for (const row of rows) await tx.orm.public.ProfitSplitPart.create({ companyId, partKey: row.key as Varchar<40>, position: row.position, name: row.name as Varchar<80>, destination: row.destination as Varchar<120>, percentBasisPoints: row.percentBasisPoints });
+      await this.audit(tx, companyId, userId, 'finance.profit_split_settings_saved', 'company', companyId, { parts: rows.map(row => ({ key: row.key, name: row.name, destination: row.destination, percentBasisPoints: row.percentBasisPoints })) });
+      return { saved: true };
+    });
+  }
+
+  async completeSplitPart(userId: string, companyId: string, month: string, partKey: string, body: CompleteSplitPartDto) {
+    const { from } = this.parseSplitMonth(month);
+    if (body.doneOn) this.assertFinanceDate(body.doneOn);
+    await this.prepare(userId, companyId);
+    return this.prisma.withCompany(companyId, async tx => {
+      const view = await this.splitView(tx, userId, companyId, month);
+      if (view.status === 'in_progress') throw new BadRequestException("This month isn't finished, so its split can't be marked done yet");
+      if (view.status === 'future' || !view.hasProfit) throw new BadRequestException('No profit to split this month');
+      const part = view.parts.find(candidate => candidate.key === partKey);
+      if (!part) throw new NotFoundException('Part not found');
+      const doneOn = body.doneOn ?? view.today;
+      if (doneOn > view.today) throw new BadRequestException('The done date cannot be in the future');
+      const note = (body.note ?? '').trim();
+      const existing = await tx.orm.public.ProfitSplitCompletion.first({ companyId, month: from, partKey: partKey as Varchar<40> });
+      // Re-saving an already done part edits its date and note; the amount stays as first recorded.
+      if (existing) await tx.orm.public.ProfitSplitCompletion.where({ companyId, id: existing.id }).update({ doneOn, note: note as Varchar<200> });
+      else await tx.orm.public.ProfitSplitCompletion.create({ companyId, month: from, partKey: partKey as Varchar<40>, partName: part.name as Varchar<80>, destination: part.destination as Varchar<120>, amountCents: part.amountCents, percentBasisPoints: part.percentBasisPoints, doneOn, note: note as Varchar<200>, createdByUserId: userId });
+      await this.audit(tx, companyId, userId, 'finance.profit_split_part_done', 'company', companyId, { month, partKey, amountCents: existing?.amountCents ?? part.amountCents, doneOn });
+      return this.splitView(tx, userId, companyId, month);
+    });
+  }
+
+  async uncompleteSplitPart(userId: string, companyId: string, month: string, partKey: string) {
+    const { from } = this.parseSplitMonth(month);
+    return this.prisma.withCompany(companyId, async tx => {
+      await this.owner(tx, companyId, userId);
+      const existing = await tx.orm.public.ProfitSplitCompletion.first({ companyId, month: from, partKey: partKey as Varchar<40> });
+      if (!existing) throw new NotFoundException('This part is not marked done');
+      await tx.orm.public.ProfitSplitCompletion.where({ companyId, id: existing.id }).delete();
+      await this.audit(tx, companyId, userId, 'finance.profit_split_part_undone', 'company', companyId, { month, partKey, amountCents: existing.amountCents });
+      return this.splitView(tx, userId, companyId, month);
+    });
   }
 
   private assertFinanceDate(value: string) {

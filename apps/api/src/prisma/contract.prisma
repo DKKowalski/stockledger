@@ -917,6 +917,95 @@ policy_delete finance_budgets_delete {
   using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
 }
 
+model ProfitSplitPart {
+  id Uuid @id @default(uuid())
+  companyId Uuid @map("company_id")
+  partKey VarChar(40) @map("part_key")
+  position Int
+  name VarChar(80)
+  destination VarChar(120)
+  percentBasisPoints Int @map("percent_basis_points")
+  createdAt TimestamptzString @default(now()) @map("created_at")
+  updatedAt temporal.updatedAtString() @map("updated_at")
+  company Company @relation(fields:[companyId], references:[id], onDelete: Restrict, onUpdate: Cascade)
+  @@unique([companyId, partKey])
+  @@check(expression: "position >= 1 AND percent_basis_points BETWEEN 1 AND 10000", name: "profit_split_part_valid")
+  @@rls
+  @@map("profit_split_parts")
+}
+
+policy_select profit_split_parts_select {
+  target = ProfitSplitPart
+  roles =[stockledger_app]
+  using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+}
+
+policy_insert profit_split_parts_insert {
+  target = ProfitSplitPart
+  roles =[stockledger_app]
+  withCheck = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+}
+
+policy_update profit_split_parts_update {
+  target = ProfitSplitPart
+  roles =[stockledger_app]
+  using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+  withCheck = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+}
+
+policy_delete profit_split_parts_delete {
+  target = ProfitSplitPart
+  roles =[stockledger_app]
+  using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+}
+
+model ProfitSplitCompletion {
+  id Uuid @id @default(uuid())
+  companyId Uuid @map("company_id")
+  month DateString
+  partKey VarChar(40) @map("part_key")
+  partName VarChar(80) @map("part_name")
+  destination VarChar(120)
+  amountCents Int @map("amount_cents")
+  percentBasisPoints Int @map("percent_basis_points")
+  doneOn DateString @map("done_on")
+  note VarChar(200)
+  createdByUserId Uuid @map("created_by_user_id")
+  createdAt TimestamptzString @default(now()) @map("created_at")
+  updatedAt temporal.updatedAtString() @map("updated_at")
+  company Company @relation(fields:[companyId], references:[id], onDelete: Restrict, onUpdate: Cascade)
+  actor User @relation(fields:[companyId, createdByUserId], references:[companyId, id], onDelete: Restrict, onUpdate: Cascade)
+  @@unique([companyId, month, partKey])
+  @@check(expression: "amount_cents > 0 AND percent_basis_points BETWEEN 1 AND 10000 AND extract(day from month) = 1", name: "profit_split_completion_valid")
+  @@rls
+  @@map("profit_split_completions")
+}
+
+policy_select profit_split_completions_select {
+  target = ProfitSplitCompletion
+  roles =[stockledger_app]
+  using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+}
+
+policy_insert profit_split_completions_insert {
+  target = ProfitSplitCompletion
+  roles =[stockledger_app]
+  withCheck = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+}
+
+policy_update profit_split_completions_update {
+  target = ProfitSplitCompletion
+  roles =[stockledger_app]
+  using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+  withCheck = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+}
+
+policy_delete profit_split_completions_delete {
+  target = ProfitSplitCompletion
+  roles =[stockledger_app]
+  using = "company_id = nullif(current_setting('app.current_company_id', true), '')::uuid"
+}
+
 policy_select finance_categories_select {
   target = FinanceCategory
   roles =[stockledger_app]

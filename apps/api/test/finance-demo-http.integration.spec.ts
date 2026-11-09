@@ -68,6 +68,9 @@ describe('read-only demo finance', () => {
     ['PATCH', `/finance/entries/${entryId}`, { kind: 'other_revenue', entryDate: '2026-01-02', amountCents: 100 }],
     ['DELETE', `/finance/entries/${entryId}`, undefined],
     ['POST', '/finance/budgets', { month: '2026-01-01', lines: [{ lineKey: 'sales', amountCents: 100 }] }],
+    ['PUT', '/finance/profit-split/settings', { parts: [{ name: 'All', destination: 'Somewhere', percent: 100 }] }],
+    ['PUT', '/finance/profit-split/2026-01/parts/default-1', {}],
+    ['DELETE', '/finance/profit-split/2026-01/parts/default-1', undefined],
   ] as const;
 
   it.each(writes)('rejects %s %s with 403 and changes nothing', async (method, path, body) => {

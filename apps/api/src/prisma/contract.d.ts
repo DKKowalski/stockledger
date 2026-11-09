@@ -34,9 +34,9 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'c5d7a158871ec529bd305865c9f0ff7543ce959baffc4d4cc2dcfa5e323a4ef3'>;
+  StorageHashBase<'c4fbc1e8ae687b0617957d10d53f7becb388b82717d37defd372239deb414597'>;
 export type ExecutionHash =
-  ExecutionHashBase<'438fdd98bbe39b3fbbec169de7af55f8c94a9f97a8abd0580b38a7344ff205c8'>;
+  ExecutionHashBase<'eef3fc3c80dee424dfb7f18966198dea4c6432fd07415f619ef9ecd96c179f2e'>;
 export type ProfileHash =
   ProfileHashBase<'3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2'>;
 
@@ -396,6 +396,32 @@ export type FieldOutputTypes = {
       readonly createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
       readonly updatedAt: CodecTypes['pg/timestamptz-string@1']['output'];
     };
+    readonly ProfitSplitCompletion: {
+      readonly id: CodecTypes['pg/uuid@1']['output'];
+      readonly companyId: CodecTypes['pg/uuid@1']['output'];
+      readonly month: CodecTypes['pg/date-string@1']['output'];
+      readonly partKey: Varchar<40>;
+      readonly partName: Varchar<80>;
+      readonly destination: Varchar<120>;
+      readonly amountCents: CodecTypes['pg/int4@1']['output'];
+      readonly percentBasisPoints: CodecTypes['pg/int4@1']['output'];
+      readonly doneOn: CodecTypes['pg/date-string@1']['output'];
+      readonly note: Varchar<200>;
+      readonly createdByUserId: CodecTypes['pg/uuid@1']['output'];
+      readonly createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
+      readonly updatedAt: CodecTypes['pg/timestamptz-string@1']['output'];
+    };
+    readonly ProfitSplitPart: {
+      readonly id: CodecTypes['pg/uuid@1']['output'];
+      readonly companyId: CodecTypes['pg/uuid@1']['output'];
+      readonly partKey: Varchar<40>;
+      readonly position: CodecTypes['pg/int4@1']['output'];
+      readonly name: Varchar<80>;
+      readonly destination: Varchar<120>;
+      readonly percentBasisPoints: CodecTypes['pg/int4@1']['output'];
+      readonly createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
+      readonly updatedAt: CodecTypes['pg/timestamptz-string@1']['output'];
+    };
     readonly RefreshSession: {
       readonly id: CodecTypes['pg/uuid@1']['output'];
       readonly companyId: CodecTypes['pg/uuid@1']['output'];
@@ -740,6 +766,32 @@ export type FieldInputTypes = {
       readonly locationId: CodecTypes['pg/uuid@1']['input'];
       readonly itemId: CodecTypes['pg/uuid@1']['input'];
       readonly openingStock: CodecTypes['pg/int4@1']['input'];
+      readonly createdAt: CodecTypes['pg/timestamptz-string@1']['input'];
+      readonly updatedAt: CodecTypes['pg/timestamptz-string@1']['input'];
+    };
+    readonly ProfitSplitCompletion: {
+      readonly id: CodecTypes['pg/uuid@1']['input'];
+      readonly companyId: CodecTypes['pg/uuid@1']['input'];
+      readonly month: CodecTypes['pg/date-string@1']['input'];
+      readonly partKey: CodecTypes['sql/varchar@1']['input'];
+      readonly partName: CodecTypes['sql/varchar@1']['input'];
+      readonly destination: CodecTypes['sql/varchar@1']['input'];
+      readonly amountCents: CodecTypes['pg/int4@1']['input'];
+      readonly percentBasisPoints: CodecTypes['pg/int4@1']['input'];
+      readonly doneOn: CodecTypes['pg/date-string@1']['input'];
+      readonly note: CodecTypes['sql/varchar@1']['input'];
+      readonly createdByUserId: CodecTypes['pg/uuid@1']['input'];
+      readonly createdAt: CodecTypes['pg/timestamptz-string@1']['input'];
+      readonly updatedAt: CodecTypes['pg/timestamptz-string@1']['input'];
+    };
+    readonly ProfitSplitPart: {
+      readonly id: CodecTypes['pg/uuid@1']['input'];
+      readonly companyId: CodecTypes['pg/uuid@1']['input'];
+      readonly partKey: CodecTypes['sql/varchar@1']['input'];
+      readonly position: CodecTypes['pg/int4@1']['input'];
+      readonly name: CodecTypes['sql/varchar@1']['input'];
+      readonly destination: CodecTypes['sql/varchar@1']['input'];
+      readonly percentBasisPoints: CodecTypes['pg/int4@1']['input'];
       readonly createdAt: CodecTypes['pg/timestamptz-string@1']['input'];
       readonly updatedAt: CodecTypes['pg/timestamptz-string@1']['input'];
     };
@@ -1091,6 +1143,32 @@ export type StorageColumnTypes = {
       readonly type: 'warehouse' | 'shop';
       readonly updated_at: CodecTypes['pg/timestamptz-string@1']['output'];
     };
+    readonly profit_split_completions: {
+      readonly amount_cents: CodecTypes['pg/int4@1']['output'];
+      readonly company_id: CodecTypes['pg/uuid@1']['output'];
+      readonly created_at: CodecTypes['pg/timestamptz-string@1']['output'];
+      readonly created_by_user_id: CodecTypes['pg/uuid@1']['output'];
+      readonly destination: Varchar<120>;
+      readonly done_on: CodecTypes['pg/date-string@1']['output'];
+      readonly id: CodecTypes['pg/uuid@1']['output'];
+      readonly month: CodecTypes['pg/date-string@1']['output'];
+      readonly note: Varchar<200>;
+      readonly part_key: Varchar<40>;
+      readonly part_name: Varchar<80>;
+      readonly percent_basis_points: CodecTypes['pg/int4@1']['output'];
+      readonly updated_at: CodecTypes['pg/timestamptz-string@1']['output'];
+    };
+    readonly profit_split_parts: {
+      readonly company_id: CodecTypes['pg/uuid@1']['output'];
+      readonly created_at: CodecTypes['pg/timestamptz-string@1']['output'];
+      readonly destination: Varchar<120>;
+      readonly id: CodecTypes['pg/uuid@1']['output'];
+      readonly name: Varchar<80>;
+      readonly part_key: Varchar<40>;
+      readonly percent_basis_points: CodecTypes['pg/int4@1']['output'];
+      readonly position: CodecTypes['pg/int4@1']['output'];
+      readonly updated_at: CodecTypes['pg/timestamptz-string@1']['output'];
+    };
     readonly refresh_sessions: {
       readonly company_id: CodecTypes['pg/uuid@1']['output'];
       readonly created_at: CodecTypes['pg/timestamptz-string@1']['output'];
@@ -1438,6 +1516,32 @@ export type StorageColumnInputTypes = {
       readonly id: CodecTypes['pg/uuid@1']['input'];
       readonly name: CodecTypes['sql/varchar@1']['input'];
       readonly type: 'warehouse' | 'shop';
+      readonly updated_at: CodecTypes['pg/timestamptz-string@1']['input'];
+    };
+    readonly profit_split_completions: {
+      readonly amount_cents: CodecTypes['pg/int4@1']['input'];
+      readonly company_id: CodecTypes['pg/uuid@1']['input'];
+      readonly created_at: CodecTypes['pg/timestamptz-string@1']['input'];
+      readonly created_by_user_id: CodecTypes['pg/uuid@1']['input'];
+      readonly destination: CodecTypes['sql/varchar@1']['input'];
+      readonly done_on: CodecTypes['pg/date-string@1']['input'];
+      readonly id: CodecTypes['pg/uuid@1']['input'];
+      readonly month: CodecTypes['pg/date-string@1']['input'];
+      readonly note: CodecTypes['sql/varchar@1']['input'];
+      readonly part_key: CodecTypes['sql/varchar@1']['input'];
+      readonly part_name: CodecTypes['sql/varchar@1']['input'];
+      readonly percent_basis_points: CodecTypes['pg/int4@1']['input'];
+      readonly updated_at: CodecTypes['pg/timestamptz-string@1']['input'];
+    };
+    readonly profit_split_parts: {
+      readonly company_id: CodecTypes['pg/uuid@1']['input'];
+      readonly created_at: CodecTypes['pg/timestamptz-string@1']['input'];
+      readonly destination: CodecTypes['sql/varchar@1']['input'];
+      readonly id: CodecTypes['pg/uuid@1']['input'];
+      readonly name: CodecTypes['sql/varchar@1']['input'];
+      readonly part_key: CodecTypes['sql/varchar@1']['input'];
+      readonly percent_basis_points: CodecTypes['pg/int4@1']['input'];
+      readonly position: CodecTypes['pg/int4@1']['input'];
       readonly updated_at: CodecTypes['pg/timestamptz-string@1']['input'];
     };
     readonly refresh_sessions: {
@@ -2051,6 +2155,37 @@ export namespace Models {
     company: public_Company;
     readonly [RelationKeys]?: 'company';
   };
+  export type public_ProfitSplitPart = {
+    id: CodecTypes['pg/uuid@1']['output'];
+    companyId: CodecTypes['pg/uuid@1']['output'];
+    partKey: Varchar<40>;
+    position: CodecTypes['pg/int4@1']['output'];
+    name: Varchar<80>;
+    destination: Varchar<120>;
+    percentBasisPoints: CodecTypes['pg/int4@1']['output'];
+    createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
+    updatedAt: CodecTypes['pg/timestamptz-string@1']['output'];
+    company: public_Company;
+    readonly [RelationKeys]?: 'company';
+  };
+  export type public_ProfitSplitCompletion = {
+    id: CodecTypes['pg/uuid@1']['output'];
+    companyId: CodecTypes['pg/uuid@1']['output'];
+    month: CodecTypes['pg/date-string@1']['output'];
+    partKey: Varchar<40>;
+    partName: Varchar<80>;
+    destination: Varchar<120>;
+    amountCents: CodecTypes['pg/int4@1']['output'];
+    percentBasisPoints: CodecTypes['pg/int4@1']['output'];
+    doneOn: CodecTypes['pg/date-string@1']['output'];
+    note: Varchar<200>;
+    createdByUserId: CodecTypes['pg/uuid@1']['output'];
+    createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
+    updatedAt: CodecTypes['pg/timestamptz-string@1']['output'];
+    actor: public_User;
+    company: public_Company;
+    readonly [RelationKeys]?: 'actor' | 'company';
+  };
   export type public_RetailSaleRequest = {
     id: CodecTypes['pg/uuid@1']['output'];
     companyId: CodecTypes['pg/uuid@1']['output'];
@@ -2090,6 +2225,8 @@ export declare const models: {
     FinanceCategory: Models.public_FinanceCategory;
     FinanceEntry: Models.public_FinanceEntry;
     FinanceBudget: Models.public_FinanceBudget;
+    ProfitSplitPart: Models.public_ProfitSplitPart;
+    ProfitSplitCompletion: Models.public_ProfitSplitCompletion;
     RetailSaleRequest: Models.public_RetailSaleRequest;
   };
 };
@@ -3438,6 +3575,201 @@ type ContractBase = Omit<
                   readonly source: {
                     readonly namespaceId: 'public' & NamespaceId;
                     readonly tableName: 'locations';
+                    readonly columns: readonly ['company_id'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'companies';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+              ];
+            };
+            readonly profit_split_completions: {
+              columns: {
+                readonly id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: false;
+                };
+                readonly company_id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: false;
+                };
+                readonly month: {
+                  readonly nativeType: 'date';
+                  readonly codecId: 'pg/date-string@1';
+                  readonly nullable: false;
+                };
+                readonly part_key: {
+                  readonly nativeType: 'character varying';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly length: 40 };
+                };
+                readonly part_name: {
+                  readonly nativeType: 'character varying';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly length: 80 };
+                };
+                readonly destination: {
+                  readonly nativeType: 'character varying';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly length: 120 };
+                };
+                readonly amount_cents: {
+                  readonly nativeType: 'int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                };
+                readonly percent_basis_points: {
+                  readonly nativeType: 'int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                };
+                readonly done_on: {
+                  readonly nativeType: 'date';
+                  readonly codecId: 'pg/date-string@1';
+                  readonly nullable: false;
+                };
+                readonly note: {
+                  readonly nativeType: 'character varying';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly length: 200 };
+                };
+                readonly created_by_user_id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: false;
+                };
+                readonly created_at: {
+                  readonly nativeType: 'timestamptz';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                };
+                readonly updated_at: {
+                  readonly nativeType: 'timestamptz';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                  readonly nullable: false;
+                };
+              };
+              primaryKey: { readonly columns: readonly ['id'] };
+              uniques: readonly [
+                { readonly columns: readonly ['company_id', 'month', 'part_key'] },
+              ];
+              indexes: readonly [
+                {
+                  readonly name: 'profit_split_completions_company_id_idx_1303a718';
+                  readonly prefix: 'profit_split_completions_company_id_idx';
+                  readonly columns: readonly ['company_id'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'profit_split_completions_company_id_created_by_user_id_fd5eba49';
+                  readonly prefix: 'profit_split_completions_company_id_created_by_user_id';
+                  readonly columns: readonly ['company_id', 'created_by_user_id'];
+                  readonly unique: false;
+                },
+              ];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'profit_split_completions';
+                    readonly columns: readonly ['company_id'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'companies';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'profit_split_completions';
+                    readonly columns: readonly ['company_id', 'created_by_user_id'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'users';
+                    readonly columns: readonly ['company_id', 'id'];
+                  };
+                },
+              ];
+            };
+            readonly profit_split_parts: {
+              columns: {
+                readonly id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: false;
+                };
+                readonly company_id: {
+                  readonly nativeType: 'uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: false;
+                };
+                readonly part_key: {
+                  readonly nativeType: 'character varying';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly length: 40 };
+                };
+                readonly position: {
+                  readonly nativeType: 'int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                };
+                readonly name: {
+                  readonly nativeType: 'character varying';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly length: 80 };
+                };
+                readonly destination: {
+                  readonly nativeType: 'character varying';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly length: 120 };
+                };
+                readonly percent_basis_points: {
+                  readonly nativeType: 'int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                };
+                readonly created_at: {
+                  readonly nativeType: 'timestamptz';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                };
+                readonly updated_at: {
+                  readonly nativeType: 'timestamptz';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                  readonly nullable: false;
+                };
+              };
+              primaryKey: { readonly columns: readonly ['id'] };
+              uniques: readonly [{ readonly columns: readonly ['company_id', 'part_key'] }];
+              indexes: readonly [
+                {
+                  readonly name: 'profit_split_parts_company_id_idx_1303a718';
+                  readonly prefix: 'profit_split_parts_company_id_idx';
+                  readonly columns: readonly ['company_id'];
+                  readonly unique: false;
+                },
+              ];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'profit_split_parts';
                     readonly columns: readonly ['company_id'];
                   };
                   readonly target: {
@@ -5229,6 +5561,14 @@ type ContractBase = Omit<
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'FinanceBudget';
     };
+    readonly profit_split_parts: {
+      readonly namespace: 'public' & NamespaceId;
+      readonly model: 'ProfitSplitPart';
+    };
+    readonly profit_split_completions: {
+      readonly namespace: 'public' & NamespaceId;
+      readonly model: 'ProfitSplitCompletion';
+    };
     readonly retail_sale_requests: {
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'RetailSaleRequest';
@@ -6468,6 +6808,213 @@ type ContractBase = Omit<
                 readonly locationId: { readonly column: 'location_id' };
                 readonly itemId: { readonly column: 'item_id' };
                 readonly openingStock: { readonly column: 'opening_stock' };
+                readonly createdAt: { readonly column: 'created_at' };
+                readonly updatedAt: { readonly column: 'updated_at' };
+              };
+            };
+          };
+          readonly ProfitSplitCompletion: {
+            readonly fields: {
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly companyId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly month: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/date-string@1' };
+              };
+              readonly partKey: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly typeParams: { readonly length: 40 };
+                };
+              };
+              readonly partName: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly typeParams: { readonly length: 80 };
+                };
+              };
+              readonly destination: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly typeParams: { readonly length: 120 };
+                };
+              };
+              readonly amountCents: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly percentBasisPoints: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly doneOn: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/date-string@1' };
+              };
+              readonly note: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly typeParams: { readonly length: 200 };
+                };
+              };
+              readonly createdByUserId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                };
+              };
+              readonly updatedAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                };
+              };
+            };
+            readonly relations: {
+              readonly actor: {
+                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['companyId', 'createdByUserId'];
+                  readonly targetFields: readonly ['companyId', 'id'];
+                };
+              };
+              readonly company: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'Company';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['companyId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: 'profit_split_completions';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly id: { readonly column: 'id' };
+                readonly companyId: { readonly column: 'company_id' };
+                readonly month: { readonly column: 'month' };
+                readonly partKey: { readonly column: 'part_key' };
+                readonly partName: { readonly column: 'part_name' };
+                readonly destination: { readonly column: 'destination' };
+                readonly amountCents: { readonly column: 'amount_cents' };
+                readonly percentBasisPoints: { readonly column: 'percent_basis_points' };
+                readonly doneOn: { readonly column: 'done_on' };
+                readonly note: { readonly column: 'note' };
+                readonly createdByUserId: { readonly column: 'created_by_user_id' };
+                readonly createdAt: { readonly column: 'created_at' };
+                readonly updatedAt: { readonly column: 'updated_at' };
+              };
+            };
+          };
+          readonly ProfitSplitPart: {
+            readonly fields: {
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly companyId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly partKey: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly typeParams: { readonly length: 40 };
+                };
+              };
+              readonly position: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly name: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly typeParams: { readonly length: 80 };
+                };
+              };
+              readonly destination: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly typeParams: { readonly length: 120 };
+                };
+              };
+              readonly percentBasisPoints: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                };
+              };
+              readonly updatedAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                };
+              };
+            };
+            readonly relations: {
+              readonly company: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'Company';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['companyId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: 'profit_split_parts';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly id: { readonly column: 'id' };
+                readonly companyId: { readonly column: 'company_id' };
+                readonly partKey: { readonly column: 'part_key' };
+                readonly position: { readonly column: 'position' };
+                readonly name: { readonly column: 'name' };
+                readonly destination: { readonly column: 'destination' };
+                readonly percentBasisPoints: { readonly column: 'percent_basis_points' };
                 readonly createdAt: { readonly column: 'created_at' };
                 readonly updatedAt: { readonly column: 'updated_at' };
               };
@@ -8192,6 +8739,40 @@ type ContractBase = Omit<
           readonly ref: {
             readonly namespace: 'public';
             readonly table: 'locations';
+            readonly column: 'updated_at';
+          };
+          readonly onCreate: { readonly kind: 'generator'; readonly id: 'timestampNow' };
+          readonly onUpdate: { readonly kind: 'generator'; readonly id: 'timestampNow' };
+        },
+        {
+          readonly ref: {
+            readonly namespace: 'public';
+            readonly table: 'profit_split_completions';
+            readonly column: 'id';
+          };
+          readonly onCreate: { readonly kind: 'generator'; readonly id: 'uuidv4' };
+        },
+        {
+          readonly ref: {
+            readonly namespace: 'public';
+            readonly table: 'profit_split_completions';
+            readonly column: 'updated_at';
+          };
+          readonly onCreate: { readonly kind: 'generator'; readonly id: 'timestampNow' };
+          readonly onUpdate: { readonly kind: 'generator'; readonly id: 'timestampNow' };
+        },
+        {
+          readonly ref: {
+            readonly namespace: 'public';
+            readonly table: 'profit_split_parts';
+            readonly column: 'id';
+          };
+          readonly onCreate: { readonly kind: 'generator'; readonly id: 'uuidv4' };
+        },
+        {
+          readonly ref: {
+            readonly namespace: 'public';
+            readonly table: 'profit_split_parts';
             readonly column: 'updated_at';
           };
           readonly onCreate: { readonly kind: 'generator'; readonly id: 'timestampNow' };
