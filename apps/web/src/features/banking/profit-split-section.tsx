@@ -1,7 +1,7 @@
 import { CircleAlert } from 'lucide-react';
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
-import { ApiError, api } from '../../api';
+import { api } from '../../api';
 import { useCompanySettings } from '../../app/company-settings-store';
 import { Panel } from '../../components/inventory-ui';
 import { DatePicker } from '../../components/ui/date-picker';
@@ -17,33 +17,20 @@ const formatPercent = (percent: number) => `${percent}%`;
 type Row = { key?: string; name: string; destination: string; percent: string };
 
 // The split is a plan and a record only: nothing here moves money.
-export function ProfitSplitSection({ accessToken, month, monthLabel, readOnly, editing, onCloseEditor, onChanged, onUnauthorized }: {
-  accessToken: string; month: string; monthLabel: string; onChanged: () => void; readOnly: boolean; editing: boolean; onCloseEditor: () => void; onUnauthorized: () => void;
+export function ProfitSplitSection({ accessToken, month, monthLabel, split, error, reload, readOnly, editing, onCloseEditor, onChanged }: {
+  accessToken: string; month: string; monthLabel: string; split: ProfitSplit | null; error: string | null; reload: () => void; onChanged: () => void; readOnly: boolean; editing: boolean; onCloseEditor: () => void;
 }) {
   const { money, calendarDate } = useCompanySettings();
-  const [loaded, setSplit] = useState<ProfitSplit | null>(null);
-  const split = loaded?.month === month ? loaded : null;
-  const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [refresh, setRefresh] = useState(0);
-
-  useEffect(() => {
-    let active = true;
-    void api.profitSplit(accessToken, month).then(result => { if (active) { setSplit(result); setError(null); } }).catch(caught => {
-      if (caught instanceof ApiError && caught.status === 401) onUnauthorized();
-      else if (active) setError(safeErrorMessage(caught, 'Could not load the profit split'));
-    });
-    return () => { active = false; };
-  }, [accessToken, month, refresh, onUnauthorized]);
 
   const run = useCallback(async (action: () => Promise<unknown>, success: string) => {
     setBusy(true);
-    try { await action(); toast.success(success); setRefresh(value => value + 1); onChanged(); return true; }
+    try { await action(); toast.success(success); reload(); onChanged(); return true; }
     catch (caught) { toast.error(safeErrorMessage(caught, 'Could not save the profit split')); return false; }
     finally { setBusy(false); }
-  }, [onChanged]);
+  }, [onChanged, reload]);
 
-  if (error) return <Panel className="profit-split" title="Profit split"><div role="alert" className="form-error"><p>{error}</p><button className="button secondary" type="button" onClick={() => setRefresh(value => value + 1)}>Retry</button></div></Panel>;
+  if (error) return <Panel className="profit-split" title="Profit split"><div role="alert" className="form-error"><p>{error}</p><button className="button secondary" type="button" onClick={reload}>Retry</button></div></Panel>;
   if (!split) return <Panel className="profit-split" title="Profit split"><p className="profit-split-empty" role="status">Loading profit split</p></Panel>;
   if (split.status === 'future' && !editing) return null;
 

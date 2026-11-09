@@ -6,7 +6,7 @@ import { InventoryService } from '../inventory/inventory.service.js';
 import { toCsv } from '../settings/csv.js';
 import { buildFinanceYear, DEFAULT_FINANCE_CATEGORIES, FINANCE_LINES, type FinanceStatus } from './finance-calculations.js';
 import { randomUUID } from 'node:crypto';
-import { allocateProfit, DEFAULT_SPLIT_PARTS, validateSplitParts, type SplitPartSetting } from './profit-split.js';
+import { allocateProfit, CAPITAL_DESTINATION, CAPITAL_PART_KEY, CAPITAL_PART_NAME, capitalAmountCents, DEFAULT_SPLIT_PARTS, validateSplitParts, type SplitPartSetting } from './profit-split.js';
 import type { CompleteSplitPartDto, SaveProfitSplitDto, FinanceCategoryDto, FinanceEntryDto, FinanceExportDto, FinanceQueryDto, SaveBudgetDto } from './finance.dto.js';
 
 const ENTRY_LIST_LIMIT = 500;
@@ -194,14 +194,22 @@ export class FinanceService {
       const done = byKey.get(part.key);
       return { key: part.key, name: part.name, destination: part.destination, percent: part.percentBasisPoints / 100, percentBasisPoints: part.percentBasisPoints, amountCents: amounts[index]!, completion: done ? completionView(done, amounts[index]!) : null };
     }) : [];
+    const cogsCents = period.lines.find(line => line.key === 'cogs')?.actualCents ?? 0;
+    const capitalCents = period.status === 'future' ? 0 : capitalAmountCents(cogsCents);
+    const capitalDone = byKey.get(CAPITAL_PART_KEY);
+    const capital = {
+      name: CAPITAL_PART_NAME, destination: CAPITAL_DESTINATION, amountCents: capitalCents, status: period.status,
+      isEstimate: period.status === 'in_progress', canComplete: period.status === 'complete' && capitalCents > 0,
+      completion: capitalDone ? completionView(capitalDone, capitalCents) : null,
+    };
     const current = new Set(settings.parts.map(part => part.key));
     // Parts removed after being marked done keep their record so history is never rewritten.
-    const retired = completions.filter(row => !current.has(row.partKey) || !hasProfit).map(row => ({ key: row.partKey, ...completionView(row, null) }));
+    const retired = completions.filter(row => row.partKey !== CAPITAL_PART_KEY && (!current.has(row.partKey) || !hasProfit)).map(row => ({ key: row.partKey, ...completionView(row, null) }));
     return {
       month, status: period.status, currency: report.company.currency, timeZone: report.company.timeZone, today,
       netProfitCents, hasProfit, isEstimate: period.status === 'in_progress', canComplete: period.status === 'complete' && hasProfit,
       usingDefaults: settings.usingDefaults, settings: settings.parts.map(part => ({ key: part.key, name: part.name, destination: part.destination, percent: part.percentBasisPoints / 100 })),
-      parts, retired,
+      parts, retired, capital,
     };
   }
 
@@ -219,7 +227,10 @@ export class FinanceService {
       const settings = await this.splitParts(tx, companyId);
       const rows = (await tx.orm.public.ProfitSplitCompletion.where({ companyId }).all()).filter(row => row.month.startsWith(`${yearText}-`));
       const groups = new Map<string, { destination: string; partNames: Set<string>; amountCents: number; count: number }>();
+      let capital = { amountCents: 0, count: 0 };
       for (const row of rows) {
+        // Stock capital is its own line, never mixed into the profit accounts.
+        if (row.partKey === CAPITAL_PART_KEY) { capital = { amountCents: capital.amountCents + row.amountCents, count: capital.count + 1 }; continue; }
         const group = groups.get(row.destination) ?? { destination: row.destination, partNames: new Set<string>(), amountCents: 0, count: 0 };
         group.partNames.add(row.partName); group.amountCents += row.amountCents; group.count += 1;
         groups.set(row.destination, group);
@@ -228,7 +239,9 @@ export class FinanceService {
       settings.parts.forEach((part, index) => { if (!order.has(part.destination)) order.set(part.destination, index); });
       const accounts = [...groups.values()].sort((a, b) => (order.get(a.destination) ?? Infinity) - (order.get(b.destination) ?? Infinity) || a.destination.localeCompare(b.destination))
         .map(group => ({ destination: group.destination, partNames: [...group.partNames].sort((a, b) => a.localeCompare(b)), amountCents: group.amountCents, count: group.count }));
-      return { year: Number(yearText), accounts, totalCents: accounts.reduce((sum, account) => sum + account.amountCents, 0) };
+      const profitCents = accounts.reduce((sum, account) => sum + account.amountCents, 0);
+      // `accounts` and `totalCents` keep their original meaning (profit only); the capital fields are additive.
+      return { year: Number(yearText), accounts, totalCents: profitCents, profitCents, capital: { destination: CAPITAL_DESTINATION, partName: CAPITAL_PART_NAME, ...capital }, capitalCents: capital.amountCents, grandTotalCents: profitCents + capital.amountCents };
     }, { consistentSnapshot: true });
   }
 
@@ -272,10 +285,43 @@ export class FinanceService {
     });
   }
 
+  async completeCapital(userId: string, companyId: string, month: string, body: CompleteSplitPartDto) {
+    const { from } = this.parseSplitMonth(month);
+    if (body.doneOn) this.assertFinanceDate(body.doneOn);
+    await this.prepare(userId, companyId);
+    return this.prisma.withCompany(companyId, async tx => {
+      const view = await this.splitView(tx, userId, companyId, month);
+      if (view.status === 'in_progress') throw new BadRequestException("This month isn't finished, so its stock capital can't be marked done yet");
+      if (view.status === 'future' || view.capital.amountCents <= 0) throw new BadRequestException('No stock was sold this month, so there is no stock capital to bank');
+      const doneOn = body.doneOn ?? view.today;
+      if (doneOn > view.today) throw new BadRequestException('The done date cannot be in the future');
+      const note = (body.note ?? '').trim();
+      const existing = await tx.orm.public.ProfitSplitCompletion.first({ companyId, month: from, partKey: CAPITAL_PART_KEY as Varchar<40> });
+      // Re-saving edits the date and note; the amount stays as first recorded.
+      if (existing) await tx.orm.public.ProfitSplitCompletion.where({ companyId, id: existing.id }).update({ doneOn, note: note as Varchar<200> });
+      else await tx.orm.public.ProfitSplitCompletion.create({ companyId, month: from, partKey: CAPITAL_PART_KEY as Varchar<40>, partName: CAPITAL_PART_NAME as Varchar<80>, destination: CAPITAL_DESTINATION as Varchar<120>, amountCents: view.capital.amountCents, percentBasisPoints: 10_000, doneOn, note: note as Varchar<200>, createdByUserId: userId });
+      await this.audit(tx, companyId, userId, 'finance.stock_capital_done', 'company', companyId, { month, partKey: CAPITAL_PART_KEY, amountCents: existing?.amountCents ?? view.capital.amountCents, doneOn });
+      return this.splitView(tx, userId, companyId, month);
+    });
+  }
+
+  async uncompleteCapital(userId: string, companyId: string, month: string) {
+    const { from } = this.parseSplitMonth(month);
+    return this.prisma.withCompany(companyId, async tx => {
+      await this.owner(tx, companyId, userId);
+      const existing = await tx.orm.public.ProfitSplitCompletion.first({ companyId, month: from, partKey: CAPITAL_PART_KEY as Varchar<40> });
+      if (!existing) throw new NotFoundException('Stock capital is not marked done');
+      await tx.orm.public.ProfitSplitCompletion.where({ companyId, id: existing.id }).delete();
+      await this.audit(tx, companyId, userId, 'finance.stock_capital_undone', 'company', companyId, { month, partKey: CAPITAL_PART_KEY, amountCents: existing.amountCents });
+      return this.splitView(tx, userId, companyId, month);
+    });
+  }
+
   async uncompleteSplitPart(userId: string, companyId: string, month: string, partKey: string) {
     const { from } = this.parseSplitMonth(month);
     return this.prisma.withCompany(companyId, async tx => {
       await this.owner(tx, companyId, userId);
+      if (partKey === CAPITAL_PART_KEY) throw new NotFoundException('Part not found');
       const existing = await tx.orm.public.ProfitSplitCompletion.first({ companyId, month: from, partKey: partKey as Varchar<40> });
       if (!existing) throw new NotFoundException('This part is not marked done');
       await tx.orm.public.ProfitSplitCompletion.where({ companyId, id: existing.id }).delete();

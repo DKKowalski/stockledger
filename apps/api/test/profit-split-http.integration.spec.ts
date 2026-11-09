@@ -26,6 +26,8 @@ const PROFIT = '2025-03'; // 100001 cents of other revenue and nothing else
 const LOSS = '2025-04';
 const ZERO = '2025-05';
 const FUTURE = '2099-01';
+const CAPITAL = '2025-06'; // sold 2 at 1000 costing 400 each: COGS 800
+const CAPITAL_LOSS = '2025-07'; // sold 1 at 100 costing 500: COGS 500 but a loss
 let app: INestApplication;
 let base: string;
 const tokens: Record<string, string> = {};
@@ -48,6 +50,11 @@ beforeAll(async () => {
   await entry('other_revenue', `${PROFIT}-10`, 100001);
   await entry('expense', `${LOSS}-10`, 500);
   await entry('other_revenue', `${thisMonth}-01`, 50000);
+  const item = await db.orm.public.InventoryItem.create({ companyId, sku: v<40>('CAP'), name: v<120>('Capital item'), category: v<80>('Test'), unit: v<20>('pcs'), unitCostCents: 400, sellingPriceCents: 1000 });
+  const sale = (movementDate: string, quantity: number, unitPriceCents: number, unitCostCents: number) => db.orm.public.StockMovement.create({ companyId, itemId: item.id, locationId: shop.id, type: 'sale', quantity, unitPriceCents, unitCostCents, movementDate });
+  await sale(`${CAPITAL}-10`, 2, 1000, 400);
+  await sale(`${CAPITAL_LOSS}-10`, 1, 100, 500);
+  await sale(`${thisMonth}-01`, 1, 1000, 300);
   const { AppModule } = await import('../dist/app.module.js' as string);
   app = await NestFactory.create(AppModule, { logger: false });
   await app.listen(0, '127.0.0.1');
@@ -103,6 +110,8 @@ describe('profit split', () => {
       expect((await call('/finance/profit-split/settings', tokens[role]!, 'PUT', settings)).status).toBe(403);
       expect((await call(`/finance/profit-split/${PROFIT}/parts/default-1`, tokens[role]!, 'PUT', {})).status).toBe(403);
       expect((await call(`/finance/profit-split/${PROFIT}/parts/default-1`, tokens[role]!, 'DELETE')).status).toBe(403);
+      expect((await call(`/finance/profit-split/${CAPITAL}/capital`, tokens[role]!, 'PUT', {})).status).toBe(403);
+      expect((await call(`/finance/profit-split/${CAPITAL}/capital`, tokens[role]!, 'DELETE')).status).toBe(403);
     }
     expect(await db.orm.public.ProfitSplitCompletion.where({ companyId }).all()).toHaveLength(0);
     expect(await db.orm.public.ProfitSplitPart.where({ companyId }).all()).toHaveLength(0);
@@ -178,7 +187,7 @@ describe('profit split', () => {
     await db.orm.public.User.create({ id: summaryOwner, companyId: summaryCompany, role: 'administrator', locationId: null, fullName: v<120>('owner'), email: v<255>(`${summaryOwner}@test.invalid`), passwordHash: v<255>('unused') });
     const token = await app.get(JwtService).signAsync({ sub: summaryOwner, companyId: summaryCompany, role: 'administrator' });
     const empty = await call('/finance/profit-split/summary?year=2025', token);
-    expect(empty).toMatchObject({ status: 200, body: { year: 2025, accounts: [], totalCents: 0 } });
+    expect(empty).toMatchObject({ status: 200, body: { year: 2025, accounts: [], totalCents: 0, capitalCents: 0, profitCents: 0, grandTotalCents: 0, capital: { count: 0, amountCents: 0 } } });
     const tick = (month: string, partKey: string, partName: string, destination: string, amountCents: number) => db.orm.public.ProfitSplitCompletion.create({
       companyId: summaryCompany, month: `${month}-01`, partKey: v<40>(partKey), partName: v<80>(partName), destination: v<120>(destination), amountCents, percentBasisPoints: 1000, doneOn: `${month}-28`, note: v<200>(''), createdByUserId: summaryOwner,
     });
@@ -187,18 +196,80 @@ describe('profit split', () => {
     await tick('2025-06', 'a', 'Tax reserve', 'Zed account', 250);
     await tick('2025-06', 'b', 'Growth', 'Alpha account', 40);
     await tick('2025-12', 'c', 'Old part', 'Gone account', 7);
+    await tick('2025-06', 'capital', 'Stock capital', 'Capital account (restock)', 800);
+    await tick('2025-07', 'capital', 'Stock capital', 'Capital account (restock)', 500);
+    await tick('2026-02', 'capital', 'Stock capital', 'Capital account (restock)', 9);
     await tick('2026-01', 'a', 'Tax', 'Zed account', 555);
     await call('/finance/profit-split/settings', token, 'PUT', { parts: [{ key: 'a', name: 'Tax', destination: 'Zed account', percent: 50 }, { key: 'b', name: 'Growth', destination: 'Alpha account', percent: 50 }] });
     const result = await call('/finance/profit-split/summary?year=2025', token);
     expect(result.status).toBe(200);
-    expect(result.body).toEqual({ year: 2025, totalCents: 397, accounts: [
+    expect(result.body).toEqual({ year: 2025, totalCents: 397, profitCents: 397, capitalCents: 1300, grandTotalCents: 1697, capital: { destination: 'Capital account (restock)', partName: 'Stock capital', amountCents: 1300, count: 2 }, accounts: [
       { destination: 'Zed account', partNames: ['Tax', 'Tax reserve'], amountCents: 350, count: 2 },
       { destination: 'Alpha account', partNames: ['Growth'], amountCents: 40, count: 1 },
       { destination: 'Gone account', partNames: ['Old part'], amountCents: 7, count: 1 },
     ] });
     expect((await call('/finance/profit-split/summary?year=2026', token)).body).toMatchObject({ totalCents: 555, accounts: [{ destination: 'Zed account', count: 1 }] });
     // Another company's ticks and settings never leak in.
-    expect((await call('/finance/profit-split/summary?year=2025', tokens.owner!)).body).toEqual({ year: 2025, accounts: [], totalCents: 0 });
+    expect((await call('/finance/profit-split/summary?year=2025', tokens.owner!)).body).toMatchObject({ year: 2025, accounts: [], totalCents: 0, capitalCents: 0, grandTotalCents: 0 });
+  });
+
+  it('shows stock capital from the Finance COGS line, even in a loss month, and nothing when no stock sold', async () => {
+    const month = await call(`/finance/profit-split?month=${CAPITAL}`, tokens.owner!);
+    expect(month.body.capital).toMatchObject({ amountCents: 800, status: 'complete', canComplete: true, completion: null, destination: 'Capital account (restock)' });
+    const finance = await call('/finance?year=2025', tokens.owner!);
+    const cogs = finance.body.months.find((row: any) => row.month === CAPITAL).lines.find((line: any) => line.key === 'cogs').actualCents;
+    expect(month.body.capital.amountCents).toBe(cogs);
+    const loss = await call(`/finance/profit-split?month=${CAPITAL_LOSS}`, tokens.owner!);
+    expect(loss.body).toMatchObject({ hasProfit: false, parts: [], capital: { amountCents: 500, canComplete: true } });
+    expect((await call(`/finance/profit-split?month=${ZERO}`, tokens.owner!)).body.capital).toMatchObject({ amountCents: 0, canComplete: false });
+    expect((await call(`/finance/profit-split?month=${FUTURE}`, tokens.owner!)).body.capital).toMatchObject({ amountCents: 0, status: 'future', canComplete: false });
+    const current = await call(`/finance/profit-split?month=${thisMonth}`, tokens.owner!);
+    expect(current.body.capital).toMatchObject({ amountCents: 300, status: 'in_progress', isEstimate: true, canComplete: false });
+  });
+
+  it('ticks and un-ticks stock capital with a snapshot, in a loss month too', async () => {
+    const done = await call(`/finance/profit-split/${CAPITAL_LOSS}/capital`, tokens.owner!, 'PUT', { doneOn: '2025-08-01', note: 'Moved to capital' });
+    expect(done.status).toBe(200);
+    expect(done.body.capital.completion).toMatchObject({ amountCents: 500, percentBasisPoints: 10000, doneOn: '2025-08-01', note: 'Moved to capital', changedSinceDone: false, partName: 'Stock capital', destination: 'Capital account (restock)' });
+    expect(done.body.retired).toEqual([]);
+    expect(await db.orm.public.ProfitSplitCompletion.first({ companyId, month: `${CAPITAL_LOSS}-01`, partKey: v<40>('capital') })).toMatchObject({ amountCents: 500, createdByUserId: ownerId });
+    // A later sale changes COGS: the notice appears but the snapshot is kept.
+    const item = (await db.orm.public.InventoryItem.first({ companyId }))!;
+    const shop = (await db.orm.public.Location.first({ companyId }))!;
+    await db.orm.public.StockMovement.create({ companyId, itemId: item.id, locationId: shop.id, type: 'sale', quantity: 1, unitPriceCents: 100, unitCostCents: 50, movementDate: `${CAPITAL_LOSS}-20` });
+    const changed = await call(`/finance/profit-split?month=${CAPITAL_LOSS}`, tokens.owner!);
+    expect(changed.body.capital).toMatchObject({ amountCents: 550, completion: { amountCents: 500, changedSinceDone: true } });
+    expect((await db.orm.public.AuditEvent.where({ companyId }).all()).some(row => row.action === 'finance.stock_capital_done')).toBe(true);
+    const undone = await call(`/finance/profit-split/${CAPITAL_LOSS}/capital`, tokens.owner!, 'DELETE');
+    expect(undone.status).toBe(200);
+    expect(undone.body.capital.completion).toBeNull();
+    expect((await call(`/finance/profit-split/${CAPITAL_LOSS}/capital`, tokens.owner!, 'DELETE')).status).toBe(404);
+    expect((await db.orm.public.AuditEvent.where({ companyId }).all()).some(row => row.action === 'finance.stock_capital_undone')).toBe(true);
+  });
+
+  it('rejects capital completion for in-progress, future and no-sales months and bad input; reserves the key', async () => {
+    expect((await call(`/finance/profit-split/${thisMonth}/capital`, tokens.owner!, 'PUT', {})).status).toBe(400);
+    expect((await call(`/finance/profit-split/${FUTURE}/capital`, tokens.owner!, 'PUT', {})).status).toBe(400);
+    expect((await call(`/finance/profit-split/${ZERO}/capital`, tokens.owner!, 'PUT', {})).status).toBe(400);
+    expect((await call(`/finance/profit-split/${CAPITAL}/capital`, tokens.owner!, 'PUT', { doneOn: '2099-01-01' })).status).toBe(400);
+    expect((await call('/finance/profit-split/nope/capital', tokens.owner!, 'PUT', {})).status).toBe(400);
+    expect((await call(`/finance/profit-split/${CAPITAL}/parts/capital`, tokens.owner!, 'PUT', {})).status).toBe(404);
+    const reserved = await call('/finance/profit-split/settings', tokens.owner!, 'PUT', { parts: [{ key: 'capital', name: 'Other', destination: 'X', percent: 100 }] });
+    expect(reserved.status).toBe(400);
+    expect(await db.orm.public.ProfitSplitCompletion.where({ companyId, partKey: v<40>('capital') }).all()).toHaveLength(0);
+  });
+
+  it('keeps stock capital out of the retired list and isolates it per company', async () => {
+    expect((await call(`/finance/profit-split/${CAPITAL}/capital`, tokens.owner!, 'PUT', {})).status).toBe(200);
+    const view = await call(`/finance/profit-split?month=${CAPITAL}`, tokens.owner!);
+    expect(view.body.retired.some((row: any) => row.key === 'capital')).toBe(false);
+    expect(view.body.capital.completion).toMatchObject({ amountCents: 800 });
+    const other = await call(`/finance/profit-split?month=${CAPITAL}`, tokens.other!);
+    expect(other.body.capital).toMatchObject({ amountCents: 0, completion: null });
+    expect((await call(`/finance/profit-split/${CAPITAL}/capital`, tokens.other!, 'PUT', {})).status).toBe(400);
+    expect((await call(`/finance/profit-split/${CAPITAL}/capital`, tokens.other!, 'DELETE')).status).toBe(404);
+    expect(await db.orm.public.ProfitSplitCompletion.where({ companyId: otherCompanyId }).all()).toHaveLength(0);
+    expect((await call(`/finance/profit-split/${CAPITAL}/capital`, tokens.owner!, 'DELETE')).status).toBe(200);
   });
 
   it('rejects managers, attendants and bad years on the summary', async () => {

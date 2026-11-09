@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { allocateProfit, DEFAULT_SPLIT_PARTS, percentToBasisPoints, validateSplitParts } from './profit-split.js';
+import { allocateProfit, CAPITAL_PART_KEY, capitalAmountCents,DEFAULT_SPLIT_PARTS, percentToBasisPoints, validateSplitParts } from './profit-split.js';
 
 const bps = DEFAULT_SPLIT_PARTS.map(part => part.percentBasisPoints);
 const sum = (values: number[]) => values.reduce((a, b) => a + b, 0);
@@ -70,5 +70,27 @@ describe('validateSplitParts', () => {
     expect(validateSplitParts([part(50.005), part(49.995)])).toHaveProperty('error');
     expect(validateSplitParts([part(50, ' '), part(50)])).toHaveProperty('error');
     expect(validateSplitParts([{ ...part(50), key: 'a' }, { ...part(50), key: 'a' }])).toHaveProperty('error');
+  });
+});
+
+describe('stock capital', () => {
+  it('takes the Finance COGS actual as is, and only positive COGS is something to bank', () => {
+    expect(capitalAmountCents(80_000)).toBe(80_000);
+    expect(capitalAmountCents(1)).toBe(1);
+    expect(capitalAmountCents(0)).toBe(0);
+    expect(capitalAmountCents(-1000)).toBe(0);
+    expect(capitalAmountCents(null)).toBe(0);
+    expect(capitalAmountCents(Number.NaN)).toBe(0);
+  });
+
+  it('does not depend on profit: a loss month has no profit parts but still has capital', () => {
+    expect(allocateProfit(-400, bps).every(amount => amount === 0)).toBe(true);
+    expect(capitalAmountCents(500)).toBe(500);
+  });
+
+  it('reserves the capital part key so settings can never use it', () => {
+    expect(CAPITAL_PART_KEY).toBe('capital');
+    expect(validateSplitParts([{ key: 'capital', name: 'Other', destination: 'Somewhere', percent: 100 }])).toEqual({ error: expect.stringContaining('reserved') });
+    expect(validateSplitParts([{ key: 'capital-2', name: 'Fine', destination: 'Somewhere', percent: 100 }])).toHaveProperty('parts');
   });
 });

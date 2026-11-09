@@ -6,9 +6,22 @@ The owner-only **Banking** page (main navigation, right after Finance, route `/b
 
 The top of the page totals what has been banked in the selected year: one row per account (the destination saved on each Done tick) with the part name(s) and the amount, plus a grand total. Amounts come from the snapshot stored when a part was ticked Done, so later settings changes never rewrite them. A tick counts towards the year of the profit month it belongs to (not the date it was ticked). Rows follow the current settings' part order where the destination still exists, then alphabetical. With no ticks: "Nothing banked yet in <year>. Tick a part as Done once you've moved the money."
 
-API: `GET /finance/profit-split/summary?year=YYYY` (administrator only, company-scoped) returns `{ year, accounts: [{ destination, partNames, amountCents, count }], totalCents }`.
+Stock capital is shown as its own row (and never mixed into the profit accounts), followed by two subtotals, "Capital banked" and "Profit banked", and the grand "Total banked".
+
+API: `GET /finance/profit-split/summary?year=YYYY` (administrator only, company-scoped) returns `{ year, accounts: [{ destination, partNames, amountCents, count }], totalCents, profitCents, capital: { destination, partName, amountCents, count }, capitalCents, grandTotalCents }`. `accounts` and `totalCents` keep their original meaning (profit parts only); the other fields are additive.
 
 It is a plan and a record only. StockLedger does not move money: ticking a part "Done" just records that you did it.
+
+## Stock capital
+
+Above the profit split, the Banking page shows **Stock capital**: "What the stock you sold cost you. Bank it to restock — it isn't profit." This is the month's Cost of Goods Sold (COGS), the cost of the goods you sold that month, exactly the figure on Finance's "Cost of Goods Sold" line. It is the money that came back from selling stock and should be set aside to replace that stock, so it is not profit. Net profit is already calculated after COGS, so stock capital and the profit split never count the same money twice: together they equal the month's revenue minus expenses.
+
+It has one destination, "Capital account (restock)", and its own Done tick with a date and optional note, under the same rules as the profit parts: only a finished month can be ticked (the current month shows "Estimate so far", future months show nothing), the amount is stored when ticked, a later change shows "Changed since this was marked done (was GH₵X)", and unticking is allowed. It is shown even in a month with a loss, because the stock was still sold, as long as COGS is above zero; otherwise it says "No stock sold this month."
+
+Stored in `profit_split_completions` under the reserved part key `capital` (100%). The key is reserved: split settings can never use it, and it is not listed under "Marked done under earlier settings". The month response gains `capital: { name, destination, amountCents, status, isEstimate, canComplete, completion }`.
+
+- `PUT /finance/profit-split/:month/capital` with `{ doneOn?, note? }` (audit event `finance.stock_capital_done`)
+- `DELETE /finance/profit-split/:month/capital` (audit event `finance.stock_capital_undone`)
 
 ## Default parts
 

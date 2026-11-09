@@ -37,6 +37,14 @@ export class FinanceController {
   profitSplitSettings(@Req() request: AuthenticatedRequest, @Body() body: SaveProfitSplitDto) {
     return this.finance.saveProfitSplitSettings(request.user.sub, request.user.companyId, body);
   }
+  @Put('profit-split/:month/capital')
+  completeCapital(@Req() request: AuthenticatedRequest, @Param('month') month: string, @Body() body: CompleteSplitPartDto) {
+    return this.finance.completeCapital(request.user.sub, request.user.companyId, month, body);
+  }
+  @Delete('profit-split/:month/capital')
+  uncompleteCapital(@Req() request: AuthenticatedRequest, @Param('month') month: string) {
+    return this.finance.uncompleteCapital(request.user.sub, request.user.companyId, month);
+  }
   @Put('profit-split/:month/parts/:partKey')
   completeSplitPart(@Req() request: AuthenticatedRequest, @Param('month') month: string, @Param('partKey') partKey: string, @Body() body: CompleteSplitPartDto) {
     return this.finance.completeSplitPart(request.user.sub, request.user.companyId, month, partKey, body);

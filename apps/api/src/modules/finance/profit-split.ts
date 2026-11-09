@@ -3,6 +3,17 @@
 export const MAX_SPLIT_PARTS = 10;
 export const TOTAL_BASIS_POINTS = 10_000;
 
+// Stock capital: the month's Cost of Goods Sold, banked separately from the profit split. It is stored in
+// the same completions table under a reserved part key, so a profit part can never use that key.
+export const CAPITAL_PART_KEY = 'capital';
+export const CAPITAL_PART_NAME = 'Stock capital';
+export const CAPITAL_DESTINATION = 'Capital account (restock)';
+
+// COGS is shown exactly as Finance computes it; only an amount above zero is something to bank.
+export function capitalAmountCents(cogsCents: number | null | undefined): number {
+  return typeof cogsCents === 'number' && Number.isSafeInteger(cogsCents) && cogsCents > 0 ? cogsCents : 0;
+}
+
 export type SplitPartInput = { key?: string; name: string; destination: string; percent: number };
 export type SplitPartSetting = { key: string; name: string; destination: string; percentBasisPoints: number };
 export type ValidSplitPart = { key?: string; name: string; destination: string; percentBasisPoints: number };
@@ -51,6 +62,7 @@ export function validateSplitParts(parts: readonly SplitPartInput[]): { parts: V
     if (percentBasisPoints === null) return { error: 'Percents must be above 0, at most 100, and have at most 2 decimals' };
     out.push({ key: part.key, name, destination, percentBasisPoints });
   }
+  if (out.some(part => part.key === CAPITAL_PART_KEY)) return { error: `"${CAPITAL_PART_KEY}" is reserved for stock capital and can't be used as a part key` };
   const keys = out.map(part => part.key).filter((key): key is string => Boolean(key));
   if (new Set(keys).size !== keys.length) return { error: 'Part keys must be unique' };
   const total = out.reduce((sum, part) => sum + part.percentBasisPoints, 0);

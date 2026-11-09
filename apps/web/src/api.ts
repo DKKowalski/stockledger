@@ -73,6 +73,8 @@ export const api = {
   saveProfitSplitSettings: (token: string, parts: ProfitSplitSetting[]) => request('/finance/profit-split/settings', { method: 'PUT', body: JSON.stringify({ parts }) }, token),
   completeProfitSplitPart: (token: string, month: string, key: string, body: { doneOn: string; note: string }) => request<ProfitSplit>(`/finance/profit-split/${month}/parts/${encodeURIComponent(key)}`, { method: 'PUT', body: JSON.stringify(body) }, token),
   uncompleteProfitSplitPart: (token: string, month: string, key: string) => request<ProfitSplit>(`/finance/profit-split/${month}/parts/${encodeURIComponent(key)}`, { method: 'DELETE' }, token),
+  completeStockCapital: (token: string, month: string, body: { doneOn: string; note: string }) => request<ProfitSplit>(`/finance/profit-split/${month}/capital`, { method: 'PUT', body: JSON.stringify(body) }, token),
+  uncompleteStockCapital: (token: string, month: string) => request<ProfitSplit>(`/finance/profit-split/${month}/capital`, { method: 'DELETE' }, token),
   saveFinanceBudget: (token: string, body: FinanceBudgetInput) => request('/finance/budgets', { method: 'POST', body: JSON.stringify(body) }, token),
   returnSources:(token:string, query: Record<string,string> = {})=>request<{available:boolean;sources:Array<{id:string;type:'grouped'|'legacy';date:string;reference:string}>}>(`/inventory/sale-returns?${new URLSearchParams(query)}`,undefined,token),
   returnSource:(token:string,type:string,id:string)=>request<ReturnSource>(`/inventory/sale-returns/sources/${type}/${id}`,undefined,token),

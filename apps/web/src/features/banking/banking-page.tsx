@@ -6,6 +6,8 @@ import { PageHeader, Panel, SelectControl } from '../../components/inventory-ui'
 import { companyDay } from '../../lib/date-range';
 import { safeErrorMessage } from '../../lib/user-facing-error';
 import { ProfitSplitSection } from './profit-split-section';
+import { StockCapitalSection } from './stock-capital-section';
+import { useProfitSplit } from './use-profit-split';
 import type { BankedSummary } from './profit-split-types';
 
 const monthName = (month: string) => new Intl.DateTimeFormat(undefined, { month: 'long', timeZone: 'UTC' }).format(new Date(`${month}-01T12:00:00Z`));
@@ -28,10 +30,11 @@ function BankingWorkspace() {
   const [revision, setRevision] = useState(0);
   const month = `${year}-${monthNumber}`;
   const onChanged = useCallback(() => setRevision(value => value + 1), []);
+  const { split, error, reload } = useProfitSplit(accessToken ?? '', month, signOut);
   if (!accessToken) return null;
   return <div className="banking-page">
     <div className="finance-controls">
-      <PageHeader title="Banking" subtitle="Split each month's net profit and record what you've banked." />
+      <PageHeader title="Banking" subtitle="Bank the stock capital, split each month's net profit and record what you've banked." />
       <section className="panel finance-toolbar" aria-label="Banking filters">
         <label><span>Year</span><SelectControl aria-label="Banking year" value={String(year)} onValueChange={value => setYear(Number(value))} options={Array.from({ length: 8 }, (_, i) => String(thisYear + 1 - i)).map(value => ({ value, label: value }))} /></label>
         <label><span>Month</span><SelectControl aria-label="Banking month" value={monthNumber} onValueChange={setMonthNumber} options={Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0')).map(value => ({ value, label: monthName(`${year}-${value}`) }))} /></label>
@@ -39,7 +42,8 @@ function BankingWorkspace() {
       </section>
     </div>
     <BankedSummaryPanel accessToken={accessToken} year={year} revision={revision} onUnauthorized={signOut} />
-    <ProfitSplitSection accessToken={accessToken} month={month} monthLabel={`${monthName(month)} ${year}`} readOnly={Boolean(user?.isDemo)} editing={editing} onCloseEditor={() => setEditing(false)} onChanged={onChanged} onUnauthorized={signOut} />
+    <StockCapitalSection accessToken={accessToken} month={month} split={split} readOnly={Boolean(user?.isDemo)} onChanged={onChanged} reload={reload} />
+    <ProfitSplitSection accessToken={accessToken} month={month} monthLabel={`${monthName(month)} ${year}`} split={split} error={error} reload={reload} readOnly={Boolean(user?.isDemo)} editing={editing} onCloseEditor={() => setEditing(false)} onChanged={onChanged} />
   </div>;
 }
 
@@ -59,13 +63,24 @@ function BankedSummaryPanel({ accessToken, year, revision, onUnauthorized }: { a
   const title = `Banked in ${year}`;
   if (error) return <Panel className="banking-summary" title={title}><div role="alert" className="form-error"><p>{error}</p><button className="button secondary" type="button" onClick={() => setRetry(value => value + 1)}>Retry</button></div></Panel>;
   if (!loaded || loaded.year !== year) return <Panel className="banking-summary" title={title}><p className="profit-split-empty" role="status">Loading what you have banked</p></Panel>;
-  return <Panel className="banking-summary" title={title} subtitle="Parts ticked Done, by account, for the profit of this year's months.">
-    {loaded.accounts.length === 0 ? <p className="profit-split-empty" role="status">Nothing banked yet in {year}. Tick a part as Done once you&apos;ve moved the money.</p> : <>
-      <ul className="banking-accounts">{loaded.accounts.map(account => <li key={account.destination}>
-        <div><b>{account.destination}</b><span>{account.partNames.join(', ')} · {account.count} {account.count === 1 ? 'time' : 'times'}</span></div>
-        <strong>{money(account.amountCents)}</strong>
-      </li>)}</ul>
-      <p className="profit-split-total">Total banked <strong>{money(loaded.totalCents)}</strong></p>
+  const nothing = loaded.accounts.length === 0 && loaded.capital.count === 0;
+  return <Panel className="banking-summary" title={title} subtitle="Everything ticked Done for this year's months: stock capital and profit parts.">
+    {nothing ? <p className="profit-split-empty" role="status">Nothing banked yet in {year}. Tick a part as Done once you&apos;ve moved the money.</p> : <>
+      <ul className="banking-accounts">
+        {loaded.capital.count > 0 && <li key="stock-capital" data-testid="banked-capital">
+          <div><b>{loaded.capital.destination}</b><span>{loaded.capital.partName} · {loaded.capital.count} {loaded.capital.count === 1 ? 'time' : 'times'}</span></div>
+          <strong>{money(loaded.capital.amountCents)}</strong>
+        </li>}
+        {loaded.accounts.map(account => <li key={account.destination}>
+          <div><b>{account.destination}</b><span>{account.partNames.join(', ')} · {account.count} {account.count === 1 ? 'time' : 'times'}</span></div>
+          <strong>{money(account.amountCents)}</strong>
+        </li>)}
+      </ul>
+      <dl className="banking-subtotals mx-6 my-2 grid gap-1 text-sm text-muted-foreground">
+        <div className="flex justify-between gap-2"><dt>Capital banked</dt><dd className="font-semibold tabular-nums text-foreground" data-testid="capital-banked">{money(loaded.capitalCents)}</dd></div>
+        <div className="flex justify-between gap-2"><dt>Profit banked</dt><dd className="font-semibold tabular-nums text-foreground" data-testid="profit-banked">{money(loaded.profitCents)}</dd></div>
+      </dl>
+      <p className="profit-split-total">Total banked <strong>{money(loaded.grandTotalCents)}</strong></p>
     </>}
   </Panel>;
 }
