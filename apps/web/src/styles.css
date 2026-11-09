@@ -2060,7 +2060,12 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px soli
 .stock-ranked-list dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 12px; border-radius: 10px; background: var(--indigo-raised); }
 .stock-ranked-list dt { color: var(--on-indigo-muted); font-size: 12px; }
 .stock-ranked-list dd { margin: 4px 0 0; font: 500 14px var(--font-number); }
-.stock-chart-panel .chart-group small { white-space: normal; overflow-wrap: anywhere; line-height: 1.3; }
+.stock-chart-panel .stock-chart { height: 312px; }
+.stock-chart-panel .chart-group { grid-template-rows: minmax(0, 1fr) 34px; gap: 8px; min-width: 0; }
+.stock-chart-panel .chart-group small { display: grid; align-content: start; min-width: 0; line-height: 1.35; }
+.stock-chart-panel .chart-group small span { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.stock-chart-panel .chart-group small span:first-child { color: rgb(255 255 255 / 86%); }
+.stock-chart-panel .chart-grid-lines { bottom: 68px; }
 .stock-chart-panel .stock-chart { margin-bottom: 24px; }
 @media (max-width: 760px) { .stock-chart-panel .stock-chart { display: none; } .stock-ranked-list { padding-inline: 16px; } }
 
