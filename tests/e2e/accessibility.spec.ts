@@ -13,6 +13,8 @@ if (!url || new URL(url).hostname !== '127.0.0.1' || !/^stockledger_test_[a-f0-9
 const found: string[] = [];
 async function scan(page: Page, screen: string) {
   await expect(page.locator('main')).toBeVisible();
+  // Contrast is measured on settled colours, not mid-way through an entrance fade.
+  await page.evaluate(() => Promise.all(document.getAnimations().filter(a => a.effect?.getComputedTiming().iterations !== Infinity).map(a => a.finished.catch(() => undefined))));
   const { violations } = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
   const summary = violations.map(v => `${v.impact} ${v.id}: ${v.help}\n${v.nodes.slice(0, 4).map(n => `    ${n.target.join(' ')}`).join('\n')}`);
   found.push(...summary.map(line => `[${screen}] ${line}`));
@@ -43,6 +45,34 @@ test('key mobile screens have no WCAG A/AA axe violations', async ({ page }, tes
     await expect(page).toHaveURL('/');
     await expect(page.locator('main')).toBeVisible();
     await scan(page, 'stock overview');
+
+    // Both navigation layouts (header and sidebar), compact and desktop, collapsed and expanded.
+    const layoutKey = 'stockledger.nav-layout.v1';
+    const open = page.getByRole('button', { name: 'Open navigation', exact: true });
+    await open.click();
+    await expect(page.getByRole('dialog').getByRole('navigation', { name: 'Main navigation' })).toBeVisible();
+    await expect(page.getByRole('dialog')).toHaveCSS('opacity', '1');
+    await scan(page, 'navigation sheet (header layout)');
+    await page.keyboard.press('Escape');
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await scan(page, 'header layout desktop');
+    await page.evaluate((key) => localStorage.setItem(key, 'sidebar'), layoutKey);
+    await page.reload();
+    await expect(page.locator('[data-slot="sidebar"]').getByRole('navigation', { name: 'Main navigation' })).toBeVisible();
+    await scan(page, 'sidebar layout expanded');
+    await page.locator('[data-slot="sidebar"]').getByRole('button', { name: 'Collapse sidebar' }).click();
+    await expect(page.locator('[data-slot="sidebar"]')).toHaveAttribute('data-state', 'collapsed');
+    await scan(page, 'sidebar layout collapsed');
+    await page.getByRole('button', { name: 'Expand sidebar' }).click();
+    await page.setViewportSize({ width: 375, height: 667 });
+    await open.click();
+    await expect(page.getByRole('dialog').getByRole('navigation', { name: 'Main navigation' })).toBeVisible();
+    await expect(page.getByRole('dialog')).toHaveCSS('opacity', '1');
+    await scan(page, 'navigation sheet (sidebar layout)');
+    await page.keyboard.press('Escape');
+    await page.evaluate((key) => localStorage.setItem(key, 'header'), layoutKey);
+    await page.reload();
+    await expect(page.locator('main')).toBeVisible();
 
     await page.goto('/sell');
     await page.getByRole('combobox', { name: 'Shop for this sale', exact: true }).click();

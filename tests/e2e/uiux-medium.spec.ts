@@ -69,7 +69,7 @@ for (const width of [390, 1440]) test(`top navigation and item tabs support keyb
   await expect(page.locator('#main-content')).toBeFocused();
   if (width === 390) {
     await page.getByRole('button', { name: 'Open navigation', exact: true }).click();
-    await expect(page.locator('.top-nav a').first()).toBeFocused();
+    await expect(page.getByRole('dialog').locator('.top-nav a').first()).toBeFocused();
     await uiuxEvidence(page, 'ux11-open-navigation');
     await page.keyboard.press('Shift+Tab');
     await expect(page.getByRole('button', { name: 'Close navigation', exact: true }).first()).toBeFocused();
@@ -115,19 +115,22 @@ test('purchase safeguards automatically expose required delivery details', async
 });
 
 
-test('compact navigation names appear on keyboard focus and tablet menus retain labels', async ({ page }) => {
+test('header tabs keep labels, overflow into More, and compact menus retain labels', async ({ page }) => {
   await mediumSession(page);
   await page.setViewportSize({ width: 1100, height: 900 });
   await page.goto('/items');
-  const finance = page.locator('.top-nav').getByRole('link', { name: 'Finance', exact: true });
-  await page.keyboard.press('Tab'); await finance.focus();
-  await expect(finance.locator('span')).toHaveCSS('opacity', '1');
-  await page.setViewportSize({ width: 800, height: 900 });
+  const header = page.locator('header .top-nav');
+  await expect(header.getByRole('link', { name: 'Items', exact: true }).locator('span')).toBeVisible();
+  const more = header.getByRole('button', { name: /More/ });
+  await expect(more).toBeVisible();
+  await more.focus();
+  await expect(more).toBeFocused();
+  await page.setViewportSize({ width: 700, height: 900 });
   await page.getByRole('button', { name: 'Open navigation', exact: true }).click();
+  const finance = page.getByRole('dialog').getByRole('link', { name: 'Finance', exact: true });
   await expect(finance.locator('span')).toBeVisible();
-  await expect(finance.locator('span')).toHaveCSS('position', 'static');
   await page.setViewportSize({ width: 1440, height: 900 });
-  await expect(page.locator('.nav-scrim')).toHaveCount(0);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.locator('#main-content')).toBeFocused();
 });
 
