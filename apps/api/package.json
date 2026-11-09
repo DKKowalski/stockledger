@@ -24,7 +24,7 @@
     "@nestjs/platform-express": "^12.3.0",
     "@nestjs/throttler": "^6.7.1",
     "@prisma/orm-postgres": "^8.0.0-rc.8",
-    "@sentry/node": "^11.0.0",
+    "@sentry/node": "^11.11.0",
     "argon2": "^0.45.1",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
