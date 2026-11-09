@@ -4,7 +4,11 @@ import {api} from '../../api';
 import {useAuth} from '../../auth-context';
 import {useCompanySettings} from '../../app/company-settings-store';
 import {useInventoryStore} from '../../app/inventory-store';
+
 import {PageHeader,PageState} from '../../components/inventory-ui';
+import {Alert,AlertDescription} from '../../components/ui/alert';
+import {Button,buttonVariants} from '../../components/ui/button';
+import {Card} from '../../components/ui/card';
 import {formatMoney} from '../../lib/presentation';
 import {safeErrorMessage} from '../../lib/user-facing-error';
 import type {CompletedSale} from '../../types';
@@ -31,19 +35,19 @@ export function ReceiptPage() {
   };
   const download=()=>{const url=URL.createObjectURL(new Blob([text],{type:'text/plain;charset=utf-8'}));const link=document.createElement('a');link.href=url;link.download=`receipt-${sale!.id}.txt`;link.click();URL.revokeObjectURL(url);};
   return <PageState>
-    <div className="receipt-screen-only"><PageHeader title="Customer receipt" actions={<NavLink className="button secondary" to="/sell">Back to Sell</NavLink>} /></div>
-    {error?<div role="alert"><p>{error}</p><button className="button secondary" onClick={()=>{setLoaded(null);setGeneration(g=>g+1);}}>Retry receipt</button></div>:!sale?<p role="status">Loading receipt</p>:<>
-      <article className="customer-receipt" aria-label="Customer receipt">
-        <h2>{settings?.name??'Customer receipt'}</h2>{shop&&<p>{shop}</p>}
-        <p className="receipt-reference">Sale {sale.id}</p><p>{calendarDate(sale.movementDate)}</p>
-        <ul className="receipt-lines">{sale.lines.map(line=><li key={line.id}><div><b>{line.itemName}</b><span>{line.quantity} {line.baseUnit}</span></div><strong>{money(line.totalCents)}</strong></li>)}</ul>
+    <div className="receipt-screen-only"><PageHeader title="Customer receipt" actions={<NavLink className={buttonVariants({ variant: 'outline', className: 'h-11 px-4' })} to="/sell">Back to Sell</NavLink>} /></div>
+    {error?<Alert variant="destructive"><AlertDescription>{error}</AlertDescription><div className="mt-2"><Button type="button" variant="outline" className="h-11 px-4" onClick={()=>{setLoaded(null);setGeneration(g=>g+1);}}>Retry receipt</Button></div></Alert>:!sale?<p role="status">Loading receipt</p>:<>
+      <Card role="article" aria-label="Customer receipt" className="customer-receipt mx-auto w-full max-w-[680px] gap-0 p-6 max-sm:p-[18px] print:ring-0">
+        <h2 className="text-[22px] font-semibold">{settings?.name??'Customer receipt'}</h2>{shop&&<p className="mt-2">{shop}</p>}
+        <p className="receipt-reference mt-2 text-[13px] [overflow-wrap:anywhere]">Sale {sale.id}</p><p className="mt-2">{calendarDate(sale.movementDate)}</p>
+        <ul className="my-5">{sale.lines.map(line=><li key={line.id} className="flex justify-between gap-4 border-t border-border py-3.5"><div className="grid min-w-0 gap-1.5 [overflow-wrap:anywhere]"><b>{line.itemName}</b><span className="text-sm leading-relaxed text-muted-foreground">{line.quantity} {line.baseUnit}</span></div><strong className="whitespace-nowrap">{money(line.totalCents)}</strong></li>)}</ul>
         <dl className="checkout-totals">{sale.automaticDiscountCents>0&&<><div><dt>Before discounts</dt><dd>{money(sale.grossSalesCents)}</dd></div><div><dt>Discount</dt><dd>− {money(sale.automaticDiscountCents)}</dd></div></>}<div className="checkout-pay"><dt>Total</dt><dd>{money(sale.totalCents)}</dd></div></dl>
-        <p><b>{payment}</b></p>
-        {sale.amountReceivedCents!=null&&<p>Amount received: {money(sale.amountReceivedCents)}</p>}
-        {sale.changeCents!=null&&<p>Change to give: {money(sale.changeCents)}</p>}
-        <p className="receipt-disclosure">{sale.tenderMethod==='unpaid'?'No payment has been recorded.':!sale.tenderMethod?'This receipt records the sale. Payment was not recorded.':'Payment was recorded manually by the shop. No payment provider verification is included.'} Returns and refunds are recorded separately.</p>
-      </article>
-      <div className="receipt-actions receipt-screen-only"><button className="button" onClick={()=>window.print()}>Print receipt</button><button className="button secondary" onClick={()=>void share()}>Share or copy receipt</button><button className="button secondary" onClick={download}>Download receipt</button></div>
+        <p className="mt-2"><b>{payment}</b></p>
+        {sale.amountReceivedCents!=null&&<p className="mt-2">Amount received: {money(sale.amountReceivedCents)}</p>}
+        {sale.changeCents!=null&&<p className="mt-2">Change to give: {money(sale.changeCents)}</p>}
+        <p className="receipt-disclosure mt-2 text-sm leading-relaxed text-muted-foreground">{sale.tenderMethod==='unpaid'?'No payment has been recorded.':!sale.tenderMethod?'This receipt records the sale. Payment was not recorded.':'Payment was recorded manually by the shop. No payment provider verification is included.'} Returns and refunds are recorded separately.</p>
+      </Card>
+      <div className="receipt-actions receipt-screen-only mt-5 flex flex-wrap justify-center gap-3"><Button type="button" className="h-11 px-4" onClick={()=>window.print()}>Print receipt</Button><Button type="button" variant="outline" className="h-11 px-4" onClick={()=>void share()}>Share or copy receipt</Button><Button type="button" variant="outline" className="h-11 px-4" onClick={download}>Download receipt</Button></div>
       {message&&<p className="receipt-screen-only" role="status">{message}</p>}
     </>}
   </PageState>;

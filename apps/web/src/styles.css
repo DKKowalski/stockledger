@@ -643,8 +643,6 @@ th:last-child, td:last-child { padding-right: 22px; }
 .team-form-actions { display: flex; align-items: flex-end; gap: 8px; }
 .team-form-actions .button { white-space: nowrap; }
 .place-form { grid-template-columns: minmax(0, 1.4fr) minmax(0, .8fr) auto; }
-.sell-form { grid-template-columns: minmax(0, 1.6fr) repeat(3, minmax(0, .8fr)) auto; }
-.sale-total { display: flex; align-items: center; min-height: 42px; font-size: 18px; font-weight: 500; font-variant-numeric: tabular-nums; }
 .pricing-item-select { display: grid; gap: 8px; max-width: 420px; margin: 0 22px 22px; font-size: 13px; }
 .pricing-editor { padding: 0 22px 22px; }
 .pricing-editor fieldset { display: grid; gap: 16px; min-width: 0; padding: 0; border: 0; }
@@ -671,14 +669,12 @@ th:last-child, td:last-child { padding-right: 22px; }
 .pricing-quote-result p { font-size: 14px; }
 .pricing-editor .form-error { display: grid; gap: 12px; margin-bottom: 18px; }
 .pricing-editor .form-error .button { justify-self: start; }
-.checkout-body { min-width: 0; padding: 0 22px 22px; overflow-wrap: anywhere; }
 .cost-review-body { display: grid; gap: 16px; min-width: 0; padding: 0 22px 22px; overflow-wrap: anywhere; }
 .cost-review-body p { margin: 0; font-size: 13px; line-height: 1.5; }
 .cost-review-body .form-error, .cost-review-record, .cost-review-zero { display: grid; gap: 12px; }
 .cost-review-body .button { justify-self: start; }
 .cost-review-form fieldset { display: grid; gap: 16px; max-width: 620px; min-width: 0; padding: 0; margin: 0; border: 0; }
 .cost-review-form label:not(.pricing-checkbox) { display: grid; gap: 8px; font-size: 13px; }
-.checkout-body > p[role="status"] { margin-top: 16px; }
 .checkout-totals { display: grid; gap: 6px; max-width: 360px; margin: 10px 0 14px; }
 .checkout-totals div { display: flex; justify-content: space-between; gap: 16px; }
 .checkout-totals dt { color: var(--muted); }
@@ -686,9 +682,6 @@ th:last-child, td:last-child { padding-right: 22px; }
 .checkout-discount dt, .checkout-discount dd { color: var(--success); font-weight: 600; }
 .checkout-pay { padding-top: 6px; border-top: 1px solid var(--line); font-size: 17px; font-weight: 700; }
 .checkout-pay dt { color: inherit; }
-.checkout-body .form-grid { padding: 0; }
-.checkout-body fieldset { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); align-items: end; gap: 16px; min-width: 0; padding: 0; margin: 0; border: 0; }
-.price-hint { grid-column: 1 / -1; margin: 0; font-size: 13px; }
 .movement-form { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .account-settings-layout { display: grid; grid-template-columns: minmax(260px, .72fr) minmax(0, 1.65fr); align-items: start; gap: 18px; }
 .account-summary { position: sticky; top: 100px; padding: 23px; background: #f2f2f0; }
@@ -1178,8 +1171,8 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px soli
   .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .insights-grid, .dashboard-grid { grid-template-columns: 1fr; }
   .health-body { min-height: 250px; }
-  .item-form, .team-form, .place-form, .sell-form, .supplier-form, .stock-count-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .team-form-actions, .place-form .button, .sell-form .button { grid-column: 1 / -1; justify-self: start; }
+  .item-form, .team-form, .place-form, .supplier-form, .stock-count-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .team-form-actions, .place-form .button { grid-column: 1 / -1; justify-self: start; }
   .account-password-fields { grid-template-columns: 1fr; }
   .profit-filter-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .profit-layout { grid-template-columns: 1fr; }
@@ -1250,9 +1243,9 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px soli
   .chart-toolbar { align-items: flex-start; }
   .chart-legend { max-width: 190px; gap: 7px 10px; }
   .health-body { padding-inline: 16px; }
-  .movement-form, .item-form, .team-form, .place-form, .sell-form { grid-template-columns: 1fr; }
+  .movement-form, .item-form, .team-form, .place-form { grid-template-columns: 1fr; }
   .team-form-actions { width: 100%; align-items: stretch; flex-direction: column; }
-  .team-form-actions .button, .place-form .button, .sell-form .button { width: 100%; }
+  .team-form-actions .button, .place-form .button { width: 100%; }
   .team-share-viewport { padding: 14px; }
   .team-share-dialog { padding: 18px; border-radius: 14px; }
   .team-share-field { grid-template-columns: 1fr; }
@@ -1281,7 +1274,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px soli
   .password-requirement { margin-right: 0; }
   .panel-header { padding: 18px 16px 14px; }
   .pricing-item-select { margin-right: 15px; margin-left: 15px; }
-  .pricing-editor, .checkout-body, .cost-review-body { padding-right: 15px; padding-left: 15px; }
+  .pricing-editor, .cost-review-body { padding-right: 15px; padding-left: 15px; }
   .pricing-editor .pricing-discount-row { grid-template-columns: 1fr; }
   .pricing-discount-row > .button { justify-self: start; }
   .movement-list, .low-stock-list { padding-inline: 16px; }
@@ -1680,7 +1673,6 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px soli
 .filter-row { flex-wrap: wrap; gap: 10px; }
 .filter-row .date-range-picker { margin-right: auto; }
 .actions:has(.date-range-picker.is-custom) { flex-wrap: wrap; align-items: flex-end; justify-content: flex-end; }
-.sales-period-filter { padding: 0 22px 15px; }
 
 /* Keep green variance text at AA contrast on the themed profit-row surface. */
 .finance-page { --finance-result-surface: color-mix(in srgb, var(--violet-soft) 75%, var(--card-pure)); }
@@ -1760,7 +1752,6 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px soli
 @media screen and (max-width: 760px) {
   .date-range-picker, .date-range-fields { width: 100%; }
   .date-range-picker > .select-trigger, .date-range-preset { flex: 1 1 100%; }
-  .sales-period-filter { padding-inline: 16px; }
   .finance-toolbar { padding: 14px 16px; gap: 12px; }
   .finance-toolbar label { flex: 1 1 120px; min-width: 0; }
   .finance-editor-buttons { margin-left: 0; width: 100%; }
@@ -1973,7 +1964,6 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px soli
 .product-picker-option[data-disabled] { cursor: default; }
 .product-picker-empty:empty { display: none; }
 .product-picker-empty { padding: 16px; color: var(--muted); font-size: 14px; }
-.selected-availability { display: block; margin-top: 5px; color: var(--ink-soft); font-size: 13px; font-weight: 500; }
 .staff-catalog-search { margin: 0 20px 18px; }
 .phone-stock-list { display: none; }
 @media (max-width: 600px) {
@@ -1996,9 +1986,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px soli
 }
 @media print { .phone-stock-list { display: none; } .desktop-stock-table { display: block; } }
 
-.sell-form fieldset { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); gap: 16px; min-width: 0; padding: 0; margin: 0; border: 0; }
 
-.form-grid label > .quantity-label:first-child { display: block; }
 
 .landing-sign-in { display: inline-flex; align-items: center; min-height: 44px; }
 
@@ -2058,32 +2046,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px soli
 .health-metric > span { margin: 0; }
 .health-metric > small { margin: 0; justify-self: start; }
 
-.checkout-basket { display: grid; gap: 12px; grid-column: 1 / -1; min-width: 0; }
-.checkout-basket-line { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 4px 12px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; }
-.basket-line-name { grid-column: 1 / -1; overflow-wrap: anywhere; }
-.basket-line-meta { grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: var(--label-size); }
-.basket-line-qty { display: grid; gap: 4px; margin-top: 8px; grid-column: 1; max-width: 180px; }
-.basket-line-qty label { color: var(--ink); font-size: var(--label-size); font-weight: 600; }
-.basket-line-qty input { min-height: 44px; }
-.basket-line-total { grid-column: 2; grid-row: 3; margin: 8px 0 0; text-align: right; font-size: var(--label-size); }
-.basket-remove { grid-column: 1 / -1; justify-self: start; min-height: 44px; margin-top: 4px; padding: 0 4px; border: 0; background: none; color: var(--muted); font: inherit; font-size: var(--label-size); text-decoration: underline; cursor: pointer; }
-.basket-remove:is(:hover, :focus-visible) { color: var(--ink); }
-.checkout-quote-line { margin: 20px 0; }
-.checkout-quote-line h3 { font-size: 16px; }
 
-.checkout-payment { display: grid; gap: 14px; margin: 20px 0; }
-.checkout-payment label { display: grid; gap: 8px; }
-.checkout-payment p { color: var(--muted); font-size: 14px; }
-.customer-receipt { width: 100%; max-width: 680px; padding: 24px; margin: 0 auto; color: var(--ink); background: var(--card-pure); border: 1px solid var(--border); border-radius: 14px; }
-.customer-receipt h2 { font-size: 22px; margin-top: 0; }
-.receipt-reference { overflow-wrap: anywhere; font-size: 13px; }
-.receipt-lines { list-style: none; margin: 20px 0; padding: 0; }
-.receipt-lines li { display: flex; justify-content: space-between; gap: 16px; padding: 14px 0; border-top: 1px solid var(--border); }
-.receipt-lines li > div { display: grid; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
-.receipt-lines li span, .receipt-disclosure { color: var(--muted); font-size: 14px; line-height: 1.6; }
-.receipt-lines li > strong { white-space: nowrap; }
-.receipt-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
-@media (max-width: 600px) { .customer-receipt { padding: 18px; } }
 @media print {
   body:has(.customer-receipt) .topbar, body:has(.customer-receipt) [data-slot='sidebar'], body:has(.customer-receipt) .skip-link,
   body:has(.customer-receipt) .demo-mode-banner, body:has(.customer-receipt) .error-banner,

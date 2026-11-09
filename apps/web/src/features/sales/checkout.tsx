@@ -6,8 +6,13 @@ import { api, ApiError } from '../../api';
 import { useAuth } from '../../auth-context';
 import { useInventoryStore } from '../../app/inventory-store';
 import { useCompanySettings } from '../../app/company-settings-store';
-import { PageHeader, PageState, Panel, SelectControl } from '../../components/inventory-ui';
-import { InputControl } from '../../components/ui/input-control';
+import { PageHeader, PageState, SelectControl } from '../../components/inventory-ui';
+import { Alert, AlertDescription } from '../../components/ui/alert';
+import { Button, buttonVariants } from '../../components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { Input } from '../../components/ui/input';
+import { Label } from '../../components/ui/label';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
 import { safeErrorMessage } from '../../lib/user-facing-error';
 import { parseMoneyCents, formatMoney } from '../../lib/presentation';
 import type { CompletedSale, SaleQuote, SaleTender, User } from '../../types';
@@ -32,6 +37,7 @@ export function hasPendingSale(user: User) {
   try { return Object.keys(localStorage).some((key) => key.startsWith(prefix(user))); } catch { return false; }
 }
 
+const fieldsetClass = 'm-0 grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,190px),1fr))] items-end gap-4 border-0 p-0';
 const pricingLabels = { retail: 'Normal price', bulk: 'Quantity discount', box: 'Box price' } as const;
 
 // The Sell screen when the owner has switched on box and quantity deals.
@@ -158,52 +164,61 @@ export function Checkout({ enabled }: { enabled: boolean }) {
   });
   return <PageState>
     <PageHeader title="Sell" subtitle={`A sale reduces stock at ${shopName} only. Add items to one basket. Current prices apply automatically.`} />
-    <Panel title={pending ? 'Confirm pending sale' : 'Record a sale'}><div className="checkout-body">
-      {error && <p role="alert">{error}</p>}
-      {message && <p role="status">{message}</p>}
-      {pending ? <div>
+    <Card>
+      <CardHeader><CardTitle><h2 className="text-base font-semibold">{pending ? 'Confirm pending sale' : 'Record a sale'}</h2></CardTitle></CardHeader>
+      <CardContent className="checkout-body grid min-w-0 gap-4 [overflow-wrap:anywhere]">
+      {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
+      {message && <Alert role="status"><AlertDescription>{message}</AlertDescription></Alert>}
+      {pending ? <div className="grid gap-3">
         <p>The last request needs confirmation. Keep this request until its result is known.</p>
-        <button className="button" disabled={busy} onClick={check}>Check sale status</button>
-        <button className="button secondary" disabled={busy} onClick={() => void run(() => send(pending))}>Retry same sale</button>
-      </div> : <form className="form-grid" onSubmit={review}>
-        <fieldset disabled={busy || inventoryBusy || settingsLoading || !settings || !!inventoryError || !enabled}>
-          <label><span>{terms.Item}</span><ProductPicker items={snapshot?.items.filter(item => item.isActive) ?? []} locationId={user?.locationId} selling value={itemId} onValueChange={(value) => { setItemId(value); setQuote(null); }} /></label>
-          <label><span className="quantity-label">Quantity{selected && <small className="selected-availability">{selected.closing} {selected.item.unit} available at {shopName}</small>}</span><InputControl aria-label="Quantity" type="number" min="1" max={selected?.closing} value={quantity} onValueChange={(value) => { setQuantity(value); setQuote(null); }} /></label>
-          <button className="button secondary" disabled={!selected} type="button" onClick={add}>Add to basket</button>
-          {basket.length > 0 && <div className="checkout-basket" aria-label="Sale basket">{basket.map(line => {
+        <div className="flex flex-wrap gap-2.5">
+          <Button type="button" className="h-11 px-4" disabled={busy} onClick={check}>Check sale status</Button>
+          <Button type="button" variant="outline" className="h-11 px-4" disabled={busy} onClick={() => void run(() => send(pending))}>Retry same sale</Button>
+        </div>
+      </div> : <form className="grid gap-4" onSubmit={review}>
+        <fieldset className={fieldsetClass} disabled={busy || inventoryBusy || settingsLoading || !settings || !!inventoryError || !enabled}>
+          <Label className="grid gap-2"><span>{terms.Item}</span><ProductPicker items={snapshot?.items.filter(item => item.isActive) ?? []} locationId={user?.locationId} selling value={itemId} onValueChange={(value) => { setItemId(value); setQuote(null); }} /></Label>
+          <div className="grid gap-2"><Label htmlFor="checkout-quantity">Quantity{selected && <small className="selected-availability block text-[13px] font-medium text-muted-foreground">{selected.closing} {selected.item.unit} available at {shopName}</small>}</Label><Input id="checkout-quantity" className="h-11" aria-label="Quantity" type="number" min="1" max={selected?.closing} value={quantity} onChange={event => { setQuantity(event.target.value); setQuote(null); }} /></div>
+          <Button type="button" variant="outline" className="h-11 px-4" disabled={!selected} onClick={add}>Add to basket</Button>
+          {basket.length > 0 && <div className="checkout-basket col-span-full grid min-w-0 gap-3" aria-label="Sale basket">{basket.map(line => {
             const item = snapshot?.items.find(i => i.id === line.itemId);
             const available = positions.find(p => p.item.id === line.itemId)?.closing ?? 0;
             const quoteLine = quote?.lines.find(l => l.itemId === line.itemId);
             const qtyId = `basket-qty-${line.itemId}`;
-            return <div className="checkout-basket-line" key={line.itemId} role="group" aria-label={item?.name ?? 'Unavailable item'}>
-              <b className="basket-line-name">{item?.name ?? 'Unavailable item'}</b>
-              <p className="basket-line-meta">{available} {item?.unit} available{item?.sellingPriceCents != null && <> · {money(item.sellingPriceCents, settings?.currency ?? 'GHS')} each</>}</p>
-              <div className="basket-line-qty"><label htmlFor={qtyId}>Quantity{item?.unit ? ` (${item.unit})` : ''}</label><InputControl id={qtyId} aria-label={`Quantity for ${item?.name}`} type="number" inputMode="numeric" min="1" max={available} required value={String(line.quantity || '')} onValueChange={value => { setBasket(current => current.map(l => l.itemId === line.itemId ? {...l,quantity:Number(value)} : l)); setQuote(null); }} /></div>
-              {quoteLine && <p className="basket-line-total">Line total <b>{money(quoteLine.totalCents)}</b></p>}
-              <button type="button" className="basket-remove" aria-label={`Remove ${item?.name}`} onClick={() => { setBasket(current => current.filter(l => l.itemId !== line.itemId)); setQuote(null); }}>Remove</button>
-            </div>;
+            return <Card size="sm" key={line.itemId} role="group" aria-label={item?.name ?? 'Unavailable item'} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 p-3.5">
+              <b className="col-span-full text-sm [overflow-wrap:anywhere]">{item?.name ?? 'Unavailable item'}</b>
+              <p className="col-span-full text-[13px] text-muted-foreground">{available} {item?.unit} available{item?.sellingPriceCents != null && <> · {money(item.sellingPriceCents, settings?.currency ?? 'GHS')} each</>}</p>
+              <div className="col-start-1 mt-2 grid max-w-[180px] gap-1"><Label htmlFor={qtyId} className="text-[13px] font-semibold text-foreground">Quantity{item?.unit ? ` (${item.unit})` : ''}</Label><Input id={qtyId} className="h-11" aria-label={`Quantity for ${item?.name}`} type="number" inputMode="numeric" min="1" max={available} required value={String(line.quantity || '')} onChange={event => { const value = event.target.value; setBasket(current => current.map(l => l.itemId === line.itemId ? {...l,quantity:Number(value)} : l)); setQuote(null); }} /></div>
+              {quoteLine && <p className="col-start-2 row-start-3 mt-2 text-right text-[13px]">Line total <b>{money(quoteLine.totalCents)}</b></p>}
+              <Button type="button" variant="link" className="col-span-full mt-1 h-11 justify-self-start px-1 text-[13px] text-muted-foreground underline hover:text-foreground" aria-label={`Remove ${item?.name}`} onClick={() => { setBasket(current => current.filter(l => l.itemId !== line.itemId)); setQuote(null); }}>Remove</Button>
+            </Card>;
           })}</div>}
-          <button className="button secondary" disabled={!basket.length && !selected} type="submit">Review sale</button>
-          <button className="button secondary" type="button" onClick={() => void run(async () => { setQuote(null); await refresh(); })}>Refresh stock and prices</button>
+          <Button variant="outline" className="h-11 px-4" disabled={!basket.length && !selected} type="submit">Review sale</Button>
+          <Button type="button" variant="outline" className="h-11 px-4" onClick={() => void run(async () => { setQuote(null); await refresh(); })}>Refresh stock and prices</Button>
         </fieldset>
       </form>}
-      {!pending && quote && <div className="pricing-quote-result" role="status">
-        <p>{quote.lines.length} {quote.lines.length === 1 ? 'item' : 'items'} · Stock and prices are checked again when you complete this sale.</p>
+      {!pending && quote && <div className="pricing-quote-result grid gap-3 tabular-nums" role="status">
+        <p className="text-sm">{quote.lines.length} {quote.lines.length === 1 ? 'item' : 'items'} · Stock and prices are checked again when you complete this sale.</p>
         <dl className="checkout-totals">
           {quote.automaticDiscountCents > 0 && <><div><dt>Price before discount</dt><dd>{money(quote.grossSalesCents)}</dd></div>
           <div className="checkout-discount"><dt>Discount</dt><dd>− {money(quote.automaticDiscountCents)}</dd></div></>}
           <div className="checkout-pay"><dt>Customer pays</dt><dd>{money(quote.totalCents)}</dd></div>
         </dl>
-        {quote.lines.map(line => <section className="checkout-quote-line" key={line.itemId}><h3>{line.itemName}</h3><p>{line.quantity} {line.baseUnit} · {money(line.totalCents)}</p><div className="table-wrap" tabIndex={0} role="region" aria-label="Scrollable table"><table><thead><tr><th>Price used</th><th className="num">Quantity</th><th className="num">Each</th><th className="num">Total</th></tr></thead><tbody>{line.components.map((part, index) => <tr key={index}><td>{part.category === 'box' && line.package ? `${line.package.label.charAt(0).toUpperCase()}${line.package.label.slice(1)} price (${line.package.size} per ${line.package.label})` : pricingLabels[part.category]}</td><td className="num">{part.quantity}</td><td className="num">{money(part.unitPriceCents)}</td><td className="num">{money(part.totalCents)}</td></tr>)}</tbody></table></div></section>)}
-        <div className="checkout-payment">
-          <label><span>Payment record (manual)</span><SelectControl aria-label="Payment record (manual)" value={tenderMethod} disabled={busy} onValueChange={value => { setTenderMethod(value as typeof tenderMethod); setReceived(''); }} options={[{value:'not_recorded',label:'Payment not recorded'},{value:'cash',label:'Cash received'},{value:'momo',label:'MoMo received — confirmed manually'},{value:'unpaid',label:'Unpaid'}]} /></label>
-          {(tenderMethod === 'cash' || tenderMethod === 'momo') && <label><span>Amount received ({quote.currency})</span><InputControl aria-label="Amount received" type="number" min="0" step="0.01" disabled={busy} value={received} onValueChange={setReceived} /></label>}
-          {tenderMethod === 'cash' && parseMoneyCents(received) !== null && parseMoneyCents(received)! >= quote.totalCents && <p role="status">Change to give: {money(parseMoneyCents(received)! - quote.totalCents)}</p>}
-          <p>{tenderMethod === 'unpaid' ? 'The full sale amount is still due. No payment has been recorded.' : tenderMethod === 'not_recorded' ? 'This sale will have no payment confirmation.' : 'Confirm the money was received before recording it. This does not collect or verify a payment.'}</p>
+        {quote.lines.map(line => <section className="grid gap-2" key={line.itemId}><h3 className="text-base font-semibold">{line.itemName}</h3><p className="text-sm">{line.quantity} {line.baseUnit} · {money(line.totalCents)}</p>
+          <Table containerProps={{ tabIndex: 0, role: 'region', 'aria-label': 'Scrollable table' }}>
+            <TableHeader><TableRow><TableHead>Price used</TableHead><TableHead className="num">Quantity</TableHead><TableHead className="num">Each</TableHead><TableHead className="num">Total</TableHead></TableRow></TableHeader>
+            <TableBody>{line.components.map((part, index) => <TableRow key={index}><TableCell>{part.category === 'box' && line.package ? `${line.package.label.charAt(0).toUpperCase()}${line.package.label.slice(1)} price (${line.package.size} per ${line.package.label})` : pricingLabels[part.category]}</TableCell><TableCell className="num">{part.quantity}</TableCell><TableCell className="num">{money(part.unitPriceCents)}</TableCell><TableCell className="num">{money(part.totalCents)}</TableCell></TableRow>)}</TableBody>
+          </Table></section>)}
+        <div className="checkout-payment grid gap-3.5">
+          <Label className="grid gap-2"><span>Payment record (manual)</span><SelectControl aria-label="Payment record (manual)" value={tenderMethod} disabled={busy} onValueChange={value => { setTenderMethod(value as typeof tenderMethod); setReceived(''); }} options={[{value:'not_recorded',label:'Payment not recorded'},{value:'cash',label:'Cash received'},{value:'momo',label:'MoMo received — confirmed manually'},{value:'unpaid',label:'Unpaid'}]} /></Label>
+          {(tenderMethod === 'cash' || tenderMethod === 'momo') && <div className="grid gap-2"><Label htmlFor="checkout-received">Amount received ({quote.currency})</Label><Input id="checkout-received" className="h-11" aria-label="Amount received" type="number" min="0" step="0.01" disabled={busy} value={received} onChange={event => setReceived(event.target.value)} /></div>}
+          {tenderMethod === 'cash' && parseMoneyCents(received) !== null && parseMoneyCents(received)! >= quote.totalCents && <p className="text-sm" role="status">Change to give: {money(parseMoneyCents(received)! - quote.totalCents)}</p>}
+          <p className="text-sm text-muted-foreground">{tenderMethod === 'unpaid' ? 'The full sale amount is still due. No payment has been recorded.' : tenderMethod === 'not_recorded' ? 'This sale will have no payment confirmation.' : 'Confirm the money was received before recording it. This does not collect or verify a payment.'}</p>
         </div>
-        <button className="button" disabled={busy || !enabled || !!inventoryError} onClick={complete}>Complete sale</button>
+        <Button type="button" className="h-11 justify-self-start px-4" disabled={busy || !enabled || !!inventoryError} onClick={complete}>Complete sale</Button>
       </div>}
-      {completed && <div><p role="status">Sale recorded · {money(completed.totalCents, completed.currency)}</p><NavLink className="button secondary" to={`/sales/${completed.id}/receipt`}>View customer receipt</NavLink></div>}
-    </div></Panel>
+      {completed && <div className="grid justify-items-start gap-3"><p role="status">Sale recorded · {money(completed.totalCents, completed.currency)}</p><NavLink className={buttonVariants({ variant: 'outline', className: 'h-11 px-4' })} to={`/sales/${completed.id}/receipt`}>View customer receipt</NavLink></div>}
+      </CardContent>
+    </Card>
   </PageState>;
 }
