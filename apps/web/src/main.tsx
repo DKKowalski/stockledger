@@ -9,6 +9,7 @@ import { UiProvider } from './components/ui/ui-provider';
 import { AppErrorBoundary } from './components/app-error-boundary';
 import './monitoring';
 import 'sonner/dist/styles.css';
+import './tailwind.css';
 import './styles.css';
 
 applyAppearance(readAppearance());

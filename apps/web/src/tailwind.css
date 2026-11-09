@@ -1,0 +1,59 @@
+/* Tailwind v4 foundation for new UI. Preflight is intentionally NOT imported so
+   the legacy styles.css pages render exactly as before. Layered rules lose to
+   unlayered styles.css, so legacy pages are never overridden. */
+@layer theme, base, components, utilities;
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/utilities.css' layer(utilities);
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+/* Tokens: shadcn names map onto the existing StockLedger custom properties in
+   styles.css (--ink, --card, --border, --violet...). Nothing is redefined there. */
+@theme inline {
+  --font-sans: var(--font-body);
+  --font-heading: var(--font-display);
+  --font-mono: var(--font-number);
+  --color-background: var(--canvas);
+  --color-foreground: var(--ink);
+  --color-card: var(--card-pure);
+  --color-card-foreground: var(--ink);
+  --color-popover: var(--card-pure);
+  --color-popover-foreground: var(--ink);
+  --color-primary: var(--violet);
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #f1f1ef;
+  --color-secondary-foreground: var(--ink);
+  --color-muted: #ece9e0;
+  --color-muted-foreground: var(--muted);
+  --color-accent: var(--violet-soft);
+  --color-accent-foreground: var(--violet-dark);
+  --color-destructive: var(--danger);
+  --color-border: var(--border);
+  --color-input: #cfcdc3;
+  --color-ring: var(--focus-ring);
+  --color-sidebar: var(--card-pure);
+  --color-sidebar-foreground: var(--ink);
+  --color-sidebar-primary: var(--violet);
+  --color-sidebar-primary-foreground: #ffffff;
+  --color-sidebar-accent: var(--violet-soft);
+  --color-sidebar-accent-foreground: var(--violet-dark);
+  --color-sidebar-border: var(--border);
+  --color-sidebar-ring: var(--focus-ring);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+  --radius-2xl: 18px;
+  --radius-3xl: 22px;
+  --radius-4xl: 26px;
+}
+
+/* Minimal base for shadcn parts only (a scoped stand-in for preflight). */
+@layer base {
+  [data-slot], [data-slot] *, [data-slot]::before, [data-slot]::after { border: 0 solid var(--color-border); }
+  button[data-slot], [data-slot] button { margin: 0; padding: 0; background: transparent; cursor: pointer; }
+  [data-slot] :is(ul, ol) { list-style: none; margin: 0; padding: 0; }
+}
