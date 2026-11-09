@@ -16,7 +16,7 @@ import {
 import type { Varchar } from '@prisma/orm-postgres/target/codec-types';
 import { PrismaService, type PrismaTransaction } from '../../prisma/prisma.service.js';
 import type { UserRole } from '../auth/auth.types.js';
-import { buildSnapshot, lowestBalanceFrom, snapshotPeriod, lineKey, type LineAggregate, withoutCosts, type ItemRecord, type LocationRecord, type MovementRecord, type StockRecord } from './inventory-calculations.js';
+import { buildSnapshot, presentMovement, lowestBalanceFrom, snapshotPeriod, lineKey, type LineAggregate, withoutCosts, type ItemRecord, type LocationRecord, type MovementRecord, type StockRecord } from './inventory-calculations.js';
 import { CreateItemDto } from './dto/create-item.dto.js';
 import { CreateLocationDto } from './dto/create-location.dto.js';
 import { CreateMovementDto } from './dto/create-movement.dto.js';
@@ -150,18 +150,36 @@ export class InventoryService {
       this.assertInventoryManager(actor);
       const matches = await searchSaleSources(this.prisma, tx, companyId, query, true);
       const ids = new Set(matches.map((sale) => sale.id));
-      const scope = await this.scope(tx, companyId);
-      const returned = new Map<string, number>();
-      for (const movement of scope.movements) {
-        if (movement.type === StockMovementType.RETURN_IN && movement.relatedMovementId) {
-          returned.set(movement.relatedMovementId, (returned.get(movement.relatedMovementId) ?? 0) + movement.quantity);
-        }
-      }
+      // Page of legacy sales that still have unreturned quantity, found in SQL. Only those movements are loaded.
+      if (!ids.size) return [];
+      const [items, locations] = await Promise.all([
+        tx.orm.public.InventoryItem.where({ companyId }).all(),
+        tx.orm.public.Location.where({ companyId }).all(),
+      ]);
+      const rows = await tx.query(this.prisma.client.raw.sql`
+        SELECT m.id, m.company_id AS "companyId", m.item_id AS "itemId", m.location_id AS "locationId", m.destination_location_id AS "destinationLocationId",
+          m.type::text AS type, m.quantity, m.unit_price_cents AS "unitPriceCents", m.unit_cost_cents AS "unitCostCents",
+          m.cost_total_cents AS "costTotalCents", m.corrects_movement_id AS "correctsMovementId", correction.id AS "correctedByMovementId",
+          m.supplier_id AS "supplierId", m.related_movement_id AS "relatedMovementId", m.stock_count_id AS "stockCountId",
+          m.movement_date::text AS "movementDate", m.reference, m.note, m.created_at AS "createdAt",
+          COALESCE((SELECT sum(r.quantity) FROM public.stock_movements r WHERE r.company_id = m.company_id AND r.type = 'return_in' AND r.related_movement_id = m.id), 0)::int AS returned
+        FROM public.stock_movements m
+        LEFT JOIN public.stock_movements correction ON correction.company_id = m.company_id AND correction.corrects_movement_id = m.id
+        WHERE m.company_id = ${companyId}::uuid AND m.type = 'sale' AND m.id = ANY(string_to_array(${[...ids].join(',')}, ',')::uuid[])
+          AND NOT EXISTS (SELECT 1 FROM public.sale_components c WHERE c.company_id = m.company_id AND c.movement_id = m.id)
+        ORDER BY m.movement_date DESC, m.created_at DESC, m.id DESC
+      `.returnsRow({ id: 'pg/uuid@1', companyId: 'pg/uuid@1', itemId: 'pg/uuid@1', locationId: 'pg/uuid@1', destinationLocationId: 'pg/uuid@1',
+        type: 'pg/text@1', quantity: 'pg/int4@1', unitPriceCents: 'pg/int4@1', unitCostCents: 'pg/int4@1', supplierId: 'pg/uuid@1',
+        costTotalCents: 'pg/int4@1', correctsMovementId: 'pg/uuid@1', correctedByMovementId: 'pg/uuid@1',
+        relatedMovementId: 'pg/uuid@1', stockCountId: 'pg/uuid@1', movementDate: 'pg/text@1', reference: 'pg/text@1', note: 'pg/text@1',
+        createdAt: 'pg/timestamptz-string@1', returned: 'pg/int4@1' }).build());
+      const itemById = new Map(items.map((item) => [item.id, item as ItemRecord]));
+      const locationById = new Map(locations.map((location) => [location.id, this.presentLocation(location) as LocationRecord]));
       // Grouped sales (saleId) return through the original-allocation workflow instead.
-      return buildSnapshot(scope.items, scope.locations, scope.stocks, scope.movements).movements
-        .filter((movement) => movement.type === StockMovementType.SALE && !movement.saleId)
-        .map((sale) => ({ ...sale, returnableQuantity: sale.quantity - (returned.get(sale.id) ?? 0) }))
-        .filter((sale) => sale.returnableQuantity > 0 && ids.has(sale.id));
+      return rows
+        .map(({ returned, ...row }) => ({ ...presentMovement(row as unknown as MovementRecord, itemById, locationById), returnableQuantity: row.quantity - returned }))
+        .sort((left, right) => right.movementDate.localeCompare(left.movementDate) || right.createdAt.localeCompare(left.createdAt))
+        .filter((sale) => sale.returnableQuantity > 0);
     }, { consistentSnapshot:true });
   }
 

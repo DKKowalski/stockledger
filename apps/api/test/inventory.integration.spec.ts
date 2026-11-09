@@ -1693,3 +1693,63 @@ describe('stock overview aggregated in SQL', () => {
     }
   });
 });
+
+describe('returnable sales bounded in SQL', () => {
+  it('matches the full-history implementation for partial, full and grouped sales, pages and filters', async () => {
+    const f = await fixture(1000);
+    const { SaleSearchDto } = await import('../src/modules/inventory/dto/sale-search.dto.js');
+    const { searchSaleSources } = await import('../src/modules/inventory/sale-source-search.js');
+    const second = await service.createItem(f.admin.id, f.company.id, {
+      sku: 'TEST-TWO', name: 'Second item', category: 'Test', unit: 'pcs',
+      unitCostCents: 50, sellingPriceCents: 90, reorderLevel: 0, openingStock: 500, locationId: f.shop.id,
+    });
+    const base = { companyId: f.company.id, type: 'sale' as const, unitPriceCents: 175, unitCostCents: 100 };
+    const sales: string[] = [];
+    for (let n = 0; n < 24; n++) {
+      const sale = await db.orm.public.StockMovement.create({
+        ...base, itemId: n % 3 === 0 ? second.id : f.item.id, locationId: n % 2 ? f.shop.id : f.warehouse.id, quantity: 1 + (n % 4),
+        movementDate: `2026-0${1 + (n % 3)}-1${n % 8}`, reference: varchar<80>(`Legacy ${n}`),
+      });
+      sales.push(sale.id);
+    }
+    const ret = (id: string, itemId: string, locationId: string, quantity: number) => db.orm.public.StockMovement.create({
+      companyId: f.company.id, itemId, locationId, type: 'return_in', quantity, relatedMovementId: id, movementDate: '2026-04-01',
+    });
+    for (let n = 0; n < 24; n += 2) {
+      const sale = (await db.orm.public.StockMovement.first({ companyId: f.company.id, id: sales[n]! }))!;
+      await ret(sale.id, sale.itemId, sale.locationId, n % 4 === 0 ? sale.quantity : 1);
+      if (n % 6 === 0 && sale.quantity > 1 && n % 4 !== 0) await ret(sale.id, sale.itemId, sale.locationId, 1);
+    }
+    // Basket sale: its movement is excluded from the legacy list even with unreturned quantity.
+    const grouped = await db.orm.public.Sale.create({ companyId: f.company.id, locationId: f.shop.id, createdByUserId: f.attendant.id, idempotencyKey: randomUUID(), requestHash: varchar<64>('b'.repeat(64)), currency: varchar<3>('GHS'), movementDate: '2026-01-01', grossSalesCents: 350, automaticDiscountCents: 0, totalCents: 350, cogsCents: 200 });
+    const line = await db.orm.public.SaleLine.create({ companyId: f.company.id, saleId: grouped.id, itemId: f.item.id, position: 0, itemName: varchar<120>('Basket item'), sku: f.item.sku, category: f.item.category, baseUnit: varchar<20>('pcs'), quantity: 2, retailPriceCents: 175, unitCostCents: 100, grossSalesCents: 350, automaticDiscountCents: 0, totalCents: 350, cogsCents: 200, pricingSnapshot: {} });
+    await db.orm.public.SaleComponent.create({ companyId: f.company.id, saleLineId: line.id, movementId: sales[1]!, position: 0, category: varchar<10>('retail'), quantity: 2, unitPriceCents: 175, totalCents: 350 });
+    // A foreign-tenant sale must never appear.
+    const foreign = await fixture(50);
+    await db.orm.public.StockMovement.create({ ...base, companyId: foreign.company.id, itemId: foreign.item.id, locationId: foreign.shop.id, quantity: 2, movementDate: '2026-01-01' });
+
+    // Reference: the previous implementation, which scans every movement of the company.
+    const prisma = service['prisma'];
+    const reference = (query: InstanceType<typeof SaleSearchDto>) => prisma.withCompany(f.company.id, async (tx) => {
+      const ids = new Set((await searchSaleSources(prisma, tx, f.company.id, query, true)).map((s) => s.id));
+      const scope = await service['scope'](tx, f.company.id);
+      const returned = new Map<string, number>();
+      for (const m of scope.movements) if (m.type === Type.RETURN_IN && m.relatedMovementId) returned.set(m.relatedMovementId, (returned.get(m.relatedMovementId) ?? 0) + m.quantity);
+      return buildSnapshot(scope.items, scope.locations, scope.stocks, scope.movements).movements
+        .filter((m) => m.type === Type.SALE && !m.saleId)
+        .map((sale) => ({ ...sale, returnableQuantity: sale.quantity - (returned.get(sale.id) ?? 0) }))
+        .filter((sale) => sale.returnableQuantity > 0 && ids.has(sale.id));
+    }, { consistentSnapshot: true });
+    const query = (input: object) => Object.assign(new SaleSearchDto(), input);
+    const cases = [{}, { limit: 5 }, { offset: 5, limit: 7 }, { itemId: second.id }, { locationId: f.shop.id }, { from: '2026-02-01', to: '2026-02-28' }, { search: 'Legacy 1' }, { search: 'zzz-none' }, { limit: 100 }];
+    let total = 0;
+    for (const input of cases) {
+      const actual = await service.returnableSales(f.admin.id, f.company.id, query(input));
+      const expected = await reference(query(input));
+      expect(JSON.parse(JSON.stringify(actual))).toEqual(JSON.parse(JSON.stringify(expected)));
+      expect(actual.every((s) => s.returnableQuantity > 0 && s.id !== sales[1])).toBe(true);
+      total += actual.length;
+    }
+    expect(total).toBeGreaterThan(20);
+  });
+});
