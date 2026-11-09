@@ -1,4 +1,5 @@
 import type { FinanceBudgetInput, FinanceEntryInput, FinanceEntryList, FinanceReport } from './features/finance/finance-types';
+import type { ProfitSplit, ProfitSplitSetting } from './features/finance/profit-split-types';
 import type { DateRangeValue } from './lib/date-range';
 import type { ReturnSource,StockState } from './features/movements/hybrid-operations-panels';
 import type { OperationRecord } from './features/movements/durable-operation';
@@ -67,6 +68,10 @@ export const api = {
   saveFinanceCategory: (token: string, body: { name: string; isActive: boolean }, id?: string) => request(`/finance/categories${id ? `/${id}` : ''}`, { method: id ? 'PATCH' : 'POST', body: JSON.stringify(body) }, token),
   saveFinanceEntry: (token: string, body: FinanceEntryInput, id?: string) => request(`/finance/entries${id ? `/${id}` : ''}`, { method: id ? 'PATCH' : 'POST', body: JSON.stringify(body) }, token),
   deleteFinanceEntry: (token: string, id: string) => request(`/finance/entries/${id}`, { method: 'DELETE' }, token),
+  profitSplit: (token: string, month: string) => request<ProfitSplit>(`/finance/profit-split?month=${month}`, undefined, token),
+  saveProfitSplitSettings: (token: string, parts: ProfitSplitSetting[]) => request('/finance/profit-split/settings', { method: 'PUT', body: JSON.stringify({ parts }) }, token),
+  completeProfitSplitPart: (token: string, month: string, key: string, body: { doneOn: string; note: string }) => request<ProfitSplit>(`/finance/profit-split/${month}/parts/${encodeURIComponent(key)}`, { method: 'PUT', body: JSON.stringify(body) }, token),
+  uncompleteProfitSplitPart: (token: string, month: string, key: string) => request<ProfitSplit>(`/finance/profit-split/${month}/parts/${encodeURIComponent(key)}`, { method: 'DELETE' }, token),
   saveFinanceBudget: (token: string, body: FinanceBudgetInput) => request('/finance/budgets', { method: 'POST', body: JSON.stringify(body) }, token),
   returnSources:(token:string, query: Record<string,string> = {})=>request<{available:boolean;sources:Array<{id:string;type:'grouped'|'legacy';date:string;reference:string}>}>(`/inventory/sale-returns?${new URLSearchParams(query)}`,undefined,token),
   returnSource:(token:string,type:string,id:string)=>request<ReturnSource>(`/inventory/sale-returns/sources/${type}/${id}`,undefined,token),

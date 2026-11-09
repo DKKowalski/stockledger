@@ -73,6 +73,12 @@ test('key mobile screens have no WCAG A/AA axe violations', async ({ page }, tes
     await page.goto('/finance');
     await expect(page.getByRole('heading', { name: /Finance/ }).first()).toBeVisible();
     await scan(page, 'finance');
+
+    // Other revenue early this month gives the month a profit, so the profit split (an estimate) shows.
+    await db.query("INSERT INTO finance_entries(id,company_id,kind,entry_date,amount_cents,note,created_by_user_id,updated_at) VALUES ($1,$2,'other_revenue',date_trunc('month', now() at time zone 'utc')::date,123457,'Access fixture',$3,now())", [randomUUID(), company, owner]);
+    await page.reload();
+    await expect(page.locator('.profit-split-card').first()).toBeVisible();
+    await scan(page, 'finance profit split');
     expect(found, 'axe violations (wcag2a, wcag2aa)').toEqual([]);
   } finally { await db.end(); }
 });

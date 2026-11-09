@@ -13,10 +13,11 @@ import { MotionTabs } from '../../components/ui/motion-tabs';
 import { companyDay, rangeQuery, type DateRangeValue } from '../../lib/date-range';
 import { parseMoneyCents } from '../../lib/presentation';
 import { safeErrorMessage } from '../../lib/user-facing-error';
+import { ProfitSplitSection } from './profit-split-section';
 import type { FinanceBudgetInput, FinanceCategory, FinanceEntry, FinanceEntryInput, FinanceEntryList, FinanceLine, FinanceMonth, FinancePeriod, FinanceReport, FinanceStatus } from './finance-types';
 
 type View = 'month' | 'months' | 'year';
-type Editor = 'budget' | 'entries' | 'categories' | null;
+type Editor = 'budget' | 'entries' | 'categories' | 'split' | null;
 type Metric = 'actual' | 'budget' | 'variance';
 
 // Drafts belong to this signed-in Finance page, not an editor's mount lifetime.
@@ -117,7 +118,7 @@ function FinanceWorkspacePage() {
       <section className="panel finance-toolbar" aria-label="Finance report filters">
         <label><span>Year</span><SelectControl aria-label="Finance year" value={String(year)} onValueChange={value => setYear(Number(value))} options={Array.from({ length: 8 }, (_, i) => String(thisYear + 1 - i)).map(value => ({ value, label: value }))} /></label>
         {view === 'month' && <label><span>Month</span><SelectControl aria-label="Finance month" value={monthNumber} onValueChange={setMonthNumber} options={Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0')).map(value => ({ value, label: monthName(`${year}-${value}`) }))} /></label>}
-        <div className="finance-editor-buttons">{editorButton('budget', 'Set budget')}{editorButton('entries', 'Expenses and other revenue')}{editorButton('categories', 'Categories')}</div>
+        <div className="finance-editor-buttons">{editorButton('budget', 'Set budget')}{editorButton('entries', 'Expenses and other revenue')}{editorButton('categories', 'Categories')}{view === 'month' && editorButton('split', 'Profit split settings')}</div>
       </section>
     </div>
     {Object.keys(drafts).some(key => /^(budget|entry|category):/.test(key)) && <p className="finance-draft-status finance-controls" role="status">Unsaved Finance drafts are kept while you switch editors, views and months. Save or discard them in their editor. Leaving Finance or reloading clears them.</p>}
@@ -141,6 +142,7 @@ function FinanceWorkspacePage() {
           {view === 'months' && <Reconciliation period={loaded.yearly} />}
         </div>
       </section>
+      {view === 'month' && user?.role === 'administrator' && <ProfitSplitSection accessToken={accessToken!} month={month} monthLabel={`${monthName(month)} ${year}`} revision={revision} readOnly={readOnly} editing={editor === 'split'} onCloseEditor={() => setEditor(null)} onUnauthorized={signOut} />}
     </>}
     {!report && !error && <EmptyState text="Loading finance report" />}
   </div></DraftContext.Provider>;
