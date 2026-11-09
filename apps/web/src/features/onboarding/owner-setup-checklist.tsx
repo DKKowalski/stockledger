@@ -57,7 +57,7 @@ export function OwnerSetupChecklist() {
       <div className="owner-setup-kicker"><span>Workspace setup</span><b>{percent}% ready</b></div>
       <h2 id="owner-setup-title">Open your ledger</h2>
       <p>Next: {nextTask.label}. {nextTask.key === 'movement' ? 'Record the units on your shelf so your team can see what is available.' : nextTask.key === 'price' ? 'Give your team a price to use at checkout.' : 'Each step uses real workspace activity.'}</p>
-      <div className="owner-setup-progress" aria-label={`${percent}% of workspace setup complete`}><i style={{ transform: `scaleX(${percent / 100})` }} /></div>
+      <div className="owner-setup-progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent} aria-label={`${percent}% of workspace setup complete`}><i style={{ transform: `scaleX(${percent / 100})` }} /></div>
       <Link className="button owner-setup-next" to={nextTask.path}>{nextTask.label}<ArrowUpRight size={16} /></Link>
     </div>
     <div className="owner-setup-tasks">

@@ -32,7 +32,7 @@ export function PlacesPage() {
       </form>
     </Panel>
     <Panel title={`Places (${places.length})`} className="spaced">
-      {places.length ? <div className="table-wrap"><table><thead><tr><th>Name</th><th>Type</th></tr></thead><tbody>{places.map((place) => <tr key={place.id}><td><b>{place.name}</b></td><td>{place.type === 'shop' ? terms.Shop : terms.Warehouse}</td></tr>)}</tbody></table></div> : <EmptyState text="No places yet." />}
+      {places.length ? <div className="table-wrap" tabIndex={0} role="region" aria-label="Scrollable table"><table><thead><tr><th>Name</th><th>Type</th></tr></thead><tbody>{places.map((place) => <tr key={place.id}><td><b>{place.name}</b></td><td>{place.type === 'shop' ? terms.Shop : terms.Warehouse}</td></tr>)}</tbody></table></div> : <EmptyState text="No places yet." />}
     </Panel>
   </PageState>;
 }

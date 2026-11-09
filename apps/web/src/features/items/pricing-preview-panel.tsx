@@ -127,7 +127,7 @@ export function PricingEditor({ item }: { item: Item }) {
     {quote && <div className="pricing-quote-result" role="status">
       <p>{quote.lines[0].quantity} {item.unit} · Total <strong>{money(quote.totalCents)}</strong></p>
       {quote.lines[0].priceDropQuantities.length > 0 && <p>Adding a unit reduces the total at these quantities: {quote.lines[0].priceDropQuantities.join(', ')} {item.unit}. Review these boundaries before using this pricing.</p>}
-      <div className="table-wrap"><table><thead><tr><th>Pricing</th><th className="num">Quantity</th><th className="num">Unit price</th><th className="num">Total</th></tr></thead><tbody>{quote.lines[0].components.map((part, index) => <tr key={index}><td>{({ retail: 'Individual', bulk: 'Quantity discount', box: 'Box / carton' })[part.category]}</td><td className="num">{part.quantity}</td><td className="num">{money(part.unitPriceCents)}</td><td className="num">{money(part.totalCents)}</td></tr>)}</tbody></table></div>
+      <div className="table-wrap" tabIndex={0} role="region" aria-label="Scrollable table"><table><thead><tr><th>Pricing</th><th className="num">Quantity</th><th className="num">Unit price</th><th className="num">Total</th></tr></thead><tbody>{quote.lines[0].components.map((part, index) => <tr key={index}><td>{({ retail: 'Individual', bulk: 'Quantity discount', box: 'Box / carton' })[part.category]}</td><td className="num">{part.quantity}</td><td className="num">{money(part.unitPriceCents)}</td><td className="num">{money(part.totalCents)}</td></tr>)}</tbody></table></div>
       <p>At individual price {money(quote.grossSalesCents)} · You save {money(quote.automaticDiscountCents)}</p>
     </div>}
   </div>;

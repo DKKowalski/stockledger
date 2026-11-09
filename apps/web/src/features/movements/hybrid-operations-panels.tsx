@@ -220,7 +220,7 @@ function CustomerReturns() {
                   Refund amount:{' '}
                   <strong>{formatMoney(preview.refundCents, preview.currency as Currency)}</strong>
                 </p>
-                <div className="table-wrap">
+                <div className="table-wrap" tabIndex={0} role="region" aria-label="Scrollable table">
                   <table>
                     <thead>
                       <tr>

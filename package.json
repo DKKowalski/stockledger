@@ -24,6 +24,7 @@
     "security:check": "npm audit --omit=dev --audit-level=high"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.10.2",
     "@playwright/test": "^1.63.0"
   }
 }
